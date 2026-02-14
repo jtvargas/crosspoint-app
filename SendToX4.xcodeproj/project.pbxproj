@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		BB000001BBBBBBBB00000001 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = AA000003AAAAAAAA00000003 /* ZIPFoundation */; };
+		BB000002BBBBBBBB00000002 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = AA000004AAAAAAAA00000004 /* SwiftSoup */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		062C17A22F4015F7007E89F9 /* SendToX4.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SendToX4.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +28,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB000001BBBBBBBB00000001 /* ZIPFoundation in Frameworks */,
+				BB000002BBBBBBBB00000002 /* SwiftSoup in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +72,8 @@
 			);
 			name = SendToX4;
 			packageProductDependencies = (
+				AA000003AAAAAAAA00000003 /* ZIPFoundation */,
+				AA000004AAAAAAAA00000004 /* SwiftSoup */,
 			);
 			productName = SendToX4;
 			productReference = 062C17A22F4015F7007E89F9 /* SendToX4.app */;
@@ -94,6 +103,10 @@
 			);
 			mainGroup = 062C17992F4015F7007E89F9;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AA000005AAAAAAAA00000005 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
+				AA000006AAAAAAAA00000006 /* XCRemoteSwiftPackageReference "SwiftSoup" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 062C17A32F4015F7007E89F9 /* Products */;
 			projectDirPath = "";
@@ -254,6 +267,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -298,6 +312,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -351,6 +366,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AA000005AAAAAAAA00000005 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.0;
+			};
+		};
+		AA000006AAAAAAAA00000006 /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/scinfu/SwiftSoup.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AA000003AAAAAAAA00000003 /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA000005AAAAAAAA00000005 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
+		};
+		AA000004AAAAAAAA00000004 /* SwiftSoup */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA000006AAAAAAAA00000006 /* XCRemoteSwiftPackageReference "SwiftSoup" */;
+			productName = SwiftSoup;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 062C179A2F4015F7007E89F9 /* Project object */;
 }
