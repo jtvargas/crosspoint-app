@@ -12,6 +12,9 @@ final class DeviceViewModel {
     var isSearching = false
     var firmwareLabel = "Not Connected"
     var errorMessage: String?
+    
+    /// Upload progress (0.0 to 1.0). Updated during file uploads.
+    var uploadProgress: Double = 0
 
     // MARK: - Internal State
 
@@ -51,12 +54,21 @@ final class DeviceViewModel {
         await search(settings: settings)
     }
 
-    /// Upload an EPUB file to the device.
+    /// Upload an EPUB file to the device with progress reporting.
     func upload(data: Data, filename: String, toFolder folder: String) async throws {
         guard let service = activeService else {
             throw DeviceError.unreachable
         }
+        
+        uploadProgress = 0
+        
         try await service.ensureFolder(folder)
-        try await service.uploadFile(data: data, filename: filename, toFolder: folder)
+        try await service.uploadFile(data: data, filename: filename, toFolder: folder) { [weak self] progress in
+            Task { @MainActor [weak self] in
+                self?.uploadProgress = progress
+            }
+        }
+        
+        uploadProgress = 1.0
     }
 }

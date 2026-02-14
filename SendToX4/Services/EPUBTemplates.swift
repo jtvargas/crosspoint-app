@@ -17,7 +17,9 @@ enum EPUBTemplates {
 </container>
 """
     
-    /// OEBPS/content.opf — OPF 2.0 package document.
+    // MARK: - Single-Chapter Templates (backward compatible)
+    
+    /// OEBPS/content.opf — OPF 2.0 package document (single chapter).
     static func contentOPF(
         uuid: String,
         title: String,
@@ -50,7 +52,7 @@ enum EPUBTemplates {
 """
     }
     
-    /// OEBPS/toc.ncx — NCX table of contents.
+    /// OEBPS/toc.ncx — NCX table of contents (single chapter).
     static func tocNCX(uuid: String, title: String) -> String {
 """
 <?xml version="1.0" encoding="UTF-8"?>
@@ -77,8 +79,113 @@ enum EPUBTemplates {
 """
     }
     
-    /// OEBPS/content.xhtml — the article content wrapped in XHTML 1.1.
+    /// OEBPS/content.xhtml — the article content wrapped in XHTML 1.1 (single chapter).
     static func contentXHTML(title: String, body: String, language: String) -> String {
+"""
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="\(language)">
+  <head>
+    <meta http-equiv="Content-Type" content="application/xhtml+xml; charset=utf-8"/>
+    <title>\(title)</title>
+    <style type="text/css">
+      body { margin: 1em; font-family: serif; line-height: 1.6; }
+      h1 { font-size: 1.4em; margin-bottom: 0.5em; }
+      h2 { font-size: 1.2em; margin-top: 1em; }
+      p { margin: 0.5em 0; text-indent: 0; }
+      blockquote { margin: 1em 2em; font-style: italic; }
+      pre, code { font-family: monospace; font-size: 0.9em; }
+    </style>
+  </head>
+  <body>
+    <h1>\(title)</h1>
+    \(body)
+  </body>
+</html>
+"""
+    }
+    
+    // MARK: - Multi-Chapter Templates
+    
+    /// OEBPS/content.opf — OPF 2.0 package document with multiple chapters.
+    static func contentOPF(
+        uuid: String,
+        title: String,
+        author: String,
+        language: String,
+        date: String,
+        publisher: String,
+        description: String,
+        chapterCount: Int
+    ) -> String {
+        let manifestItems = (0..<chapterCount).map { i in
+            "    <item id=\"chapter-\(i)\" href=\"chapter-\(i).xhtml\" media-type=\"application/xhtml+xml\"/>"
+        }.joined(separator: "\n")
+        
+        let spineItems = (0..<chapterCount).map { i in
+            "    <itemref idref=\"chapter-\(i)\"/>"
+        }.joined(separator: "\n")
+        
+        return """
+<?xml version="1.0" encoding="UTF-8"?>
+<package version="2.0" xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+    <dc:identifier id="BookId" opf:scheme="uuid">\(uuid)</dc:identifier>
+    <dc:title>\(title)</dc:title>
+    <dc:creator opf:role="aut">\(author)</dc:creator>
+    <dc:language>\(language)</dc:language>
+    <dc:date>\(date)</dc:date>
+    <dc:publisher>\(publisher)</dc:publisher>
+    <dc:description>\(description)</dc:description>
+  </metadata>
+  <manifest>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+\(manifestItems)
+  </manifest>
+  <spine toc="ncx">
+\(spineItems)
+  </spine>
+</package>
+"""
+    }
+    
+    /// OEBPS/toc.ncx — NCX table of contents with multiple chapters.
+    static func tocNCX(uuid: String, title: String, chapters: [Chapter]) -> String {
+        let navPoints = chapters.enumerated().map { (i, chapter) in
+            let playOrder = i + 1
+            let escapedTitle = chapter.title.xmlEscaped
+            return """
+    <navPoint id="navpoint-\(playOrder)" playOrder="\(playOrder)">
+      <navLabel>
+        <text>\(escapedTitle)</text>
+      </navLabel>
+      <content src="chapter-\(chapter.index).xhtml"/>
+    </navPoint>
+"""
+        }.joined(separator: "\n")
+        
+        return """
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
+<ncx version="2005-1" xmlns="http://www.daisy.org/z3986/2005/ncx/">
+  <head>
+    <meta name="dtb:uid" content="\(uuid)"/>
+    <meta name="dtb:depth" content="1"/>
+    <meta name="dtb:totalPageCount" content="0"/>
+    <meta name="dtb:maxPageNumber" content="0"/>
+  </head>
+  <docTitle>
+    <text>\(title)</text>
+  </docTitle>
+  <navMap>
+\(navPoints)
+  </navMap>
+</ncx>
+"""
+    }
+    
+    /// OEBPS/chapter-N.xhtml — a single chapter wrapped in XHTML 1.1.
+    static func chapterXHTML(title: String, body: String, language: String) -> String {
 """
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">

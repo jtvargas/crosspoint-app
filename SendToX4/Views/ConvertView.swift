@@ -124,9 +124,17 @@ struct ConvertView: View {
             } label: {
                 HStack {
                     if convertVM.isProcessing {
-                        ProgressView()
-                            .tint(.white)
-                        Text(convertVM.phaseLabel)
+                        if convertVM.currentPhase == .sending && deviceVM.uploadProgress > 0 {
+                            // Determinate progress during upload
+                            ProgressView(value: deviceVM.uploadProgress)
+                                .progressViewStyle(.circular)
+                                .tint(.white)
+                            Text("Sending \(Int(deviceVM.uploadProgress * 100))%")
+                        } else {
+                            ProgressView()
+                                .tint(.white)
+                            Text(convertVM.phaseLabel)
+                        }
                     } else {
                         Image(systemName: deviceVM.isConnected
                               ? "paperplane.fill" : "doc.text")
