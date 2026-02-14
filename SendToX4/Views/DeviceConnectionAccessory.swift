@@ -1,0 +1,149 @@
+import SwiftUI
+
+/// Apple Music-inspired device connection accessory that persists above the tab bar.
+///
+/// Shows device connection status, firmware/host info, upload progress,
+/// and provides connect/disconnect/refresh actions from any tab.
+struct DeviceConnectionAccessory: View {
+    var deviceVM: DeviceViewModel
+    var convertVM: ConvertViewModel
+    var settings: DeviceSettings
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Upload progress bar — thin line across full width
+            if isUploading {
+                ProgressView(value: deviceVM.uploadProgress, total: 1.0)
+                    .tint(.accentColor)
+                    .scaleEffect(y: 0.5)
+            }
+
+            HStack(spacing: 12) {
+                // Status dot with pulse animation
+                statusDot
+
+                // Two-line info
+                VStack(alignment: .leading, spacing: 2) {
+                    primaryLine
+                    secondaryLine
+                }
+
+                Spacer()
+
+                // Action buttons
+                actionButtons
+            }
+        }
+        .padding()
+    }
+
+    // MARK: - Status Dot
+
+    private var statusDot: some View {
+        Circle()
+            .fill(statusColor)
+            .frame(width: 10, height: 10)
+            .scaleEffect(shouldPulse ? 1.3 : 1.0)
+            .opacity(shouldPulse ? 0.6 : 1.0)
+            .animation(
+                shouldPulse
+                    ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
+                    : .default,
+                value: shouldPulse
+            )
+    }
+
+    // MARK: - Text Lines
+
+    @ViewBuilder
+    private var primaryLine: some View {
+        if isUploading, let filename = convertVM.lastFilename {
+            Text("Sending \(uploadDisplayName(filename))... \(Int(deviceVM.uploadProgress * 100))%")
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+        } else {
+            Text("\(deviceVM.firmwareLabel)")
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+        }
+    }
+
+    private func uploadDisplayName(_ filename: String) -> String {
+        filename.replacingOccurrences(of: ".epub", with: "").truncated(to: 24)
+    }
+
+    @ViewBuilder
+    private var secondaryLine: some View {
+        if deviceVM.isSearching {
+            Text("Scanning network...")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else if deviceVM.isConnected {
+            Text("\(deviceVM.connectedHost ?? "unknown")")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        } else {
+            Text("Tap Connect to search")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    // MARK: - Action Buttons
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        if deviceVM.isSearching {
+            ProgressView()
+                .controlSize(.small)
+        } else {
+            HStack(spacing: 8) {
+                // Refresh
+                Button {
+                    Task { await deviceVM.refresh(settings: settings) }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                // Connect / Disconnect
+                Button {
+                    Task {
+                        if deviceVM.isConnected {
+                            deviceVM.disconnect()
+                        } else {
+                            await deviceVM.search(settings: settings)
+                        }
+                    }
+                } label: {
+                    Text(deviceVM.isConnected ? "Disconnect" : "Connect")
+                        .font(.caption.weight(.medium))
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.capsule)
+                .controlSize(.small)
+                .tint(deviceVM.isConnected ? .secondary : .accentColor)
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private var isUploading: Bool {
+        convertVM.isProcessing
+            && convertVM.currentPhase == .sending
+            && deviceVM.uploadProgress > 0
+            && deviceVM.uploadProgress < 1.0
+    }
+
+    private var shouldPulse: Bool {
+        deviceVM.isSearching || isUploading
+    }
+
+    private var statusColor: Color {
+        if deviceVM.isSearching { return .orange }
+        return deviceVM.isConnected ? .green : .red
+    }
+}

@@ -5,6 +5,9 @@ import Foundation
 struct StockFirmwareService: DeviceService {
     let baseURL: URL
     
+    /// Stock firmware does not support move/rename operations.
+    var supportsMoveRename: Bool { false }
+    
     /// URLSession with generous timeouts for large file uploads over slow ESP32 WiFi.
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -55,7 +58,15 @@ struct StockFirmwareService: DeviceService {
         
         return json.compactMap { entry in
             guard let name = entry["name"], let type = entry["type"] else { return nil }
-            return DeviceFile(name: name, isDirectory: type == "dir")
+            let isDirectory = type == "dir"
+            let isEpub = !isDirectory && name.lowercased().hasSuffix(".epub")
+            return DeviceFile(
+                name: name,
+                isDirectory: isDirectory,
+                size: 0,
+                isEpub: isEpub,
+                parentPath: directory
+            )
         }
     }
     
@@ -143,6 +154,35 @@ struct StockFirmwareService: DeviceService {
         request.httpBody = body
         
         let (_, _) = try await session.data(for: request)
+    }
+    
+    func deleteFolder(path: String) async throws {
+        // Stock firmware uses the same DELETE /edit endpoint for both files and folders.
+        let url = baseURL.appendingPathComponent("edit")
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        
+        let boundary = UUID().uuidString
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        
+        var body = Data()
+        body.appendMultipartField(name: "path", value: path, boundary: boundary)
+        body.appendMultipartEnd(boundary: boundary)
+        request.httpBody = body
+        
+        let (_, _) = try await session.data(for: request)
+    }
+    
+    func moveFile(path: String, destination: String) async throws {
+        throw DeviceError.unsupportedOperation
+    }
+    
+    func renameFile(path: String, newName: String) async throws {
+        throw DeviceError.unsupportedOperation
+    }
+    
+    func fetchStatus() async throws -> DeviceStatus {
+        throw DeviceError.unsupportedOperation
     }
     
     // MARK: - Upload with Progress

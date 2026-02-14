@@ -1,15 +1,385 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// Placeholder view for the experimental File Manager feature.
+/// Full-featured file manager for browsing and managing files on the X4 device.
 struct FileManagerView: View {
+    var deviceVM: DeviceViewModel
+    var settings: DeviceSettings
+    @State private var fileVM = FileManagerViewModel()
+
+    // MARK: - Sheet / Dialog State
+
+    @State private var showCreateFolder = false
+    @State private var showFileImporter = false
+    @State private var itemToDelete: DeviceFile?
+    @State private var itemToMove: DeviceFile?
+    @State private var itemToRename: DeviceFile?
+
     var body: some View {
         NavigationStack {
-            ContentUnavailableView {
-                Label("File Manager", systemImage: "folder")
-            } description: {
-                Text("Coming soon — browse and manage files on your X4.")
+            Group {
+                if !deviceVM.isConnected {
+                    notConnectedView
+                } else if fileVM.isLoading && fileVM.files.isEmpty {
+                    loadingView
+                } else {
+                    mainContent
+                }
             }
             .navigationTitle("File Manager")
+            .navigationBarTitleDisplayMode(.inline)
+            .settingsToolbar(deviceVM: deviceVM, settings: settings)
+            .toolbar {
+                // Back / Up button (leading, only when not at root)
+                ToolbarItem(placement: .navigation) {
+                    if !fileVM.isAtRoot && deviceVM.isConnected {
+                        Button {
+                            Task { await fileVM.navigateUp() }
+                        } label: {
+                            Image(systemName: "chevron.left")
+                        }
+                    }
+                }
+
+                // Add menu (new folder / upload)
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Button {
+                            showCreateFolder = true
+                        } label: {
+                            Label("New Folder", systemImage: "folder.badge.plus")
+                        }
+
+                        Button {
+                            showFileImporter = true
+                        } label: {
+                            Label("Upload File", systemImage: "arrow.up.doc")
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .disabled(!deviceVM.isConnected)
+                }
+
+                // Refresh button
+                ToolbarItem(placement: .automatic) {
+                    Button {
+                        Task { await fileVM.refresh() }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .disabled(!deviceVM.isConnected || fileVM.isLoading)
+                }
+            }
+            // MARK: - Sheets & Dialogs
+            .sheet(isPresented: $showCreateFolder) {
+                CreateFolderSheet { name in
+                    await fileVM.createFolder(name: name)
+                }
+            }
+            .sheet(item: $itemToRename) { file in
+                RenameFileSheet(file: file) { newName in
+                    await fileVM.renameFile(file, to: newName)
+                }
+            }
+            .sheet(item: $itemToMove) { file in
+                MoveFileSheet(
+                    file: file,
+                    fetchFolders: { path in
+                        await fileVM.fetchFolders(at: path)
+                    },
+                    onMove: { destination in
+                        await fileVM.moveFile(file, to: destination)
+                    }
+                )
+            }
+            .confirmationDialog(
+                "Delete \"\(itemToDelete?.name ?? "")\"?",
+                isPresented: Binding(
+                    get: { itemToDelete != nil },
+                    set: { if !$0 { itemToDelete = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let item = itemToDelete {
+                        Task { _ = await fileVM.deleteItem(item) }
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    itemToDelete = nil
+                }
+            } message: {
+                if let item = itemToDelete {
+                    if item.isDirectory {
+                        Text("This folder must be empty to delete. This action cannot be undone.")
+                    } else {
+                        Text("This file will be permanently deleted from the device.")
+                    }
+                }
+            }
+            .fileImporter(
+                isPresented: $showFileImporter,
+                allowedContentTypes: [.data],
+                allowsMultipleSelection: false
+            ) { result in
+                handleFileImport(result)
+            }
+            // MARK: - Error Banner
+            .overlay(alignment: .bottom) {
+                if let error = fileVM.errorMessage {
+                    errorBanner(error)
+                }
+            }
+            // MARK: - Upload Progress Overlay
+            .overlay {
+                if fileVM.uploadProgress != nil {
+                    uploadOverlay
+                }
+            }
+        }
+        .onChange(of: deviceVM.isConnected) {
+            fileVM.bind(to: deviceVM.activeService)
+            if deviceVM.isConnected {
+                Task { await fileVM.refresh() }
+            }
+        }
+        .onChange(of: deviceVM.activeService?.baseURL) {
+            fileVM.bind(to: deviceVM.activeService)
+        }
+        .task {
+            fileVM.bind(to: deviceVM.activeService)
+            if deviceVM.isConnected {
+                await fileVM.refresh()
+            }
+        }
+    }
+
+    // MARK: - Main Content (sticky header + list)
+
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            // Sticky breadcrumb bar — always visible
+            breadcrumbBar
+                .padding(.horizontal)
+                .padding(.vertical, 6)
+                .background(.bar)
+
+            Divider()
+
+            // Device status bar — sticky below breadcrumbs
+            if let status = fileVM.deviceStatus {
+                DeviceStatusBar(status: status)
+                    .background(.bar)
+                Divider()
+            }
+
+            // Scrollable file list
+            fileListView
+        }
+    }
+
+    // MARK: - File List
+
+    private var fileListView: some View {
+        List {
+            // File listing
+            if fileVM.files.isEmpty && !fileVM.isLoading {
+                Section {
+                    ContentUnavailableView {
+                        Label("Empty Folder", systemImage: "folder")
+                    } description: {
+                        Text("This directory is empty. Tap + to add files or create folders.")
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .frame(minHeight: 200)
+                }
+            } else {
+                Section {
+                    ForEach(fileVM.files) { file in
+                        if file.isDirectory {
+                            Button {
+                                Task { await fileVM.navigateTo(file) }
+                            } label: {
+                                FileManagerRow(
+                                    file: file,
+                                    supportsMoveRename: fileVM.supportsMoveRename,
+                                    onDelete: { itemToDelete = file },
+                                    onMove: nil,
+                                    onRename: nil
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            FileManagerRow(
+                                file: file,
+                                supportsMoveRename: fileVM.supportsMoveRename,
+                                onDelete: { itemToDelete = file },
+                                onMove: fileVM.supportsMoveRename ? { itemToMove = file } : nil,
+                                onRename: fileVM.supportsMoveRename ? { itemToRename = file } : nil
+                            )
+                        }
+                    }
+                } header: {
+                    HStack {
+                        Text("\(fileVM.files.count) item\(fileVM.files.count == 1 ? "" : "s")")
+                        Spacer()
+                        if fileVM.isLoading {
+                            ProgressView()
+                                .controlSize(.mini)
+                        }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .refreshable {
+            await fileVM.refresh()
+        }
+    }
+
+    // MARK: - Breadcrumbs (sticky header)
+
+    private var breadcrumbBar: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    ForEach(Array(fileVM.pathComponents.enumerated()), id: \.offset) { index, component in
+                        if index > 0 {
+                            Image(systemName: "chevron.right")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
+                        Button {
+                            Task { await fileVM.navigateToBreadcrumb(component.path) }
+                        } label: {
+                            if component.name == "/" {
+                                Image(systemName: "externaldrive.fill")
+                                    .font(.caption)
+                            } else {
+                                Text(component.name)
+                                    .font(.subheadline.weight(
+                                        index == fileVM.pathComponents.count - 1 ? .semibold : .regular
+                                    ))
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.capsule)
+                        .controlSize(.small)
+                        .id(index)
+                    }
+                }
+            }
+            .onChange(of: fileVM.currentPath) {
+                withAnimation {
+                    proxy.scrollTo(fileVM.pathComponents.count - 1, anchor: .trailing)
+                }
+            }
+        }
+    }
+
+    // MARK: - Not Connected
+
+    private var notConnectedView: some View {
+        ContentUnavailableView {
+            Label("Not Connected", systemImage: "wifi.slash")
+        } description: {
+            Text("Connect to your X4 device to browse and manage files.")
+        }
+    }
+
+    // MARK: - Loading
+
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .controlSize(.large)
+            Text("Loading files...")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - Error Banner
+
+    private func errorBanner(_ message: String) -> some View {
+        HStack {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.yellow)
+            Text(message)
+                .font(.caption)
+                .lineLimit(2)
+            Spacer()
+            Button {
+                withAnimation { fileVM.errorMessage = nil }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding()
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .padding()
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .animation(.easeInOut, value: fileVM.errorMessage)
+    }
+
+    // MARK: - Upload Progress Overlay
+
+    private var uploadOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                ProgressView(value: fileVM.uploadProgress ?? 0) {
+                    Text("Uploading...")
+                        .font(.headline)
+                } currentValueLabel: {
+                    if let name = fileVM.uploadFilename {
+                        Text(name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .progressViewStyle(.linear)
+
+                Text("\(Int((fileVM.uploadProgress ?? 0) * 100))%")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            .padding(24)
+            .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .padding(40)
+        }
+    }
+
+    // MARK: - File Import Handler
+
+    private func handleFileImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+
+            guard url.startAccessingSecurityScopedResource() else {
+                fileVM.errorMessage = "Could not access the selected file."
+                return
+            }
+            defer { url.stopAccessingSecurityScopedResource() }
+
+            do {
+                let data = try Data(contentsOf: url)
+                let filename = url.lastPathComponent
+                Task {
+                    await fileVM.uploadFile(data: data, filename: filename)
+                }
+            } catch {
+                fileVM.errorMessage = "Failed to read file: \(error.localizedDescription)"
+            }
+
+        case .failure(let error):
+            fileVM.errorMessage = "File selection failed: \(error.localizedDescription)"
         }
     }
 }

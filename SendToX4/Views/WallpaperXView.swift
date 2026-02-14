@@ -2,6 +2,9 @@ import SwiftUI
 
 /// Placeholder view for the experimental WallpaperX feature.
 struct WallpaperXView: View {
+    var deviceVM: DeviceViewModel
+    var settings: DeviceSettings
+
     var body: some View {
         NavigationStack {
             ContentUnavailableView {
@@ -10,6 +13,7 @@ struct WallpaperXView: View {
                 Text("Coming soon — custom wallpapers for your X4.")
             }
             .navigationTitle("WallpaperX")
+            .settingsToolbar(deviceVM: deviceVM, settings: settings)
         }
     }
 }

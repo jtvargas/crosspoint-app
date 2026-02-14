@@ -35,16 +35,38 @@ struct SettingsSheet: View {
                     Text("CrossPoint uses crosspoint.local (fallback: 192.168.4.1). Stock uses 192.168.3.3.")
                 }
 
-                // MARK: - Storage Section
+                // MARK: - Feature Folders Section
 
                 Section {
-                    TextField("Target Folder", text: $settings.targetFolder)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Convert")
+                            .font(.subheadline.weight(.medium))
+                        HStack {
+                            Image(systemName: "folder")
+                                .foregroundStyle(.secondary)
+                            TextField("content", text: $settings.convertFolder)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                        }
+                    }
+                    .padding(.vertical, 2)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("WallpaperX")
+                            .font(.subheadline.weight(.medium))
+                        HStack {
+                            Image(systemName: "folder")
+                                .foregroundStyle(.secondary)
+                            TextField("sleep", text: $settings.wallpaperFolder)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                        }
+                    }
+                    .padding(.vertical, 2)
                 } header: {
-                    Text("Storage")
+                    Text("Feature Folders")
                 } footer: {
-                    Text("EPUBs will be saved to /\(settings.targetFolder)/ on the device.")
+                    Text("Each feature uploads to its own folder on the device (e.g. /\(settings.convertFolder)/). Tap a field to change the destination.")
                 }
 
                 // MARK: - Connection Test
@@ -83,11 +105,10 @@ struct SettingsSheet: View {
 
                 Section {
                     Toggle("WallpaperX", isOn: $settings.showWallpaperX)
-                    Toggle("File Manager", isOn: $settings.showFileManager)
                 } header: {
                     Text("Experimental")
                 } footer: {
-                    Text("Enable experimental features still in development. WallpaperX allows custom wallpapers on the X4. File Manager lets you browse and manage files on the device.")
+                    Text("Enable experimental features still in development. WallpaperX allows custom wallpapers on the X4.")
                 }
 
                 // MARK: - About Section

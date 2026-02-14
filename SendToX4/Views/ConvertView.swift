@@ -8,7 +8,6 @@ struct ConvertView: View {
     var deviceVM: DeviceViewModel
     var settings: DeviceSettings
 
-    @State private var showSettings = false
     @State private var showShareSheet = false
     @FocusState private var isURLFieldFocused: Bool
 
@@ -16,10 +15,6 @@ struct ConvertView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Device Status
-                    DeviceStatusBadge(deviceVM: deviceVM, settings: settings)
-                        .onTapGesture { showSettings = true }
-
                     // URL Input Card
                     urlInputCard
 
@@ -35,18 +30,7 @@ struct ConvertView: View {
                 .padding(.top, 8)
             }
             .navigationTitle("SendToX4")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
-                }
-            }
-            .sheet(isPresented: $showSettings) {
-                SettingsSheet(deviceVM: deviceVM, settings: settings)
-            }
+            .settingsToolbar(deviceVM: deviceVM, settings: settings)
             .sheet(isPresented: $showShareSheet) {
                 if let data = convertVM.lastEPUBData,
                    let filename = convertVM.lastFilename {

@@ -27,6 +27,7 @@ struct HistoryView: View {
                 }
             }
             .navigationTitle("History")
+            .settingsToolbar(deviceVM: deviceVM, settings: settings)
             .toolbar {
                 if !articles.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) {

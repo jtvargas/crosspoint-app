@@ -24,6 +24,9 @@ struct CrossPointFirmwareService: DeviceService {
     /// Delay between retry attempts (in seconds).
     private static let retryDelay: UInt64 = 1_000_000_000 // 1 second in nanoseconds
     
+    /// CrossPoint firmware supports move and rename operations.
+    var supportsMoveRename: Bool { true }
+    
     init(host: String = CrossPointFirmwareService.defaultIP) {
         self.baseURL = URL(string: "http://\(host)")!
     }
@@ -62,7 +65,9 @@ struct CrossPointFirmwareService: DeviceService {
         return json.compactMap { entry in
             guard let name = entry["name"] as? String,
                   let isDir = entry["isDirectory"] as? Bool else { return nil }
-            return DeviceFile(name: name, isDirectory: isDir)
+            let size = entry["size"] as? Int64 ?? 0
+            let isEpub = entry["isEpub"] as? Bool ?? false
+            return DeviceFile(name: name, isDirectory: isDir, size: size, isEpub: isEpub, parentPath: directory)
         }
     }
     
@@ -153,6 +158,135 @@ struct CrossPointFirmwareService: DeviceService {
         request.httpBody = body
         
         let (_, _) = try await session.data(for: request)
+    }
+    
+    func deleteFolder(path: String) async throws {
+        let url = baseURL.appendingPathComponent("delete")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        
+        let boundary = UUID().uuidString
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        
+        var body = Data()
+        body.appendMultipartField(name: "path", value: path, boundary: boundary)
+        body.appendMultipartField(name: "type", value: "folder", boundary: boundary)
+        body.appendMultipartEnd(boundary: boundary)
+        request.httpBody = body
+        
+        let (data, response) = try await session.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
+            let bodyText = String(data: data, encoding: .utf8) ?? "Unknown error"
+            switch httpResponse.statusCode {
+            case 400:
+                if bodyText.contains("not empty") {
+                    throw DeviceError.folderNotEmpty
+                }
+                throw DeviceError.deleteFailed(bodyText)
+            case 403:
+                throw DeviceError.protectedItem
+            case 404:
+                throw DeviceError.deleteFailed("Item not found")
+            default:
+                throw DeviceError.deleteFailed(bodyText)
+            }
+        }
+    }
+    
+    func moveFile(path: String, destination: String) async throws {
+        let url = baseURL.appendingPathComponent("move")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        
+        let boundary = UUID().uuidString
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        
+        var body = Data()
+        body.appendMultipartField(name: "path", value: path, boundary: boundary)
+        body.appendMultipartField(name: "dest", value: destination, boundary: boundary)
+        body.appendMultipartEnd(boundary: boundary)
+        request.httpBody = body
+        
+        let (data, response) = try await session.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
+            let bodyText = String(data: data, encoding: .utf8) ?? "Unknown error"
+            switch httpResponse.statusCode {
+            case 400:
+                throw DeviceError.moveFailed(bodyText)
+            case 403:
+                throw DeviceError.protectedItem
+            case 404:
+                throw DeviceError.moveFailed("Item not found")
+            case 409:
+                throw DeviceError.itemAlreadyExists
+            default:
+                throw DeviceError.moveFailed(bodyText)
+            }
+        }
+    }
+    
+    func renameFile(path: String, newName: String) async throws {
+        let url = baseURL.appendingPathComponent("rename")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        
+        let boundary = UUID().uuidString
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        
+        var body = Data()
+        body.appendMultipartField(name: "path", value: path, boundary: boundary)
+        body.appendMultipartField(name: "name", value: newName, boundary: boundary)
+        body.appendMultipartEnd(boundary: boundary)
+        request.httpBody = body
+        
+        let (data, response) = try await session.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
+            let bodyText = String(data: data, encoding: .utf8) ?? "Unknown error"
+            switch httpResponse.statusCode {
+            case 400:
+                throw DeviceError.renameFailed(bodyText)
+            case 403:
+                throw DeviceError.protectedItem
+            case 404:
+                throw DeviceError.renameFailed("Item not found")
+            case 409:
+                throw DeviceError.itemAlreadyExists
+            default:
+                throw DeviceError.renameFailed(bodyText)
+            }
+        }
+    }
+    
+    func fetchStatus() async throws -> DeviceStatus {
+        let url = baseURL.appendingPathComponent("api/status")
+        let (data, response) = try await session.data(from: url)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw DeviceError.invalidResponse
+        }
+        
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let version = json["version"] as? String,
+              let ip = json["ip"] as? String,
+              let mode = json["mode"] as? String,
+              let rssi = json["rssi"] as? Int,
+              let freeHeap = json["freeHeap"] as? Int,
+              let uptime = json["uptime"] as? Int else {
+            throw DeviceError.invalidResponse
+        }
+        
+        return DeviceStatus(
+            version: version,
+            ip: ip,
+            mode: mode,
+            rssi: rssi,
+            freeHeap: freeHeap,
+            uptime: uptime
+        )
     }
     
     // MARK: - Upload with Progress

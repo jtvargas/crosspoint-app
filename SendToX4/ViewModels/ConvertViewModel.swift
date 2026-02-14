@@ -93,7 +93,7 @@ final class ConvertViewModel {
             if deviceVM.isConnected {
                 currentPhase = .sending
                 article.status = .sending
-                let folder = settings?.targetFolder ?? "content"
+                let folder = settings?.convertFolder ?? "content"
                 try await deviceVM.upload(data: epubData, filename: filename, toFolder: folder)
 
                 currentPhase = .sent
@@ -224,7 +224,7 @@ final class ConvertViewModel {
 
             currentPhase = .sending
             article.status = .sending
-            let folder = settings?.targetFolder ?? "content"
+            let folder = settings?.convertFolder ?? "content"
             try await deviceVM.upload(data: epubData, filename: filename, toFolder: folder)
 
             currentPhase = .sent

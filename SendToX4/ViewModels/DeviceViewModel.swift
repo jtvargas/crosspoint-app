@@ -13,6 +13,9 @@ final class DeviceViewModel {
     var firmwareLabel = "Not Connected"
     var errorMessage: String?
     
+    /// The hostname or IP of the currently connected device (e.g. "crosspoint.local", "192.168.4.1").
+    var connectedHost: String?
+    
     /// Upload progress (0.0 to 1.0). Updated during file uploads.
     var uploadProgress: Double = 0
 
@@ -42,6 +45,7 @@ final class DeviceViewModel {
         activeService = result.service
         isConnected = result.service != nil
         firmwareLabel = result.firmwareLabel
+        connectedHost = result.service?.baseURL.host
         isSearching = false
 
         if !isConnected {
@@ -52,6 +56,16 @@ final class DeviceViewModel {
     /// Refresh the connection status.
     func refresh(settings: DeviceSettings?) async {
         await search(settings: settings)
+    }
+
+    /// Disconnect from the device and reset connection state.
+    func disconnect() {
+        activeService = nil
+        isConnected = false
+        firmwareLabel = "Not Connected"
+        connectedHost = nil
+        errorMessage = nil
+        uploadProgress = 0
     }
 
     /// Upload an EPUB file to the device with progress reporting.

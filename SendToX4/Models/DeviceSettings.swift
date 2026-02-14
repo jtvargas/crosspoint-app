@@ -21,9 +21,16 @@ enum FirmwareType: String, Codable, CaseIterable {
 final class DeviceSettings {
     var firmwareTypeRaw: String
     var customIP: String
-    var targetFolder: String
     var showWallpaperX: Bool
     var showFileManager: Bool
+
+    // MARK: - Per-Feature Destination Folders
+
+    /// Destination folder for Convert (EPUBs). Default: "content".
+    var convertFolder: String
+
+    /// Destination folder for WallpaperX (wallpapers). Default: "sleep".
+    var wallpaperFolder: String
     
     var firmwareType: FirmwareType {
         get { FirmwareType(rawValue: firmwareTypeRaw) ?? .stock }
@@ -38,10 +45,18 @@ final class DeviceSettings {
         }
     }
     
-    init(firmwareType: FirmwareType = .stock, customIP: String = "", targetFolder: String = "content", showWallpaperX: Bool = false, showFileManager: Bool = false) {
+    init(
+        firmwareType: FirmwareType = .stock,
+        customIP: String = "",
+        convertFolder: String = "content",
+        wallpaperFolder: String = "sleep",
+        showWallpaperX: Bool = false,
+        showFileManager: Bool = false
+    ) {
         self.firmwareTypeRaw = firmwareType.rawValue
         self.customIP = customIP
-        self.targetFolder = targetFolder
+        self.convertFolder = convertFolder
+        self.wallpaperFolder = wallpaperFolder
         self.showWallpaperX = showWallpaperX
         self.showFileManager = showFileManager
     }
