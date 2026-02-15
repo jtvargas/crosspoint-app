@@ -104,6 +104,10 @@ final class ConvertViewModel {
                 currentPhase = .sent
                 article.status = .sent
                 statusMessage = "Sent \"\(content.title.truncated(to: 40))\" to X4"
+
+                // Auto-reset after delay so the user sees the success message
+                try? await Task.sleep(for: .seconds(1.5))
+                reset()
             } else {
                 // Save locally if device not connected
                 currentPhase = .savedLocally

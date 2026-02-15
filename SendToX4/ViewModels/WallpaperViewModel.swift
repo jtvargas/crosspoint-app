@@ -225,6 +225,10 @@ final class WallpaperViewModel {
                 modelContext.insert(event)
 
                 statusMessage = "Sent \(filename) to /\(deviceSettings.wallpaperFolder)/"
+
+                // Auto-reset after delay so the user sees the success message
+                try? await Task.sleep(for: .seconds(1.5))
+                clearImage()
             } else {
                 statusMessage = "Converted \(filename) — save or connect to send."
             }
