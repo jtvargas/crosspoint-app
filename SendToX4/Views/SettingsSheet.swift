@@ -107,16 +107,6 @@ struct SettingsSheet: View {
                     .disabled(isTesting)
                 }
 
-                // MARK: - Experimental Section
-
-                Section {
-                    Toggle("WallpaperX", isOn: $settings.showWallpaperX)
-                } header: {
-                    Text("Experimental")
-                } footer: {
-                    Text("Enable experimental features still in development. WallpaperX allows custom wallpapers on the X4.")
-                }
-
                 // MARK: - About Section
 
                 Section {
