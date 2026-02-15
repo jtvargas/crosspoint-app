@@ -1,0 +1,107 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in CrossX.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this issue. Please fill in as much detail as possible so we can reproduce and fix it.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear, one-sentence description of the bug.
+      placeholder: "The app crashes when converting a URL with special characters in the path."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide the shortest steps to reliably reproduce the issue.
+      placeholder: |
+        1. Open CrossX
+        2. Paste URL: https://example.com/path%20with%20spaces
+        3. Tap "Convert & Send"
+        4. App crashes
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen.
+      placeholder: "The URL should be converted to an EPUB and sent to the device."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead.
+      placeholder: "The app crashes with EXC_BAD_ACCESS."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      description: Which platform(s) does this affect?
+      multiple: true
+      options:
+        - iOS
+        - iPadOS
+        - macOS
+    validations:
+      required: true
+
+  - type: dropdown
+    id: firmware
+    attributes:
+      label: Device firmware
+      description: Which X4 firmware are you using?
+      options:
+        - Stock
+        - CrossPoint
+        - Not connected / N/A
+    validations:
+      required: true
+
+  - type: input
+    id: xcode_version
+    attributes:
+      label: Xcode version
+      description: The Xcode version you built with.
+      placeholder: "26.0 beta 3"
+    validations:
+      required: true
+
+  - type: input
+    id: os_version
+    attributes:
+      label: OS version
+      description: The OS version where the bug occurs.
+      placeholder: "iOS 26.2 / macOS 26.2"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Attach any relevant logs, crash reports, or screenshots.
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else that might help us diagnose the issue.
+      placeholder: "This started happening after updating to the latest commit on main."

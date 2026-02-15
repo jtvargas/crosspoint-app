@@ -1,0 +1,65 @@
+name: Feature Request
+description: Propose a new feature or improvement for CrossX.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement! Help us understand the use case and your proposed solution.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear, one-sentence description of the feature.
+      placeholder: "Add support for batch converting multiple URLs at once."
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What user need does this address? Why is the current behavior insufficient?
+      placeholder: "When I want to convert multiple articles, I have to paste and convert them one by one, which is slow."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe how you'd like this to work. Be as specific as possible.
+      placeholder: "Add a text area that accepts multiple URLs (one per line) and converts them sequentially with a progress indicator."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you considered and why they are less ideal.
+      placeholder: "Using the Share Extension from Safari tabs works but requires switching apps repeatedly."
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform scope
+      description: Which platform(s) should this feature target?
+      multiple: true
+      options:
+        - iOS
+        - iPadOS
+        - macOS
+        - Share Extension
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Any mockups, examples, or references that help illustrate the feature.
+      placeholder: "Similar to how Pocket allows batch-saving articles from a list."

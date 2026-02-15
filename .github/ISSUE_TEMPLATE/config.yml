@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/jtvargas/crosspoint-app#readme
+    about: Read the README for setup instructions and project overview.
+  - name: Developer Reference
+    url: https://github.com/jtvargas/crosspoint-app/blob/main/AGENTS.md
+    about: See AGENTS.md for architecture details and coding conventions.

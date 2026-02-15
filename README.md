@@ -374,33 +374,20 @@ Dependencies are managed via **Xcode's Swift Package Manager** integration. They
 
 ## Contributing
 
-Contributions are welcome! Here's how to get started:
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide, including:
+
+- Development setup and build commands
+- Code conventions and architecture rules
+- PR process and checklist
+- Common pitfalls to avoid
+
+Quick start:
 
 1. **Fork** the repository
-2. **Create a branch** for your feature (`git checkout -b feature/my-feature`)
+2. **Create a branch** (`git checkout -b feature/my-feature`)
 3. **Make your changes** — follow the conventions in [AGENTS.md](AGENTS.md)
-4. **Build for both platforms** to verify:
-   ```bash
-   # iOS
-   xcodebuild -project SendToX4.xcodeproj -scheme SendToX4 \
-     -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
-
-   # macOS
-   xcodebuild -project SendToX4.xcodeproj -scheme SendToX4 \
-     -destination 'platform=macOS' build
-   ```
-5. **Commit** with a descriptive message
-6. **Open a Pull Request**
-
-### Code conventions
-
-- **MVVM architecture** — Views depend on ViewModels, ViewModels depend on service protocols
-- **`@Observable`** for view models (not `ObservableObject`)
-- **`async/await`** throughout (no Combine)
-- **No force unwraps** — use `guard let` with meaningful errors
-- **PascalCase** for types, **camelCase** for properties/methods
-
-See [AGENTS.md](AGENTS.md) for the full developer reference.
+4. **Build both platforms** — `xcodebuild` for iOS and macOS
+5. **Open a Pull Request** — the [PR template](.github/pull_request_template.md) will guide you
 
 ---
 
