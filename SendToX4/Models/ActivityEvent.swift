@@ -6,7 +6,7 @@ import SwiftData
 /// Broad category of activity — allows filtering and future expansion.
 enum ActivityCategory: String, Codable, CaseIterable {
     case fileManager
-    // Future: case convert, case wallpaper, etc.
+    case wallpaper
 }
 
 /// Specific action performed within a category.
@@ -17,7 +17,7 @@ enum ActivityAction: String, Codable {
     case moveFile
     case deleteFile
     case deleteFolder
-    // Future: case renameFile, case wallpaperUpload, etc.
+    case wallpaperUpload
 }
 
 /// Outcome of the activity.
@@ -80,22 +80,24 @@ final class ActivityEvent {
     /// SF Symbol name for this action type.
     var iconName: String {
         switch action {
-        case .upload:       return "arrow.up.doc.fill"
-        case .createFolder: return "folder.badge.plus"
-        case .moveFile:     return "arrow.right.doc.on.clipboard"
-        case .deleteFile:   return "trash.fill"
-        case .deleteFolder: return "trash.fill"
+        case .upload:          return "arrow.up.doc.fill"
+        case .createFolder:    return "folder.badge.plus"
+        case .moveFile:        return "arrow.right.doc.on.clipboard"
+        case .deleteFile:      return "trash.fill"
+        case .deleteFolder:    return "trash.fill"
+        case .wallpaperUpload: return "photo.artframe"
         }
     }
 
     /// Human-readable action label.
     var actionLabel: String {
         switch action {
-        case .upload:       return "File Uploaded"
-        case .createFolder: return "Folder Created"
-        case .moveFile:     return "File Moved"
-        case .deleteFile:   return "File Deleted"
-        case .deleteFolder: return "Folder Deleted"
+        case .upload:          return "File Uploaded"
+        case .createFolder:    return "Folder Created"
+        case .moveFile:        return "File Moved"
+        case .deleteFile:      return "File Deleted"
+        case .deleteFolder:    return "Folder Deleted"
+        case .wallpaperUpload: return "Wallpaper Sent"
         }
     }
 }

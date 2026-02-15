@@ -19,6 +19,12 @@ final class DeviceViewModel {
     /// Upload progress (0.0 to 1.0). Updated during file uploads.
     var uploadProgress: Double = 0
 
+    /// Whether a file upload is currently in progress (global across all features).
+    var isUploading = false
+
+    /// The filename of the file currently being uploaded (for display in progress UI).
+    var uploadFilename: String?
+
     // MARK: - Internal State
 
     private(set) var activeService: (any DeviceService)?
@@ -68,21 +74,29 @@ final class DeviceViewModel {
         uploadProgress = 0
     }
 
-    /// Upload an EPUB file to the device with progress reporting.
+    /// Upload a file to the device with progress reporting.
+    /// Sets global `isUploading` / `uploadFilename` so any tab can show progress.
     func upload(data: Data, filename: String, toFolder folder: String) async throws {
         guard let service = activeService else {
             throw DeviceError.unreachable
         }
-        
+
+        isUploading = true
+        uploadFilename = filename
         uploadProgress = 0
-        
+
+        defer {
+            isUploading = false
+            uploadFilename = nil
+        }
+
         try await service.ensureFolder(folder)
         try await service.uploadFile(data: data, filename: filename, toFolder: folder) { [weak self] progress in
             Task { @MainActor [weak self] in
                 self?.uploadProgress = progress
             }
         }
-        
+
         uploadProgress = 1.0
     }
 }

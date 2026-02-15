@@ -48,6 +48,11 @@ final class ConvertViewModel {
             return
         }
 
+        guard !deviceVM.isUploading else {
+            lastError = "An upload is already in progress."
+            return
+        }
+
         isProcessing = true
         lastError = nil
         lastEPUBData = nil

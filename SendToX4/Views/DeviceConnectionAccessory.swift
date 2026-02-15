@@ -57,7 +57,7 @@ struct DeviceConnectionAccessory: View {
 
     @ViewBuilder
     private var primaryLine: some View {
-        if isUploading, let filename = convertVM.lastFilename {
+        if isUploading, let filename = deviceVM.uploadFilename {
             Text("Sending \(uploadDisplayName(filename))... \(Int(deviceVM.uploadProgress * 100))%")
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
@@ -69,7 +69,10 @@ struct DeviceConnectionAccessory: View {
     }
 
     private func uploadDisplayName(_ filename: String) -> String {
-        filename.replacingOccurrences(of: ".epub", with: "").truncated(to: 24)
+        let name = filename
+            .replacingOccurrences(of: ".epub", with: "")
+            .replacingOccurrences(of: ".bmp", with: "")
+        return name.truncated(to: 24)
     }
 
     @ViewBuilder
@@ -132,8 +135,7 @@ struct DeviceConnectionAccessory: View {
     // MARK: - Helpers
 
     private var isUploading: Bool {
-        convertVM.isProcessing
-            && convertVM.currentPhase == .sending
+        deviceVM.isUploading
             && deviceVM.uploadProgress > 0
             && deviceVM.uploadProgress < 1.0
     }

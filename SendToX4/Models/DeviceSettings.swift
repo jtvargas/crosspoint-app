@@ -21,7 +21,6 @@ enum FirmwareType: String, Codable, CaseIterable {
 final class DeviceSettings {
     var firmwareTypeRaw: String
     var customIP: String
-    var showWallpaperX: Bool
     var showFileManager: Bool
 
     // MARK: - Per-Feature Destination Folders
@@ -50,14 +49,12 @@ final class DeviceSettings {
         customIP: String = "",
         convertFolder: String = "content",
         wallpaperFolder: String = "sleep",
-        showWallpaperX: Bool = false,
         showFileManager: Bool = false
     ) {
         self.firmwareTypeRaw = firmwareType.rawValue
         self.customIP = customIP
         self.convertFolder = convertFolder
         self.wallpaperFolder = wallpaperFolder
-        self.showWallpaperX = showWallpaperX
         self.showFileManager = showFileManager
     }
 }
