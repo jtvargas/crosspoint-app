@@ -7,7 +7,5 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>SendToX4 connects to your Xtreink X4 e-reader on the local WiFi network to transfer EPUB files.</string>
 </dict>
 </plist>

@@ -1,8 +1,10 @@
 import SwiftUI
+import SwiftData
 import UniformTypeIdentifiers
 
 /// Full-featured file manager for browsing and managing files on the X4 device.
 struct FileManagerView: View {
+    @Environment(\.modelContext) private var modelContext
     var deviceVM: DeviceViewModel
     var settings: DeviceSettings
     @State private var fileVM = FileManagerViewModel()
@@ -74,7 +76,7 @@ struct FileManagerView: View {
             // MARK: - Sheets & Dialogs
             .sheet(isPresented: $showCreateFolder) {
                 CreateFolderSheet { name in
-                    await fileVM.createFolder(name: name)
+                    await fileVM.createFolder(name: name, modelContext: modelContext)
                 }
             }
             // TODO: Re-enable when rename is implemented
@@ -90,7 +92,7 @@ struct FileManagerView: View {
                         await fileVM.fetchFolders(at: path)
                     },
                     onMove: { destination in
-                        await fileVM.moveFile(file, to: destination)
+                        await fileVM.moveFile(file, to: destination, modelContext: modelContext)
                     }
                 )
             }
@@ -104,7 +106,7 @@ struct FileManagerView: View {
             ) {
                 Button("Delete", role: .destructive) {
                     if let item = itemToDelete {
-                        Task { _ = await fileVM.deleteItem(item) }
+                        Task { _ = await fileVM.deleteItem(item, modelContext: modelContext) }
                     }
                 }
                 Button("Cancel", role: .cancel) {
@@ -378,7 +380,7 @@ struct FileManagerView: View {
                 let data = try Data(contentsOf: url)
                 let filename = url.lastPathComponent
                 Task {
-                    await fileVM.uploadFile(data: data, filename: filename)
+                    await fileVM.uploadFile(data: data, filename: filename, modelContext: modelContext)
                 }
             } catch {
                 fileVM.errorMessage = "Failed to read file: \(error.localizedDescription)"

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import UniformTypeIdentifiers
 
 /// Manages file browsing, navigation, and file operations for the File Manager feature.
@@ -143,7 +144,7 @@ final class FileManagerViewModel {
     // MARK: - File Operations
 
     /// Create a new folder in the current directory.
-    func createFolder(name: String) async -> Bool {
+    func createFolder(name: String, modelContext: ModelContext) async -> Bool {
         guard let service else {
             errorMessage = "Not connected to device."
             return false
@@ -156,16 +157,18 @@ final class FileManagerViewModel {
 
         do {
             try await service.createFolder(name: name, parent: currentPath)
+            logActivity(.createFolder, detail: "Created folder '\(name)' in \(currentPath)", modelContext: modelContext)
             await loadDirectory()
             return true
         } catch {
+            logActivity(.createFolder, detail: "Failed to create folder '\(name)' in \(currentPath)", status: .failed, error: error, modelContext: modelContext)
             errorMessage = error.localizedDescription
             return false
         }
     }
 
     /// Upload a file to the current directory.
-    func uploadFile(data: Data, filename: String) async {
+    func uploadFile(data: Data, filename: String, modelContext: ModelContext) async {
         guard let service else {
             errorMessage = "Not connected to device."
             return
@@ -185,20 +188,25 @@ final class FileManagerViewModel {
             }
             uploadProgress = nil
             uploadFilename = nil
+            logActivity(.upload, detail: "Uploaded '\(filename)' to \(currentPath)", modelContext: modelContext)
             await loadDirectory()
         } catch {
             uploadProgress = nil
             uploadFilename = nil
+            logActivity(.upload, detail: "Failed to upload '\(filename)' to \(currentPath)", status: .failed, error: error, modelContext: modelContext)
             errorMessage = error.localizedDescription
         }
     }
 
     /// Delete a file or folder.
-    func deleteItem(_ file: DeviceFile) async -> Bool {
+    func deleteItem(_ file: DeviceFile, modelContext: ModelContext) async -> Bool {
         guard let service else {
             errorMessage = "Not connected to device."
             return false
         }
+
+        let action: ActivityAction = file.isDirectory ? .deleteFolder : .deleteFile
+        let label = file.isDirectory ? "folder" : "file"
 
         do {
             if file.isDirectory {
@@ -206,16 +214,18 @@ final class FileManagerViewModel {
             } else {
                 try await service.deleteFile(path: file.path)
             }
+            logActivity(action, detail: "Deleted \(label) '\(file.name)' from \(currentPath)", modelContext: modelContext)
             await loadDirectory()
             return true
         } catch {
+            logActivity(action, detail: "Failed to delete \(label) '\(file.name)' from \(currentPath)", status: .failed, error: error, modelContext: modelContext)
             errorMessage = error.localizedDescription
             return false
         }
     }
 
     /// Move a file to a destination folder.
-    func moveFile(_ file: DeviceFile, to destination: String) async -> Bool {
+    func moveFile(_ file: DeviceFile, to destination: String, modelContext: ModelContext) async -> Bool {
         guard let service else {
             errorMessage = "Not connected to device."
             return false
@@ -223,9 +233,11 @@ final class FileManagerViewModel {
 
         do {
             try await service.moveFile(path: file.path, destination: destination)
+            logActivity(.moveFile, detail: "Moved '\(file.name)' to \(destination)", modelContext: modelContext)
             await loadDirectory()
             return true
         } catch {
+            logActivity(.moveFile, detail: "Failed to move '\(file.name)' to \(destination)", status: .failed, error: error, modelContext: modelContext)
             errorMessage = error.localizedDescription
             return false
         }
@@ -247,6 +259,26 @@ final class FileManagerViewModel {
             errorMessage = error.localizedDescription
             return false
         }
+    }
+
+    // MARK: - Activity Logging
+
+    /// Log a file manager activity event to SwiftData.
+    private func logActivity(
+        _ action: ActivityAction,
+        detail: String,
+        status: ActivityStatus = .success,
+        error: Error? = nil,
+        modelContext: ModelContext
+    ) {
+        let event = ActivityEvent(
+            category: .fileManager,
+            action: action,
+            status: status,
+            detail: detail,
+            errorMessage: error?.localizedDescription
+        )
+        modelContext.insert(event)
     }
 
     // MARK: - Folder Listing (for Move picker)
