@@ -91,14 +91,14 @@ struct HistoryView: View {
             .toolbar {
                 // Filter menu
                 if !isEmpty {
-                    ToolbarItem(placement: .topBarLeading) {
+                    ToolbarItem(placement: .navigation) {
                         filterMenu
                     }
                 }
 
                 // Clear menu
                 if !isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
+                    ToolbarItem(placement: .primaryAction) {
                         clearMenu
                     }
                 }
@@ -142,7 +142,7 @@ struct HistoryView: View {
                     }
 
                     Button("Copy URL") {
-                        UIPasteboard.general.string = article.url
+                        ClipboardHelper.copy(article.url)
                     }
 
                     Button("Cancel", role: .cancel) {}
@@ -316,7 +316,7 @@ struct HistoryView: View {
             }
 
             Button {
-                UIPasteboard.general.string = article.url
+                ClipboardHelper.copy(article.url)
             } label: {
                 Label("Copy URL", systemImage: "doc.on.doc")
             }

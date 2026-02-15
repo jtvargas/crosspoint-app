@@ -23,8 +23,10 @@ struct SettingsSheet: View {
 
                     if settings.firmwareType == .custom {
                         TextField("Device IP Address", text: $settings.customIP)
+                            #if os(iOS)
                             .keyboardType(.decimalPad)
                             .textContentType(.none)
+                            #endif
                     }
 
                     LabeledContent("Address", value: settings.resolvedHost)
@@ -46,7 +48,9 @@ struct SettingsSheet: View {
                                 .foregroundStyle(.secondary)
                             TextField("content", text: $settings.convertFolder)
                                 .autocorrectionDisabled()
+                                #if os(iOS)
                                 .textInputAutocapitalization(.never)
+                                #endif
                         }
                     }
                     .padding(.vertical, 2)
@@ -59,7 +63,9 @@ struct SettingsSheet: View {
                                 .foregroundStyle(.secondary)
                             TextField("sleep", text: $settings.wallpaperFolder)
                                 .autocorrectionDisabled()
+                                #if os(iOS)
                                 .textInputAutocapitalization(.never)
+                                #endif
                         }
                     }
                     .padding(.vertical, 2)
@@ -121,9 +127,11 @@ struct SettingsSheet: View {
                 }
             }
             .navigationTitle("Settings")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
             }

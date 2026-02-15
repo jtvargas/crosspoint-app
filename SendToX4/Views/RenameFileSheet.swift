@@ -50,7 +50,9 @@ struct RenameFileSheet: View {
                     HStack(spacing: 0) {
                         TextField("Name", text: $stem)
                             .autocorrectionDisabled()
+                            #if os(iOS)
                             .textInputAutocapitalization(.never)
+                            #endif
                             .onChange(of: stem) {
                                 validationError = nil
                             }
@@ -75,7 +77,9 @@ struct RenameFileSheet: View {
                 }
             }
             .navigationTitle("Rename")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

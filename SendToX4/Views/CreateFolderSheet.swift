@@ -16,7 +16,9 @@ struct CreateFolderSheet: View {
                 Section {
                     TextField("Folder name", text: $folderName)
                         .autocorrectionDisabled()
+                        #if os(iOS)
                         .textInputAutocapitalization(.never)
+                        #endif
                         .onChange(of: folderName) {
                             // Clear validation error as user types
                             validationError = nil
@@ -34,7 +36,9 @@ struct CreateFolderSheet: View {
                 }
             }
             .navigationTitle("New Folder")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

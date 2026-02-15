@@ -51,12 +51,14 @@ struct ConvertView: View {
                     .foregroundStyle(.secondary)
 
                 TextField("Enter webpage URL", text: $convertVM.urlString)
+                    #if os(iOS)
                     .textContentType(.URL)
                     .keyboardType(.URL)
-                    .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
-                    .focused($isURLFieldFocused)
                     .submitLabel(.go)
+                    #endif
+                    .autocorrectionDisabled()
+                    .focused($isURLFieldFocused)
                     .onSubmit {
                         if !convertVM.isProcessing {
                             Task {
@@ -189,14 +191,16 @@ struct ConvertView: View {
 
 // MARK: - Share Sheet
 
-/// Simple UIActivityViewController wrapper for sharing EPUB files.
+#if canImport(UIKit)
+import UIKit
+
+/// UIActivityViewController wrapper for sharing EPUB files on iOS/iPadOS.
 struct ShareSheetView: UIViewControllerRepresentable {
     let items: [Any]
     let epubData: Data
     let filename: String
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        // Write data to temp file for sharing
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(filename)
         try? epubData.write(to: tempURL)
@@ -212,3 +216,30 @@ struct ShareSheetView: UIViewControllerRepresentable {
         context: Context
     ) {}
 }
+
+#elseif canImport(AppKit)
+import AppKit
+
+/// NSSharingServicePicker wrapper for sharing EPUB files on macOS.
+struct ShareSheetView: NSViewRepresentable {
+    let items: [Any]
+    let epubData: Data
+    let filename: String
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        // Trigger the share picker after the view appears
+        DispatchQueue.main.async {
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(filename)
+            try? epubData.write(to: tempURL)
+
+            let picker = NSSharingServicePicker(items: [tempURL])
+            picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+#endif

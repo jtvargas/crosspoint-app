@@ -21,6 +21,35 @@ struct MainView: View {
     }
 
     var body: some View {
+        #if os(macOS)
+        VStack(spacing: 0) {
+            tabContent
+            Divider()
+            MacDeviceStatusBar(
+                deviceVM: deviceVM,
+                convertVM: convertVM,
+                settings: settings
+            )
+        }
+        .task {
+            await deviceVM.search(settings: settings)
+        }
+        #else
+        tabContent
+            .tabViewBottomAccessory {
+                DeviceConnectionAccessory(
+                    deviceVM: deviceVM,
+                    convertVM: convertVM,
+                    settings: settings
+                )
+            }
+            .task {
+                await deviceVM.search(settings: settings)
+            }
+        #endif
+    }
+
+    private var tabContent: some View {
         TabView {
             Tab("Convert", systemImage: "doc.text.magnifyingglass") {
                 ConvertView(
@@ -29,7 +58,7 @@ struct MainView: View {
                     settings: settings
                 )
             }
-            
+
             if settings.showWallpaperX {
                 Tab("WallpaperX", systemImage: "photo.artframe") {
                     WallpaperXView(
@@ -38,7 +67,7 @@ struct MainView: View {
                     )
                 }
             }
-            
+
             Tab("Files", systemImage: "folder") {
                 FileManagerView(
                     deviceVM: deviceVM,
@@ -54,20 +83,6 @@ struct MainView: View {
                     settings: settings
                 )
             }
-
-          
-
-
-        }
-        .tabViewBottomAccessory {
-            DeviceConnectionAccessory(
-                deviceVM: deviceVM,
-                convertVM: convertVM,
-                settings: settings
-            )
-        }
-        .task {
-            await deviceVM.search(settings: settings)
         }
     }
 }

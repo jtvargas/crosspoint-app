@@ -29,7 +29,9 @@ struct FileManagerView: View {
                 }
             }
             .navigationTitle("File Manager")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .settingsToolbar(deviceVM: deviceVM, settings: settings)
             .toolbar {
                 // Back / Up button (leading, only when not at root)
@@ -240,7 +242,11 @@ struct FileManagerView: View {
                 }
             }
         }
+        #if os(iOS)
         .listStyle(.insetGrouped)
+        #else
+        .listStyle(.inset)
+        #endif
         .refreshable {
             await fileVM.refresh()
         }
