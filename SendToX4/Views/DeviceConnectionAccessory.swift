@@ -143,7 +143,7 @@ struct DeviceConnectionAccessory: View {
     }
 
     private var statusColor: Color {
-        if deviceVM.isSearching { return .orange }
-        return deviceVM.isConnected ? .green : .red
+        if deviceVM.isSearching { return AppColor.warning }
+        return deviceVM.isConnected ? AppColor.success : AppColor.error
     }
 }

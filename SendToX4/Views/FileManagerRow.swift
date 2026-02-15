@@ -56,7 +56,7 @@ struct FileManagerRow: View {
                     } label: {
                         Label("Move", systemImage: "folder")
                     }
-                    .tint(.blue)
+                    .tint(AppColor.accent)
                 }
             }
         }
@@ -133,9 +133,9 @@ struct FileManagerRow: View {
 
     private var iconColor: Color {
         if file.isDirectory {
-            return .yellow
+            return AppColor.accent
         } else if file.isEpub {
-            return .green
+            return AppColor.accent
         } else {
             return .secondary
         }

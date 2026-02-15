@@ -162,7 +162,7 @@ struct ConvertView: View {
         if let error = convertVM.lastError {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppColor.error)
                 Text(error)
                     .foregroundStyle(.secondary)
                     .font(.footnote)
@@ -175,7 +175,7 @@ struct ConvertView: View {
                 Image(systemName: convertVM.currentPhase == .sent
                       ? "checkmark.circle.fill" : "info.circle.fill")
                     .foregroundStyle(convertVM.currentPhase == .sent
-                                    ? .green : .blue)
+                                    ? AppColor.success : AppColor.accent)
                 Text(convertVM.statusMessage)
                     .foregroundStyle(.secondary)
                     .font(.footnote)

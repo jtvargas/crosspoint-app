@@ -88,18 +88,6 @@ final class ActivityEvent {
         }
     }
 
-    /// Icon color based on action and status.
-    var iconColorName: String {
-        if status == .failed { return "red" }
-        switch action {
-        case .upload:       return "blue"
-        case .createFolder: return "yellow"
-        case .moveFile:     return "purple"
-        case .deleteFile:   return "orange"
-        case .deleteFolder: return "orange"
-        }
-    }
-
     /// Human-readable action label.
     var actionLabel: String {
         switch action {

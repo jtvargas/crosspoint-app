@@ -68,7 +68,7 @@ struct RenameFileSheet: View {
                 } footer: {
                     if let error = validationError {
                         Text(error)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppColor.error)
                     } else if !fileExtension.isEmpty {
                         Text("The file extension cannot be changed.")
                     }

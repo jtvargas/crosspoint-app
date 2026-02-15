@@ -27,7 +27,7 @@ struct CreateFolderSheet: View {
                 } footer: {
                     if let error = validationError {
                         Text(error)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppColor.error)
                     } else {
                         Text("Avoid special characters: \" * : < > ? / \\ |")
                     }

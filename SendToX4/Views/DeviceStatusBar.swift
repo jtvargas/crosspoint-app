@@ -68,8 +68,8 @@ struct DeviceStatusBar: View {
     }
 
     private var rssiColor: Color {
-        if status.rssi > -50 { return .green }
-        if status.rssi > -70 { return .yellow }
-        return .red
+        if status.rssi > -50 { return AppColor.success }
+        if status.rssi > -70 { return AppColor.warning }
+        return AppColor.error
     }
 }

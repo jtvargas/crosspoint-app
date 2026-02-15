@@ -83,7 +83,7 @@ struct MoveFileSheet: View {
                         } label: {
                             HStack(spacing: 12) {
                                 Image(systemName: "folder.fill")
-                                    .foregroundStyle(.yellow)
+                                    .foregroundStyle(AppColor.accent)
                                 Text(folder.name)
                                 Spacer()
                                 Image(systemName: "chevron.right")

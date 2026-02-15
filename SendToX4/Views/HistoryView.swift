@@ -51,6 +51,7 @@ struct HistoryView: View {
     @State private var shareFilename: String?
     @State private var showClearConfirmation = false
     @State private var filter: HistoryFilter = .all
+    @State private var expandedItems: Set<String> = []
 
     // MARK: - Unified Timeline
 
@@ -174,9 +175,13 @@ struct HistoryView: View {
             ForEach(timeline) { item in
                 switch item {
                 case .conversion(let article):
-                    conversionRow(article)
+                    conversionRow(article, itemID: item.id)
                         .contentShape(Rectangle())
-                        .onTapGesture { selectedArticle = article }
+                        .onTapGesture {
+                            withAnimation(.spring(duration: 0.3)) {
+                                toggleExpanded(item.id)
+                            }
+                        }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 historyVM.delete(article: article, from: modelContext)
@@ -198,12 +203,18 @@ struct HistoryView: View {
                                 } label: {
                                     Label("Resend", systemImage: "paperplane")
                                 }
-                                .tint(.blue)
+                                .tint(AppColor.accent)
                             }
                         }
 
                 case .activity(let event):
-                    activityRow(event)
+                    activityRow(event, itemID: item.id)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            withAnimation(.spring(duration: 0.3)) {
+                                toggleExpanded(item.id)
+                            }
+                        }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
                                 historyVM.delete(activity: event, from: modelContext)
@@ -216,16 +227,30 @@ struct HistoryView: View {
         }
     }
 
-    // MARK: - Conversion Row (preserves existing design)
+    // MARK: - Expand / Collapse
 
-    private func conversionRow(_ article: Article) -> some View {
+    private func toggleExpanded(_ id: String) {
+        if expandedItems.contains(id) {
+            expandedItems.remove(id)
+        } else {
+            expandedItems.insert(id)
+        }
+    }
+
+    private func isExpanded(_ id: String) -> Bool {
+        expandedItems.contains(id)
+    }
+
+    // MARK: - Conversion Row
+
+    private func conversionRow(_ article: Article, itemID: String) -> some View {
         HStack(spacing: 12) {
             conversionStatusIcon(for: article.status)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(article.title.isEmpty ? "Untitled" : article.title)
                     .font(.body.weight(.medium))
-                    .lineLimit(2)
+                    .lineLimit(isExpanded(itemID) ? nil : 2)
 
                 HStack(spacing: 6) {
                     Text(article.sourceDomain)
@@ -243,18 +268,71 @@ struct HistoryView: View {
                 if let error = article.errorMessage, article.status == .failed {
                     Text(error)
                         .font(.caption2)
-                        .foregroundStyle(.red)
-                        .lineLimit(1)
+                        .foregroundStyle(AppColor.error)
+                        .lineLimit(isExpanded(itemID) ? nil : 1)
                 }
             }
 
             Spacer()
 
-            Image(systemName: "chevron.right")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            // Ellipsis menu for actions
+            conversionMenu(for: article)
         }
         .padding(.vertical, 4)
+    }
+
+    private func conversionMenu(for article: Article) -> some View {
+        Menu {
+            Button {
+                let target = article
+                Task {
+                    if let result = await convertVM.reconvertForShare(
+                        article: target,
+                        modelContext: modelContext
+                    ) {
+                        shareEPUBData = result.data
+                        shareFilename = result.filename
+                        showShareSheet = true
+                    }
+                }
+            } label: {
+                Label("Reconvert & Share", systemImage: "square.and.arrow.up")
+            }
+
+            if deviceVM.isConnected {
+                Button {
+                    let target = article
+                    Task {
+                        await convertVM.resend(
+                            article: target,
+                            deviceVM: deviceVM,
+                            settings: settings,
+                            modelContext: modelContext
+                        )
+                    }
+                } label: {
+                    Label("Resend to X4", systemImage: "paperplane")
+                }
+            }
+
+            Button {
+                UIPasteboard.general.string = article.url
+            } label: {
+                Label("Copy URL", systemImage: "doc.on.doc")
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                historyVM.delete(article: article, from: modelContext)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.body)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private func conversionStatusIcon(for status: ConversionStatus) -> some View {
@@ -262,13 +340,13 @@ struct HistoryView: View {
             switch status {
             case .sent:
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                    .foregroundStyle(AppColor.success)
             case .savedLocally:
                 Image(systemName: "arrow.down.circle.fill")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(AppColor.accent)
             case .failed:
                 Image(systemName: "exclamationmark.circle.fill")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppColor.error)
             case .pending, .fetching, .extracting, .building, .sending:
                 ProgressView()
                     .controlSize(.small)
@@ -279,9 +357,11 @@ struct HistoryView: View {
 
     // MARK: - Activity Row
 
-    private func activityRow(_ event: ActivityEvent) -> some View {
+    private func activityRow(_ event: ActivityEvent, itemID: String) -> some View {
         HStack(spacing: 12) {
-            activityIcon(for: event)
+            Image(systemName: event.iconName)
+                .foregroundStyle(event.status == .failed ? AppColor.error : AppColor.accent)
+                .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(event.actionLabel)
@@ -290,7 +370,7 @@ struct HistoryView: View {
                 Text(event.detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .lineLimit(isExpanded(itemID) ? nil : 2)
 
                 HStack(spacing: 6) {
                     Text("File Manager")
@@ -308,31 +388,14 @@ struct HistoryView: View {
                 if let error = event.errorMessage {
                     Text(error)
                         .font(.caption2)
-                        .foregroundStyle(.red)
-                        .lineLimit(1)
+                        .foregroundStyle(AppColor.error)
+                        .lineLimit(isExpanded(itemID) ? nil : 1)
                 }
             }
 
             Spacer()
         }
         .padding(.vertical, 4)
-    }
-
-    private func activityIcon(for event: ActivityEvent) -> some View {
-        Image(systemName: event.iconName)
-            .foregroundStyle(activityColor(for: event))
-            .frame(width: 28)
-    }
-
-    private func activityColor(for event: ActivityEvent) -> Color {
-        if event.status == .failed { return .red }
-        switch event.action {
-        case .upload:       return .blue
-        case .createFolder: return .yellow
-        case .moveFile:     return .purple
-        case .deleteFile:   return .orange
-        case .deleteFolder: return .orange
-        }
     }
 
     // MARK: - Filter Menu

@@ -312,7 +312,7 @@ struct FileManagerView: View {
     private func errorBanner(_ message: String) -> some View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.yellow)
+                .foregroundStyle(AppColor.warning)
             Text(message)
                 .font(.caption)
                 .lineLimit(2)

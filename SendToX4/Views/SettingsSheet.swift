@@ -92,7 +92,7 @@ struct SettingsSheet: View {
                             } else if let result = testResult {
                                 Text(result)
                                     .foregroundStyle(
-                                        deviceVM.isConnected ? .green : .red
+                                        deviceVM.isConnected ? AppColor.success : AppColor.error
                                     )
                                     .font(.footnote)
                             }
