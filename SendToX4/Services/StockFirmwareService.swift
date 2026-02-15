@@ -2,7 +2,7 @@ import Foundation
 
 /// Device service implementation for the Stock firmware (ESP32-based HTTP server).
 /// Default IP: 192.168.3.3
-struct StockFirmwareService: DeviceService {
+nonisolated struct StockFirmwareService: DeviceService {
     let baseURL: URL
     
     /// Stock firmware does not support move/rename operations.
@@ -213,7 +213,7 @@ struct StockFirmwareService: DeviceService {
 
 /// URLSession task delegate that reports upload progress and captures the response.
 /// Used by StockFirmwareService for progress-tracked uploads.
-private final class UploadProgressDelegate: NSObject, URLSessionTaskDelegate, URLSessionDataDelegate, @unchecked Sendable {
+private nonisolated final class UploadProgressDelegate: NSObject, URLSessionTaskDelegate, URLSessionDataDelegate, @unchecked Sendable {
     let progressHandler: @Sendable (Double) -> Void
     var continuation: CheckedContinuation<(Data, URLResponse), Error>?
     private var receivedData = Data()

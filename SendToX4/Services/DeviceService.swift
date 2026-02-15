@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Models
 
 /// Represents a file or directory on the X4 device.
-struct DeviceFile: Identifiable, Equatable {
+nonisolated struct DeviceFile: Identifiable, Equatable {
     let name: String
     let isDirectory: Bool
     let size: Int64
@@ -36,7 +36,7 @@ struct DeviceFile: Identifiable, Equatable {
 }
 
 /// Device status information (CrossPoint firmware).
-struct DeviceStatus {
+nonisolated struct DeviceStatus {
     let version: String
     let ip: String
     let mode: String       // "STA" or "AP"
@@ -63,7 +63,7 @@ struct DeviceStatus {
 // MARK: - Errors
 
 /// Errors for device communication.
-enum DeviceError: LocalizedError {
+nonisolated enum DeviceError: LocalizedError {
     case unreachable
     case uploadFailed(statusCode: Int)
     case folderCreationFailed
@@ -114,7 +114,7 @@ enum DeviceError: LocalizedError {
 
 /// Protocol defining the interface for X4 device communication.
 /// Both Stock and CrossPoint firmware implement this protocol.
-protocol DeviceService: Sendable {
+nonisolated protocol DeviceService: Sendable {
     var baseURL: URL { get }
 
     /// Check if the device is reachable.
@@ -164,7 +164,7 @@ protocol DeviceService: Sendable {
 
 // MARK: - Default Implementations
 
-extension DeviceService {
+nonisolated extension DeviceService {
     func ensureFolder(_ name: String) async throws {
         let files = try await listFiles(directory: "/")
         let exists = files.contains { $0.isDirectory && $0.name == name }
@@ -181,12 +181,11 @@ extension DeviceService {
 
 // MARK: - File Name Validation
 
-enum FileNameValidator {
-    /// Regex matching valid file/folder names.
-    /// Rejects: " * : < > ? / \ | and standalone . or ..
-    private static let invalidPattern = try! NSRegularExpression(
-        pattern: #"["\*:<>\?/\\|]"#
-    )
+nonisolated enum FileNameValidator {
+    /// Characters forbidden in file/folder names on the device.
+    private static let invalidCharacters: Set<Character> = [
+        "\"", "*", ":", "<", ">", "?", "/", "\\", "|"
+    ]
 
     /// Validate a file or folder name.
     /// Returns nil if valid, or an error message string if invalid.
@@ -205,8 +204,7 @@ enum FileNameValidator {
             return "Name cannot start with a dot."
         }
 
-        let range = NSRange(trimmed.startIndex..., in: trimmed)
-        if invalidPattern.firstMatch(in: trimmed, range: range) != nil {
+        if trimmed.contains(where: { invalidCharacters.contains($0) }) {
             return "Name contains invalid characters. Avoid \" * : < > ? / \\ |"
         }
 

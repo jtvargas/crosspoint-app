@@ -2,7 +2,7 @@ import Foundation
 
 /// Device service implementation for the CrossPoint firmware.
 /// Supports both mDNS hostname (crosspoint.local) and static IP (192.168.4.1).
-struct CrossPointFirmwareService: DeviceService {
+nonisolated struct CrossPointFirmwareService: DeviceService {
     
     /// mDNS hostname — preferred, resolved via Bonjour.
     static let localHostname = "crosspoint.local"
@@ -316,7 +316,7 @@ struct CrossPointFirmwareService: DeviceService {
 // MARK: - Upload Progress Delegate
 
 /// URLSession task delegate that reports upload progress and captures the response.
-private final class UploadProgressDelegate: NSObject, URLSessionTaskDelegate, URLSessionDataDelegate, @unchecked Sendable {
+private nonisolated final class UploadProgressDelegate: NSObject, URLSessionTaskDelegate, URLSessionDataDelegate, @unchecked Sendable {
     let progressHandler: @Sendable (Double) -> Void
     var continuation: CheckedContinuation<(Data, URLResponse), Error>?
     private var receivedData = Data()
@@ -355,7 +355,7 @@ private final class UploadProgressDelegate: NSObject, URLSessionTaskDelegate, UR
 
 // MARK: - Multipart Form Data Helpers
 
-extension Data {
+nonisolated extension Data {
     /// Append a text field to a multipart form body.
     mutating func appendMultipartField(name: String, value: String, boundary: String) {
         append("--\(boundary)\r\n")

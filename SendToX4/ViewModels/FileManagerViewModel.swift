@@ -232,14 +232,10 @@ final class FileManagerViewModel {
     }
 
     /// Rename a file.
+    /// Validation is handled by RenameFileSheet before calling this method.
     func renameFile(_ file: DeviceFile, to newName: String) async -> Bool {
         guard let service else {
             errorMessage = "Not connected to device."
-            return false
-        }
-
-        if let validationError = FileNameValidator.validate(newName) {
-            errorMessage = validationError
             return false
         }
 

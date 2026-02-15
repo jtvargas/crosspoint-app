@@ -2,7 +2,7 @@ import Foundation
 import Network
 
 /// Result of device discovery.
-enum DiscoveryResult: Sendable {
+nonisolated enum DiscoveryResult: Sendable {
     case stock(StockFirmwareService)
     case crossPoint(CrossPointFirmwareService)
     case custom(any DeviceService)
@@ -28,7 +28,7 @@ enum DiscoveryResult: Sendable {
 }
 
 /// Discovers the X4 device by probing known firmware endpoints.
-enum DeviceDiscovery {
+nonisolated enum DeviceDiscovery {
     
     /// Auto-detect the X4 device by trying Stock and CrossPoint endpoints concurrently.
     /// CrossPoint detection tries crosspoint.local first, then falls back to static IP.

@@ -50,15 +50,6 @@ struct FileManagerRow: View {
             }
 
             if !file.isDirectory && supportsMoveRename {
-                if let onRename {
-                    Button {
-                        onRename()
-                    } label: {
-                        Label("Rename", systemImage: "pencil")
-                    }
-                    .tint(.orange)
-                }
-
                 if let onMove {
                     Button {
                         onMove()
@@ -71,13 +62,10 @@ struct FileManagerRow: View {
         }
         .contextMenu {
             if !file.isDirectory && supportsMoveRename {
-                if let onRename {
-                    Button {
-                        onRename()
-                    } label: {
-                        Label("Rename", systemImage: "pencil")
-                    }
+                Button { } label: {
+                    Label("Rename (Coming Soon)", systemImage: "pencil")
                 }
+                .disabled(true)
 
                 if let onMove {
                     Button {
@@ -103,13 +91,10 @@ struct FileManagerRow: View {
     private var ellipsisMenu: some View {
         Menu {
             if !file.isDirectory && supportsMoveRename {
-                if let onRename {
-                    Button {
-                        onRename()
-                    } label: {
-                        Label("Rename", systemImage: "pencil")
-                    }
+                Button { } label: {
+                    Label("Rename (Coming Soon)", systemImage: "pencil")
                 }
+                .disabled(true)
 
                 if let onMove {
                     Button {

@@ -77,11 +77,12 @@ struct FileManagerView: View {
                     await fileVM.createFolder(name: name)
                 }
             }
-            .sheet(item: $itemToRename) { file in
-                RenameFileSheet(file: file) { newName in
-                    await fileVM.renameFile(file, to: newName)
-                }
-            }
+            // TODO: Re-enable when rename is implemented
+            // .sheet(item: $itemToRename) { file in
+            //     RenameFileSheet(file: file) { newName in
+            //         await fileVM.renameFile(file, to: newName)
+            //     }
+            // }
             .sheet(item: $itemToMove) { file in
                 MoveFileSheet(
                     file: file,
@@ -120,7 +121,12 @@ struct FileManagerView: View {
             }
             .fileImporter(
                 isPresented: $showFileImporter,
-                allowedContentTypes: [.data],
+                allowedContentTypes: [
+                    .epub,
+                    .plainText,
+                    UTType(filenameExtension: "xtc") ?? .data,
+                    UTType(filenameExtension: "bump") ?? .data,
+                ],
                 allowsMultipleSelection: false
             ) { result in
                 handleFileImport(result)
@@ -216,7 +222,7 @@ struct FileManagerView: View {
                                 supportsMoveRename: fileVM.supportsMoveRename,
                                 onDelete: { itemToDelete = file },
                                 onMove: fileVM.supportsMoveRename ? { itemToMove = file } : nil,
-                                onRename: fileVM.supportsMoveRename ? { itemToRename = file } : nil
+                                onRename: nil // Rename disabled — coming soon
                             )
                         }
                     }

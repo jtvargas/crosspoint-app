@@ -1,0 +1,171 @@
+{
+  "fill-specializations" : [
+    {
+      "value" : {
+        "automatic-gradient" : "display-p3:0.96783,0.94559,0.95448,1.00000"
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : "system-dark"
+    }
+  ],
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : false,
+          "hidden" : true,
+          "image-name" : "lightspectrum.horizontal 2.svg",
+          "name" : "lightspectrum.horizontal 2",
+          "position" : {
+            "scale" : 7.25,
+            "translation-in-points" : [
+              27.89216496948719,
+              -46.90692708834103
+            ]
+          }
+        },
+        {
+          "glass-specializations" : [
+            {
+              "value" : false
+            },
+            {
+              "appearance" : "dark",
+              "value" : false
+            }
+          ],
+          "image-name" : "dot.crosshair.svg",
+          "name" : "dot.crosshair",
+          "position" : {
+            "scale" : 24,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "glass-specializations" : [
+            {
+              "value" : false
+            },
+            {
+              "appearance" : "dark",
+              "value" : false
+            }
+          ],
+          "hidden" : false,
+          "image-name" : "apple.books.pages.fill 2.svg",
+          "name" : "apple.books.pages.fill 2",
+          "position" : {
+            "scale" : 10,
+            "translation-in-points" : [
+              242.68107121037954,
+              -234.74623117595638
+            ]
+          }
+        },
+        {
+          "glass-specializations" : [
+            {
+              "value" : false
+            },
+            {
+              "appearance" : "dark",
+              "value" : false
+            }
+          ],
+          "hidden" : false,
+          "image-name" : "paperplane.fill.svg",
+          "name" : "paperplane.fill",
+          "position" : {
+            "scale" : 8,
+            "translation-in-points" : [
+              -248.65384170901797,
+              251.673889916059
+            ]
+          }
+        },
+        {
+          "hidden" : true,
+          "image-name" : "grok-image-fb74e6d9-3ada-4b41-ad5e-6b5e80810b70 (5) Background Removed 2.png",
+          "name" : "grok-image-fb74e6d9-3ada-4b41-ad5e-6b5e80810b70 (5) Background Removed 2",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -23.554452417335938,
+              250.7500215882231
+            ]
+          }
+        },
+        {
+          "hidden" : true,
+          "image-name" : " saf 4.png",
+          "name" : " saf 4",
+          "position" : {
+            "scale" : 0.3,
+            "translation-in-points" : [
+              -8.232997659958977,
+              -8.511919309653859
+            ]
+          }
+        },
+        {
+          "blend-mode-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : "normal"
+            }
+          ],
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : "none"
+            }
+          ],
+          "glass" : false,
+          "hidden" : true,
+          "image-name" : "shoe.arrow.trianglehead.up.right.circle.fill.svg",
+          "name" : "shoe.arrow.trianglehead.up.right.circle.fill",
+          "position" : {
+            "scale" : 12,
+            "translation-in-points" : [
+              -33.043564817151605,
+              203.2801708545609
+            ]
+          }
+        },
+        {
+          "glass" : false,
+          "hidden" : true,
+          "image-name" : "brakesignal.svg",
+          "name" : "brakesignal",
+          "position" : {
+            "scale" : 12,
+            "translation-in-points" : [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "name" : "Group",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "circles" : [
+      "watchOS"
+    ],
+    "squares" : "shared"
+  }
+}
