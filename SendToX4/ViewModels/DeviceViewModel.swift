@@ -65,7 +65,9 @@ final class DeviceViewModel {
     }
 
     /// Disconnect from the device and reset connection state.
+    /// Blocked while a file upload is in progress to prevent data corruption.
     func disconnect() {
+        guard !isUploading else { return }
         activeService = nil
         isConnected = false
         firmwareLabel = "Not Connected"

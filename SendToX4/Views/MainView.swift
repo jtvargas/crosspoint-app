@@ -13,6 +13,8 @@ enum AppTab: Hashable {
 struct MainView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \DeviceSettings.convertFolder) private var allSettings: [DeviceSettings]
+    @Query(sort: \Article.createdAt, order: .reverse) private var articles: [Article]
+    @Query(sort: \ActivityEvent.timestamp, order: .reverse) private var activities: [ActivityEvent]
 
     @State private var deviceVM = DeviceViewModel()
     @State private var convertVM = ConvertViewModel()
@@ -38,7 +40,6 @@ struct MainView: View {
             Divider()
             MacDeviceStatusBar(
                 deviceVM: deviceVM,
-                convertVM: convertVM,
                 settings: settings
             )
         }
@@ -103,6 +104,12 @@ struct MainView: View {
                     deviceVM: deviceVM,
                     settings: settings
                 )
+            }
+            .badge(historyVM.unseenCount(articles: articles, activities: activities))
+        }
+        .onChange(of: selectedTab) { _, newTab in
+            if newTab == .history {
+                historyVM.markAsSeen()
             }
         }
     }

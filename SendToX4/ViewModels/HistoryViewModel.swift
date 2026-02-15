@@ -8,6 +8,25 @@ final class HistoryViewModel {
 
     var searchText = ""
 
+    // MARK: - Badge / Unseen Tracking
+
+    /// Timestamp of the last time the user viewed the History tab.
+    /// Initialized to app launch time so the badge starts at 0.
+    var lastHistoryViewedAt: Date = Date()
+
+    /// Mark all current history as seen (resets the badge count to 0).
+    func markAsSeen() {
+        lastHistoryViewedAt = Date()
+    }
+
+    /// Count of log entries created after the user last viewed the History tab.
+    func unseenCount(articles: [Article], activities: [ActivityEvent]) -> Int {
+        let cutoff = lastHistoryViewedAt
+        let newArticles = articles.filter { $0.createdAt > cutoff }.count
+        let newActivities = activities.filter { $0.timestamp > cutoff }.count
+        return newArticles + newActivities
+    }
+
     // MARK: - Single Item Deletion
 
     /// Delete an article from history.

@@ -100,6 +100,21 @@ struct DeviceConnectionAccessory: View {
         if deviceVM.isSearching {
             ProgressView()
                 .controlSize(.small)
+        } else if isUploading {
+            // Replace Disconnect/Refresh with a non-interactive progress capsule
+            HStack(spacing: 6) {
+                ProgressView(value: deviceVM.uploadProgress, total: 1.0)
+                    .progressViewStyle(.circular)
+                    .controlSize(.small)
+                    .tint(.accentColor)
+
+                Text("\(Int(deviceVM.uploadProgress * 100))%")
+                    .font(.caption.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(Color.accentColor)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.ultraThinMaterial, in: Capsule())
         } else {
             HStack(spacing: 8) {
                 // Refresh

@@ -7,7 +7,6 @@ import SwiftUI
 /// showing connection state, firmware info, upload progress, and connect/disconnect controls.
 struct MacDeviceStatusBar: View {
     var deviceVM: DeviceViewModel
-    var convertVM: ConvertViewModel
     var settings: DeviceSettings
 
     var body: some View {
@@ -22,42 +21,42 @@ struct MacDeviceStatusBar: View {
 
             Spacer()
 
-            // Upload progress (when active)
+            // Upload progress replaces action buttons when active
             if isUploading {
                 ProgressView(value: deviceVM.uploadProgress, total: 1.0)
                     .frame(width: 120)
                     .controlSize(.small)
 
                 Text("\(Int(deviceVM.uploadProgress * 100))%")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-
-            // Refresh button
-            Button {
-                Task { await deviceVM.refresh(settings: settings) }
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .font(.caption)
-            }
-            .buttonStyle(.borderless)
-            .disabled(deviceVM.isSearching)
-
-            // Connect / Disconnect
-            Button {
-                Task {
-                    if deviceVM.isConnected {
-                        deviceVM.disconnect()
-                    } else {
-                        await deviceVM.search(settings: settings)
-                    }
+                    .font(.caption.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(Color.accentColor)
+            } else {
+                // Refresh button
+                Button {
+                    Task { await deviceVM.refresh(settings: settings) }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.caption)
                 }
-            } label: {
-                Text(deviceVM.isConnected ? "Disconnect" : "Connect")
-                    .font(.caption.weight(.medium))
+                .buttonStyle(.borderless)
+                .disabled(deviceVM.isSearching)
+
+                // Connect / Disconnect
+                Button {
+                    Task {
+                        if deviceVM.isConnected {
+                            deviceVM.disconnect()
+                        } else {
+                            await deviceVM.search(settings: settings)
+                        }
+                    }
+                } label: {
+                    Text(deviceVM.isConnected ? "Disconnect" : "Connect")
+                        .font(.caption.weight(.medium))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
@@ -93,8 +92,7 @@ struct MacDeviceStatusBar: View {
     }
 
     private var isUploading: Bool {
-        convertVM.isProcessing
-            && convertVM.currentPhase == .sending
+        deviceVM.isUploading
             && deviceVM.uploadProgress > 0
             && deviceVM.uploadProgress < 1.0
     }

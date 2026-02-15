@@ -24,12 +24,6 @@ final class FileManagerViewModel {
     /// Device status info (nil if not fetched or unsupported).
     var deviceStatus: DeviceStatus?
 
-    /// Upload progress (nil when not uploading).
-    var uploadProgress: Double?
-
-    /// Name of file currently being uploaded.
-    var uploadFilename: String?
-
     /// Whether the connected firmware supports move/rename.
     var supportsMoveRename: Bool {
         service?.supportsMoveRename ?? false
@@ -167,32 +161,17 @@ final class FileManagerViewModel {
         }
     }
 
-    /// Upload a file to the current directory.
-    func uploadFile(data: Data, filename: String, modelContext: ModelContext) async {
-        guard let service else {
-            errorMessage = "Not connected to device."
-            return
-        }
-
-        uploadProgress = 0
-        uploadFilename = filename
-
+    /// Upload a file to the current directory, routed through `DeviceViewModel`
+    /// so that global upload state (progress, filename) is visible across all tabs.
+    func uploadFile(data: Data, filename: String, deviceVM: DeviceViewModel, modelContext: ModelContext) async {
         // Determine the folder path for upload (strip leading "/" for the upload API)
         let folder = currentPath == "/" ? "" : String(currentPath.dropFirst())
 
         do {
-            try await service.uploadFile(data: data, filename: filename, toFolder: folder) { [weak self] progress in
-                Task { @MainActor [weak self] in
-                    self?.uploadProgress = progress
-                }
-            }
-            uploadProgress = nil
-            uploadFilename = nil
+            try await deviceVM.upload(data: data, filename: filename, toFolder: folder)
             logActivity(.upload, detail: "Uploaded '\(filename)' to \(currentPath)", modelContext: modelContext)
             await loadDirectory()
         } catch {
-            uploadProgress = nil
-            uploadFilename = nil
             logActivity(.upload, detail: "Failed to upload '\(filename)' to \(currentPath)", status: .failed, error: error, modelContext: modelContext)
             errorMessage = error.localizedDescription
         }

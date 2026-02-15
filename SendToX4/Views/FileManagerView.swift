@@ -143,7 +143,7 @@ struct FileManagerView: View {
             }
             // MARK: - Upload Progress Overlay
             .overlay {
-                if fileVM.uploadProgress != nil {
+                if deviceVM.isUploading {
                     uploadOverlay
                 }
             }
@@ -346,11 +346,11 @@ struct FileManagerView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 16) {
-                ProgressView(value: fileVM.uploadProgress ?? 0) {
+                ProgressView(value: deviceVM.uploadProgress) {
                     Text("Uploading...")
                         .font(.headline)
                 } currentValueLabel: {
-                    if let name = fileVM.uploadFilename {
+                    if let name = deviceVM.uploadFilename {
                         Text(name)
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -359,7 +359,7 @@ struct FileManagerView: View {
                 }
                 .progressViewStyle(.linear)
 
-                Text("\(Int((fileVM.uploadProgress ?? 0) * 100))%")
+                Text("\(Int(deviceVM.uploadProgress * 100))%")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
@@ -386,7 +386,7 @@ struct FileManagerView: View {
                 let data = try Data(contentsOf: url)
                 let filename = url.lastPathComponent
                 Task {
-                    await fileVM.uploadFile(data: data, filename: filename, modelContext: modelContext)
+                    await fileVM.uploadFile(data: data, filename: filename, deviceVM: deviceVM, modelContext: modelContext)
                 }
             } catch {
                 fileVM.errorMessage = "Failed to read file: \(error.localizedDescription)"
