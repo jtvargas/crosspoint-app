@@ -1,13 +1,22 @@
 import SwiftUI
+import SwiftData
 
 /// Device configuration sheet with native iOS Settings style.
 struct SettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     var deviceVM: DeviceViewModel
     @Bindable var settings: DeviceSettings
 
     @State private var isTesting = false
     @State private var testResult: String?
+
+    // Storage
+    @State private var databaseSize: Int64 = 0
+    @State private var webCacheSize: Int64 = 0
+    @State private var tempSize: Int64 = 0
+    @State private var showClearHistoryConfirm = false
+    @State private var showClearCacheConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -107,6 +116,35 @@ struct SettingsSheet: View {
                     .disabled(isTesting)
                 }
 
+                // MARK: - Storage Section
+
+                Section {
+                    LabeledContent("Database") {
+                        Text(StorageCalculator.formatted(databaseSize))
+                            .foregroundStyle(.secondary)
+                    }
+                    LabeledContent("Web Cache") {
+                        Text(StorageCalculator.formatted(webCacheSize))
+                            .foregroundStyle(.secondary)
+                    }
+                    LabeledContent("Temp Files") {
+                        Text(StorageCalculator.formatted(tempSize))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button("Clear History Data", role: .destructive) {
+                        showClearHistoryConfirm = true
+                    }
+
+                    Button("Clear Web Cache", role: .destructive) {
+                        showClearCacheConfirm = true
+                    }
+                } header: {
+                    Text("Storage")
+                } footer: {
+                    Text("Database includes conversion history and file activity logs. Web Cache stores fetched web pages for faster re-conversion.")
+                }
+
                 // MARK: - About Section
 
                 Section {
@@ -125,6 +163,54 @@ struct SettingsSheet: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .task {
+                refreshStorageSizes()
+            }
+            .confirmationDialog(
+                "Clear History Data?",
+                isPresented: $showClearHistoryConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Clear History", role: .destructive) {
+                    clearHistoryData()
+                }
+            } message: {
+                Text("This will permanently delete all conversion history and file activity logs.")
+            }
+            .confirmationDialog(
+                "Clear Web Cache?",
+                isPresented: $showClearCacheConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Clear Cache", role: .destructive) {
+                    clearWebCache()
+                }
+            } message: {
+                Text("Cached web pages will be removed. Future conversions may take slightly longer.")
+            }
         }
+    }
+
+    // MARK: - Storage Helpers
+
+    private func refreshStorageSizes() {
+        databaseSize = StorageCalculator.swiftDataStoreSize()
+        webCacheSize = StorageCalculator.urlCacheSize()
+        tempSize = StorageCalculator.tempDirectorySize()
+    }
+
+    private func clearHistoryData() {
+        do {
+            try modelContext.delete(model: Article.self)
+            try modelContext.delete(model: ActivityEvent.self)
+        } catch {
+            // Silently handle — clearing is non-critical
+        }
+        refreshStorageSizes()
+    }
+
+    private func clearWebCache() {
+        URLCache.shared.removeAllCachedResponses()
+        refreshStorageSizes()
     }
 }
