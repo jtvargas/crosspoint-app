@@ -1,10 +1,12 @@
 import SwiftUI
 import SwiftData
+import StoreKit
 import UniformTypeIdentifiers
 
 /// Full-featured file manager for browsing and managing files on the X4 device.
 struct FileManagerView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.requestReview) private var requestReview
     var deviceVM: DeviceViewModel
     var settings: DeviceSettings
     @State private var fileVM = FileManagerViewModel()
@@ -161,6 +163,13 @@ struct FileManagerView: View {
             fileVM.bind(to: deviceVM.activeService)
             if deviceVM.isConnected {
                 await fileVM.refresh()
+            }
+        }
+        .onChange(of: fileVM.shouldRequestReview) { _, shouldPrompt in
+            if shouldPrompt {
+                fileVM.shouldRequestReview = false
+                ReviewPromptManager.recordPromptShown()
+                requestReview()
             }
         }
     }

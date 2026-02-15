@@ -24,6 +24,9 @@ final class FileManagerViewModel {
     /// Device status info (nil if not fetched or unsupported).
     var deviceStatus: DeviceStatus?
 
+    /// Set to `true` when a review prompt should be shown. The View observes this.
+    var shouldRequestReview = false
+
     /// Whether the connected firmware supports move/rename.
     var supportsMoveRename: Bool {
         service?.supportsMoveRename ?? false
@@ -152,6 +155,9 @@ final class FileManagerViewModel {
         do {
             try await service.createFolder(name: name, parent: currentPath)
             logActivity(.createFolder, detail: "Created folder '\(name)' in \(currentPath)", modelContext: modelContext)
+            if ReviewPromptManager.shouldPromptAfterSuccess() {
+                shouldRequestReview = true
+            }
             await loadDirectory()
             return true
         } catch {
@@ -170,6 +176,9 @@ final class FileManagerViewModel {
         do {
             try await deviceVM.upload(data: data, filename: filename, toFolder: folder)
             logActivity(.upload, detail: "Uploaded '\(filename)' to \(currentPath)", modelContext: modelContext)
+            if ReviewPromptManager.shouldPromptAfterSuccess() {
+                shouldRequestReview = true
+            }
             await loadDirectory()
         } catch {
             logActivity(.upload, detail: "Failed to upload '\(filename)' to \(currentPath)", status: .failed, error: error, modelContext: modelContext)

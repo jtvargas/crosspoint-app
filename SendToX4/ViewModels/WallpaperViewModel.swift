@@ -57,6 +57,9 @@ final class WallpaperViewModel {
     var lastBMPData: Data?
     var lastBMPFilename: String?
 
+    /// Set to `true` when a review prompt should be shown. The View observes this.
+    var shouldRequestReview = false
+
     // MARK: - Preview Debounce
 
     private var previewTask: Task<Void, Never>?
@@ -225,6 +228,10 @@ final class WallpaperViewModel {
                 modelContext.insert(event)
 
                 statusMessage = "Sent \(filename) to /\(deviceSettings.wallpaperFolder)/"
+
+                if ReviewPromptManager.shouldPromptAfterSuccess() {
+                    shouldRequestReview = true
+                }
 
                 // Auto-reset after delay so the user sees the success message
                 try? await Task.sleep(for: .seconds(1.5))

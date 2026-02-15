@@ -16,6 +16,9 @@ final class ConvertViewModel {
     var lastEPUBData: Data?
     var lastFilename: String?
 
+    /// Set to `true` when a review prompt should be shown. The View observes this.
+    var shouldRequestReview = false
+
     // MARK: - Private
 
     private let readabilityExtractor = ReadabilityExtractor()
@@ -104,6 +107,10 @@ final class ConvertViewModel {
                 currentPhase = .sent
                 article.status = .sent
                 statusMessage = "Sent \"\(content.title.truncated(to: 40))\" to X4"
+
+                if ReviewPromptManager.shouldPromptAfterSuccess() {
+                    shouldRequestReview = true
+                }
 
                 // Auto-reset after delay so the user sees the success message
                 try? await Task.sleep(for: .seconds(1.5))
@@ -239,6 +246,10 @@ final class ConvertViewModel {
             currentPhase = .sent
             article.status = .sent
             statusMessage = "Re-sent \"\(content.title.truncated(to: 40))\" to X4"
+
+            if ReviewPromptManager.shouldPromptAfterSuccess() {
+                shouldRequestReview = true
+            }
 
         } catch {
             currentPhase = .failed

@@ -28,6 +28,10 @@ struct SendToX4App: App {
         }
     }()
 
+    init() {
+        ReviewPromptManager.registerFirstLaunchIfNeeded()
+    }
+
     var body: some Scene {
         WindowGroup {
             MainView()

@@ -1,4 +1,5 @@
 import PhotosUI
+import StoreKit
 import SwiftData
 import SwiftUI
 
@@ -13,6 +14,7 @@ import SwiftUI
 /// - **macOS**: Inline scroll layout with settings below the preview.
 struct WallpaperXView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.requestReview) private var requestReview
     @Bindable var wallpaperVM: WallpaperViewModel
     var deviceVM: DeviceViewModel
     var settings: DeviceSettings
@@ -27,6 +29,13 @@ struct WallpaperXView: View {
             #else
             macOSLayout
             #endif
+        }
+        .onChange(of: wallpaperVM.shouldRequestReview) { _, shouldPrompt in
+            if shouldPrompt {
+                wallpaperVM.shouldRequestReview = false
+                ReviewPromptManager.recordPromptShown()
+                requestReview()
+            }
         }
     }
 

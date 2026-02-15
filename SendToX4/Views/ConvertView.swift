@@ -1,9 +1,11 @@
 import SwiftUI
 import SwiftData
+import StoreKit
 
 /// Main conversion view — URL input, device status, and send button.
 struct ConvertView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.requestReview) private var requestReview
     @Bindable var convertVM: ConvertViewModel
     var deviceVM: DeviceViewModel
     var settings: DeviceSettings
@@ -29,7 +31,7 @@ struct ConvertView: View {
                 .padding(.horizontal)
                 .padding(.top, 8)
             }
-            .navigationTitle("SendToX4")
+            .navigationTitle("Convert")
             .settingsToolbar(deviceVM: deviceVM, settings: settings)
             .sheet(isPresented: $showShareSheet) {
                 if let data = convertVM.lastEPUBData,
@@ -37,6 +39,13 @@ struct ConvertView: View {
                     let tempURL = FileManager.default.temporaryDirectory
                         .appendingPathComponent(filename)
                     ShareSheetView(items: [tempURL], epubData: data, filename: filename)
+                }
+            }
+            .onChange(of: convertVM.shouldRequestReview) { _, shouldPrompt in
+                if shouldPrompt {
+                    convertVM.shouldRequestReview = false
+                    ReviewPromptManager.recordPromptShown()
+                    requestReview()
                 }
             }
         }
