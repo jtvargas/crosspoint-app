@@ -78,7 +78,8 @@ struct MainView: View {
                 ConvertView(
                     convertVM: convertVM,
                     deviceVM: deviceVM,
-                    settings: settings
+                    settings: settings,
+                    selectedTab: $selectedTab
                 )
             }
 

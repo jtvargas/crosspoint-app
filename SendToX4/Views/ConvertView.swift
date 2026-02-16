@@ -9,9 +9,23 @@ struct ConvertView: View {
     @Bindable var convertVM: ConvertViewModel
     var deviceVM: DeviceViewModel
     var settings: DeviceSettings
+    @Binding var selectedTab: AppTab
+
+    @Query(
+        filter: #Predicate<Article> { $0.statusRaw == "sent" || $0.statusRaw == "savedLocally" },
+        sort: \Article.createdAt,
+        order: .reverse
+    ) private var completedArticles: [Article]
 
     @State private var showShareSheet = false
+    @State private var selectedArticle: Article?
+    @State private var shareEPUBData: Data?
+    @State private var shareFilename: String?
     @FocusState private var isURLFieldFocused: Bool
+
+    private var recentArticles: [Article] {
+        Array(completedArticles.prefix(5))
+    }
 
     var body: some View {
         NavigationStack {
@@ -26,6 +40,9 @@ struct ConvertView: View {
                     // Status / Error Display
                     statusDisplay
 
+                    // Recent Conversions
+                    recentConversionsSection
+
                     Spacer(minLength: 40)
                 }
                 .padding(.horizontal)
@@ -34,8 +51,12 @@ struct ConvertView: View {
             .navigationTitle("Convert")
             .settingsToolbar(deviceVM: deviceVM, settings: settings)
             .sheet(isPresented: $showShareSheet) {
-                if let data = convertVM.lastEPUBData,
-                   let filename = convertVM.lastFilename {
+                if let shareEPUBData, let shareFilename {
+                    let tempURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(shareFilename)
+                    ShareSheetView(items: [tempURL], epubData: shareEPUBData, filename: shareFilename)
+                } else if let data = convertVM.lastEPUBData,
+                          let filename = convertVM.lastFilename {
                     let tempURL = FileManager.default.temporaryDirectory
                         .appendingPathComponent(filename)
                     ShareSheetView(items: [tempURL], epubData: data, filename: filename)
@@ -47,6 +68,52 @@ struct ConvertView: View {
                     ReviewPromptManager.recordPromptShown()
                     requestReview()
                 }
+            }
+            // MARK: - Article Action Dialog
+            .confirmationDialog(
+                selectedArticle?.title ?? "Article",
+                isPresented: Binding(
+                    get: { selectedArticle != nil },
+                    set: { if !$0 { selectedArticle = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: selectedArticle
+            ) { article in
+                if deviceVM.isConnected {
+                    Button("Resend to X4") {
+                        let target = article
+                        Task {
+                            await convertVM.resend(
+                                article: target,
+                                deviceVM: deviceVM,
+                                settings: settings,
+                                modelContext: modelContext
+                            )
+                        }
+                    }
+                }
+
+                Button("Reconvert & Share") {
+                    let target = article
+                    Task {
+                        if let result = await convertVM.reconvertForShare(
+                            article: target,
+                            modelContext: modelContext
+                        ) {
+                            shareEPUBData = result.data
+                            shareFilename = result.filename
+                            showShareSheet = true
+                        }
+                    }
+                }
+
+                Button("Copy URL") {
+                    ClipboardHelper.copy(article.url)
+                }
+
+                Button("Cancel", role: .cancel) {}
+            } message: { article in
+                Text(article.sourceDomain)
             }
         }
     }
@@ -195,6 +262,103 @@ struct ConvertView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .glassEffect(.regular, in: .rect(cornerRadius: 12))
         }
+    }
+
+    // MARK: - Recent Conversions
+
+    @ViewBuilder
+    private var recentConversionsSection: some View {
+        if !recentArticles.isEmpty {
+            VStack(spacing: 0) {
+                // Section header
+                HStack {
+                    Text("Recent")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+
+                    Spacer()
+
+                    Button {
+                        selectedTab = .history
+                    } label: {
+                        HStack(spacing: 2) {
+                            Text("See All")
+                            Image(systemName: "chevron.right")
+                        }
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 4)
+                .padding(.bottom, 8)
+
+                // Rows inside a glass card
+                VStack(spacing: 0) {
+                    ForEach(Array(recentArticles.enumerated()), id: \.element.id) { index, article in
+                        recentRow(article)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedArticle = article
+                            }
+
+                        if index < recentArticles.count - 1 {
+                            Divider()
+                                .padding(.leading, 32)
+                        }
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+                .glassEffect(.regular, in: .rect(cornerRadius: 16))
+            }
+            .transition(.opacity.combined(with: .move(edge: .bottom)))
+        }
+    }
+
+    private func recentRow(_ article: Article) -> some View {
+        HStack(spacing: 10) {
+            recentStatusIcon(for: article.status)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(article.title.isEmpty ? "Untitled" : article.title)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+
+                HStack(spacing: 4) {
+                    Text(article.sourceDomain)
+                    Text("\u{00B7}")
+                    Text(article.createdAt, format: .relative(presentation: .named))
+                }
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            }
+
+            Spacer(minLength: 0)
+
+            Image(systemName: "ellipsis")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 8)
+    }
+
+    private func recentStatusIcon(for status: ConversionStatus) -> some View {
+        Group {
+            switch status {
+            case .sent:
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(AppColor.success)
+            case .savedLocally:
+                Image(systemName: "arrow.down.circle.fill")
+                    .foregroundStyle(AppColor.accent)
+            default:
+                Image(systemName: "circle.fill")
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .font(.subheadline)
     }
 }
 
