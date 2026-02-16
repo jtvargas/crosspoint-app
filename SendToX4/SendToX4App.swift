@@ -18,6 +18,8 @@ struct SendToX4App: App {
             DeviceSettings.self,
             ActivityEvent.self,
             QueueItem.self,
+            RSSFeed.self,
+            RSSArticle.self,
         ])
         let modelConfiguration = ModelConfiguration(
             schema: schema,

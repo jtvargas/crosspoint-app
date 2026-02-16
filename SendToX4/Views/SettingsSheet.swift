@@ -34,6 +34,7 @@ struct SettingsSheet: View {
                 feedbackSection
                 siriShortcutSection
                 storageSection
+                debugLogsSection
                 aboutSection
             }
             .navigationTitle(loc(.settings))
@@ -277,6 +278,26 @@ struct SettingsSheet: View {
             Text(loc(.storage))
         } footer: {
             Text(loc(.storageDescription))
+        }
+    }
+
+    // MARK: - Debug Logs Section
+
+    private var debugLogsSection: some View {
+        Section {
+            NavigationLink {
+                DebugLogView()
+            } label: {
+                HStack {
+                    Label(loc(.debugLogs), systemImage: "doc.text")
+                    Spacer()
+                    Text(loc(.debugLogsEntryCount, DebugLogger.shared.entryCount))
+                        .foregroundStyle(.secondary)
+                        .font(.footnote)
+                }
+            }
+        } footer: {
+            Text(DebugLogger.shared.formattedLogSize)
         }
     }
 

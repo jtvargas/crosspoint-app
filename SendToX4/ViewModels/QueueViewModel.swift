@@ -47,7 +47,8 @@ final class QueueViewModel {
         epubData: Data,
         filename: String,
         article: Article,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        destinationFolder: String? = nil
     ) throws -> QueueItem {
         try ensureQueueDirectory()
 
@@ -64,7 +65,8 @@ final class QueueViewModel {
             filePath: relativePath,
             fileSize: Int64(epubData.count),
             sourceURL: article.url,
-            sourceDomain: article.sourceDomain
+            sourceDomain: article.sourceDomain,
+            destinationFolder: destinationFolder
         )
         item.id = itemID
         modelContext.insert(item)
@@ -94,7 +96,20 @@ final class QueueViewModel {
 
     // MARK: - Send All
 
-    /// Send all queued items to the device sequentially.
+    /// Cooldown between sequential sends (seconds). Gives the ESP32 time to recover.
+    private static let itemCooldown: Duration = .seconds(2)
+
+    /// Maximum retry attempts per item before marking as failed.
+    private static let maxItemRetries = 1
+
+    /// Delay before retrying a failed item.
+    private static let retryDelay: Duration = .seconds(2)
+
+    /// Number of consecutive failures before aborting the batch (device probably gone).
+    private static let circuitBreakerThreshold = 3
+
+    /// Send all queued items to the device sequentially with retry, cooldown,
+    /// and circuit-breaker logic.
     func sendAll(
         deviceVM: DeviceViewModel,
         settings: DeviceSettings,
@@ -107,32 +122,91 @@ final class QueueViewModel {
         errorMessage = nil
         sendProgress = (0, items.count)
 
-        let folder = settings.convertFolder
+        let defaultFolder = settings.convertFolder
         var sentFilenames: [String] = []
         var failCount = 0
+        var consecutiveFailures = 0
+
+        DebugLogger.log(
+            "Queue batch send started: \(items.count) item(s)",
+            level: .info, category: .queue
+        )
 
         for (index, item) in items.enumerated() {
+            // Circuit breaker: abort if too many consecutive failures
+            if consecutiveFailures >= Self.circuitBreakerThreshold {
+                let remaining = items.count - index
+                DebugLogger.log(
+                    "Circuit breaker tripped after \(consecutiveFailures) consecutive failures. Aborting batch, \(remaining) item(s) remaining.",
+                    level: .error, category: .queue
+                )
+                errorMessage = loc(.queueCircuitBreaker, consecutiveFailures)
+                break
+            }
+
             sendProgress = (index + 1, items.count)
             currentFilename = item.filename
 
-            do {
-                let data = try Data(contentsOf: item.fileURL)
-                try await deviceVM.upload(data: data, filename: item.filename, toFolder: folder)
+            let folder = item.destinationFolder ?? defaultFolder
+            var itemSent = false
 
-                sentFilenames.append(item.filename)
+            // Attempt with retry
+            for attempt in 0...Self.maxItemRetries {
+                if attempt > 0 {
+                    DebugLogger.log(
+                        "Retry \(attempt)/\(Self.maxItemRetries) for \(item.filename)",
+                        level: .warning, category: .queue
+                    )
+                    try? await Task.sleep(for: Self.retryDelay)
+                }
 
-                // Update linked Article status to .sent
-                updateArticleStatus(articleID: item.articleID, to: .sent, modelContext: modelContext)
+                do {
+                    let data = try Data(contentsOf: item.fileURL)
 
-                // Delete file from disk
-                try? FileManager.default.removeItem(at: item.fileURL)
+                    DebugLogger.log(
+                        "Sending item \(index + 1)/\(items.count): \(item.filename) -> /\(folder)/",
+                        level: .info, category: .queue
+                    )
 
-                // Delete QueueItem record
-                modelContext.delete(item)
-            } catch {
-                failCount += 1
-                // Leave failed items in the queue for retry
-                errorMessage = loc(.failedToSendItem, item.filename, error.localizedDescription)
+                    try await deviceVM.upload(data: data, filename: item.filename, toFolder: folder)
+
+                    sentFilenames.append(item.filename)
+                    consecutiveFailures = 0 // Reset on success
+
+                    // Update linked Article status to .sent
+                    updateArticleStatus(articleID: item.articleID, to: .sent, modelContext: modelContext)
+
+                    // Delete file from disk
+                    try? FileManager.default.removeItem(at: item.fileURL)
+
+                    // Delete QueueItem record
+                    modelContext.delete(item)
+
+                    DebugLogger.log(
+                        "Sent item \(index + 1)/\(items.count): \(item.filename)",
+                        level: .info, category: .queue
+                    )
+
+                    itemSent = true
+                    break // Success — exit retry loop
+                } catch {
+                    DebugLogger.log(
+                        "Failed item \(index + 1)/\(items.count) (attempt \(attempt + 1)): \(item.filename) — \(error.localizedDescription)",
+                        level: .error, category: .queue
+                    )
+
+                    if attempt == Self.maxItemRetries {
+                        // All retries exhausted for this item
+                        failCount += 1
+                        consecutiveFailures += 1
+                        errorMessage = loc(.failedToSendItem, item.filename, error.localizedDescription)
+                    }
+                }
+            }
+
+            // Cooldown between items (skip after the last item)
+            if index < items.count - 1 && itemSent {
+                try? await Task.sleep(for: Self.itemCooldown)
             }
         }
 
@@ -154,6 +228,11 @@ final class QueueViewModel {
             )
             modelContext.insert(event)
         }
+
+        DebugLogger.log(
+            "Queue batch complete: \(sentFilenames.count) sent, \(failCount) failed",
+            level: failCount == 0 ? .info : .warning, category: .queue
+        )
 
         isSending = false
         sendProgress = nil

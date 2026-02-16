@@ -259,6 +259,11 @@ enum L10n {
         case sentMultipleEPUBs
         case failedToSendItem
 
+        // MARK: Global Batch Progress
+        case batchSendingProgress
+        case batchConvertingProgress
+        case batchSendingItem
+
         // MARK: WallpaperViewModel
         case couldNotLoadImage
         case failedToLoadImage
@@ -330,6 +335,55 @@ enum L10n {
         case intentProvideURL
         case intentQueued
         case intentItemsWaiting
+
+        // MARK: Debug Logs
+        case debugLogs
+        case debugLogsClear
+        case debugLogsClearTitle
+        case debugLogsClearMessage
+        case debugLogsCopyAll
+        case debugLogsShare
+        case debugLogsEmpty
+        case debugLogsEmptyDescription
+        case debugLogsEntryCount
+        case debugFilterAll
+        case debugFilterErrors
+        case debugFilterQueue
+        case debugFilterDevice
+        case debugFilterConversion
+        case debugFilterRSS
+        case queueCircuitBreaker
+
+        // MARK: RSS Feed
+        case rssFeeds
+        case rssNew
+        case rssRefreshing
+        case rssTapToSetup
+        case rssManageFeeds
+        case rssEnterFeedURL
+        case rssValidating
+        case rssAddFeed
+        case rssAddFeedFooter
+        case rssYourFeeds
+        case rssNoFeedsTitle
+        case rssNoFeedsDescription
+        case rssAddFirstFeed
+        case rssNoArticles
+        case rssSelectAllNew
+        case rssDeselectAll
+        case rssSelectedCount
+        case rssConvertAndSend
+        case rssConvertAndQueue
+        case rssConverting
+        case rssSent
+        case rssQueued
+        case rssFailed
+        case rssSentArticles
+        case rssQueuedArticles
+        case rssSentAndQueued
+        case rssFailedArticles
+        case rssInvalidFeedURL
+        case rssFeedAlreadyExists
 
         // MARK: AppLanguage Display Names
         case languageSystemDefault
@@ -598,6 +652,11 @@ enum L10n {
         .sentMultipleEPUBs: "Sent %d EPUBs: %@",
         .failedToSendItem: "Failed to send %@: %@",
 
+        // Global Batch Progress
+        .batchSendingProgress: "Sending %d/%d...",
+        .batchConvertingProgress: "Converting %d/%d...",
+        .batchSendingItem: "Sending %@...",
+
         // WallpaperViewModel
         .couldNotLoadImage: "Could not load the selected image.",
         .failedToLoadImage: "Failed to load image: %@",
@@ -669,6 +728,55 @@ enum L10n {
         .intentProvideURL: "Please provide a web page URL to convert.",
         .intentQueued: "Queued \"%@\" (%@)",
         .intentItemsWaiting: "%d item(s) waiting to send.",
+
+        // Debug Logs
+        .debugLogs: "Debug Logs",
+        .debugLogsClear: "Clear Logs",
+        .debugLogsClearTitle: "Clear Debug Logs?",
+        .debugLogsClearMessage: "All debug log entries will be permanently deleted.",
+        .debugLogsCopyAll: "Copy All",
+        .debugLogsShare: "Share as File",
+        .debugLogsEmpty: "No Log Entries",
+        .debugLogsEmptyDescription: "Debug events will appear here as you use the app.",
+        .debugLogsEntryCount: "%d entries",
+        .debugFilterAll: "All",
+        .debugFilterErrors: "Errors",
+        .debugFilterQueue: "Queue",
+        .debugFilterDevice: "Device",
+        .debugFilterConversion: "Conversion",
+        .debugFilterRSS: "RSS",
+        .queueCircuitBreaker: "Aborted after %d consecutive failures. Device may be unreachable.",
+
+        // RSS Feed
+        .rssFeeds: "RSS Feeds",
+        .rssNew: "new",
+        .rssRefreshing: "Refreshing feeds...",
+        .rssTapToSetup: "Tap to set up your RSS feeds",
+        .rssManageFeeds: "Manage Feeds",
+        .rssEnterFeedURL: "Enter website or feed URL",
+        .rssValidating: "Validating...",
+        .rssAddFeed: "Add Feed",
+        .rssAddFeedFooter: "Enter a website URL (e.g. techcrunch.com) or a direct RSS/Atom feed URL. The feed will be auto-discovered if possible.",
+        .rssYourFeeds: "Your Feeds",
+        .rssNoFeedsTitle: "No RSS Feeds Set Up",
+        .rssNoFeedsDescription: "Add your favorite news sources to get articles delivered to your e-reader.",
+        .rssAddFirstFeed: "Add Your First Feed",
+        .rssNoArticles: "No articles available. Pull to refresh.",
+        .rssSelectAllNew: "Select All New",
+        .rssDeselectAll: "Deselect All",
+        .rssSelectedCount: "%d selected",
+        .rssConvertAndSend: "Send (%d)",
+        .rssConvertAndQueue: "Queue (%d)",
+        .rssConverting: "Converting %d/%d...",
+        .rssSent: "Sent",
+        .rssQueued: "Queued",
+        .rssFailed: "Failed",
+        .rssSentArticles: "Sent %d article(s) to device",
+        .rssQueuedArticles: "Queued %d article(s) for later",
+        .rssSentAndQueued: "Sent %d, queued %d article(s)",
+        .rssFailedArticles: "%d article(s) failed to convert",
+        .rssInvalidFeedURL: "Please enter a valid URL.",
+        .rssFeedAlreadyExists: "Feed already exists: %@",
 
         // AppLanguage Display Names
         .languageSystemDefault: "System Default",
@@ -930,6 +1038,11 @@ enum L10n {
         .sentMultipleEPUBs: "已发送 %d 本EPUB：%@",
         .failedToSendItem: "发送 %@ 失败：%@",
 
+        // Global Batch Progress
+        .batchSendingProgress: "正在发送 %d/%d...",
+        .batchConvertingProgress: "正在转换 %d/%d...",
+        .batchSendingItem: "正在发送 %@...",
+
         // WallpaperViewModel
         .couldNotLoadImage: "无法加载所选图片。",
         .failedToLoadImage: "加载图片失败：%@",
@@ -1001,6 +1114,55 @@ enum L10n {
         .intentProvideURL: "请提供要转换的网页URL。",
         .intentQueued: "已排队「%@」（%@）",
         .intentItemsWaiting: "%d 个项目等待发送。",
+
+        // Debug Logs
+        .debugLogs: "调试日志",
+        .debugLogsClear: "清除日志",
+        .debugLogsClearTitle: "清除调试日志？",
+        .debugLogsClearMessage: "所有调试日志将被永久删除。",
+        .debugLogsCopyAll: "全部复制",
+        .debugLogsShare: "分享为文件",
+        .debugLogsEmpty: "暂无日志",
+        .debugLogsEmptyDescription: "使用应用时调试事件将在此显示。",
+        .debugLogsEntryCount: "%d 条记录",
+        .debugFilterAll: "全部",
+        .debugFilterErrors: "错误",
+        .debugFilterQueue: "队列",
+        .debugFilterDevice: "设备",
+        .debugFilterConversion: "转换",
+        .debugFilterRSS: "RSS",
+        .queueCircuitBreaker: "连续 %d 次失败后已中止。设备可能无法连接。",
+
+        // RSS Feed
+        .rssFeeds: "RSS 订阅",
+        .rssNew: "新",
+        .rssRefreshing: "正在刷新订阅...",
+        .rssTapToSetup: "点击设置您的RSS订阅",
+        .rssManageFeeds: "管理订阅",
+        .rssEnterFeedURL: "输入网站或订阅链接",
+        .rssValidating: "验证中...",
+        .rssAddFeed: "添加订阅",
+        .rssAddFeedFooter: "输入网站URL（如 techcrunch.com）或直接输入RSS/Atom订阅链接。系统会自动发现订阅。",
+        .rssYourFeeds: "我的订阅",
+        .rssNoFeedsTitle: "尚未设置RSS订阅",
+        .rssNoFeedsDescription: "添加您喜欢的新闻来源，将文章推送到电子阅读器。",
+        .rssAddFirstFeed: "添加第一个订阅",
+        .rssNoArticles: "没有可用文章。下拉刷新。",
+        .rssSelectAllNew: "全选新文章",
+        .rssDeselectAll: "取消全选",
+        .rssSelectedCount: "已选 %d 篇",
+        .rssConvertAndSend: "发送 (%d)",
+        .rssConvertAndQueue: "排队 (%d)",
+        .rssConverting: "正在转换 %d/%d...",
+        .rssSent: "已发送",
+        .rssQueued: "已排队",
+        .rssFailed: "失败",
+        .rssSentArticles: "已发送 %d 篇文章到设备",
+        .rssQueuedArticles: "已排队 %d 篇文章",
+        .rssSentAndQueued: "已发送 %d 篇，排队 %d 篇",
+        .rssFailedArticles: "%d 篇文章转换失败",
+        .rssInvalidFeedURL: "请输入有效的URL。",
+        .rssFeedAlreadyExists: "订阅已存在：%@",
 
         // AppLanguage Display Names
         .languageSystemDefault: "跟随系统",

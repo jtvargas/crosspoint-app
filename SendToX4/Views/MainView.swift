@@ -21,6 +21,7 @@ struct MainView: View {
     @State private var queueVM = QueueViewModel()
     @State private var historyVM = HistoryViewModel()
     @State private var wallpaperVM = WallpaperViewModel()
+    @State private var rssVM = RSSFeedViewModel()
     @State private var selectedTab: AppTab = .convert
     @State private var showAdvancedWallpaperSettings = false
     @State private var showQueuePrompt = false
@@ -44,11 +45,14 @@ struct MainView: View {
             Divider()
             MacDeviceStatusBar(
                 deviceVM: deviceVM,
+                queueVM: queueVM,
+                rssVM: rssVM,
                 settings: settings
             )
         }
         .task {
             await deviceVM.search(settings: settings)
+            await rssVM.refreshAllFeeds(modelContext: modelContext)
         }
         .onChange(of: deviceVM.isConnected) { _, isConnected in
             if isConnected && !queueItems.isEmpty {
@@ -79,12 +83,16 @@ struct MainView: View {
                     WallpaperQuickControls(
                         wallpaperVM: wallpaperVM,
                         deviceVM: deviceVM,
+                        queueVM: queueVM,
+                        rssVM: rssVM,
                         showAdvancedSettings: $showAdvancedWallpaperSettings
                     )
                 } else {
                     DeviceConnectionAccessory(
                         deviceVM: deviceVM,
                         convertVM: convertVM,
+                        queueVM: queueVM,
+                        rssVM: rssVM,
                         settings: settings,
                         queueCount: queueItems.count
                     )
@@ -95,6 +103,7 @@ struct MainView: View {
             }
             .task {
                 await deviceVM.search(settings: settings)
+                await rssVM.refreshAllFeeds(modelContext: modelContext)
             }
             .onChange(of: deviceVM.isConnected) { _, isConnected in
                 if isConnected && !queueItems.isEmpty {
@@ -128,6 +137,7 @@ struct MainView: View {
                     convertVM: convertVM,
                     deviceVM: deviceVM,
                     queueVM: queueVM,
+                    rssVM: rssVM,
                     settings: settings,
                     selectedTab: $selectedTab
                 )

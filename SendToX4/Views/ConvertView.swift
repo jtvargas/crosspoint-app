@@ -9,6 +9,7 @@ struct ConvertView: View {
     @Bindable var convertVM: ConvertViewModel
     var deviceVM: DeviceViewModel
     var queueVM: QueueViewModel
+    @Bindable var rssVM: RSSFeedViewModel
     var settings: DeviceSettings
     @Binding var selectedTab: AppTab
 
@@ -39,6 +40,9 @@ struct ConvertView: View {
                     // Action Buttons
                     actionButtons
 
+                    // RSS Feeds Card
+                    rssFeedCard
+
                     // Status / Error Display
                     statusDisplay
 
@@ -55,6 +59,14 @@ struct ConvertView: View {
             }
             .navigationTitle(loc(.tabConvert))
             .settingsToolbar(deviceVM: deviceVM, settings: settings)
+            .sheet(isPresented: $rssVM.showFeedSheet) {
+                RSSFeedSheet(
+                    rssVM: rssVM,
+                    deviceVM: deviceVM,
+                    queueVM: queueVM,
+                    settings: settings
+                )
+            }
             .sheet(isPresented: $showShareSheet) {
                 if let shareEPUBData, let shareFilename {
                     let tempURL = FileManager.default.temporaryDirectory
@@ -193,6 +205,70 @@ struct ConvertView: View {
                 .buttonBorderShape(.roundedRectangle(radius: 16))
             }
         }
+    }
+
+    // MARK: - RSS Feed Card
+
+    private var rssFeedCard: some View {
+        Button {
+            rssVM.showFeedSheet = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "dot.radiowaves.up.and.down")
+                    .font(.title3)
+                    .foregroundStyle(AppColor.accent)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text(loc(.rssFeeds))
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
+
+                        Spacer()
+
+                        if rssVM.newArticleCount > 0 {
+                            Text("\(rssVM.newArticleCount) \(loc(.rssNew))")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(AppColor.accent, in: Capsule())
+                        }
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    if rssVM.isRefreshing {
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .controlSize(.mini)
+                            Text(loc(.rssRefreshing))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        let feeds = rssVM.fetchFeeds(modelContext: modelContext)
+                        if feeds.isEmpty {
+                            Text(loc(.rssTapToSetup))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(feeds.map(\.title).joined(separator: " \u{00B7} "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .glassEffect(.regular, in: .rect(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Status Display

@@ -78,8 +78,12 @@ final class DeviceViewModel {
 
     /// Upload a file to the device with progress reporting.
     /// Sets global `isUploading` / `uploadFilename` so any tab can show progress.
+    ///
+    /// The `ensureFolder` call has its own internal retry logic (3 attempts with 1s delay).
+    /// The upload itself has retry logic in the firmware service (2 retries for connection-lost).
     func upload(data: Data, filename: String, toFolder folder: String) async throws {
         guard let service = activeService else {
+            DebugLogger.log("Upload aborted: device not connected", level: .error, category: .device)
             throw DeviceError.unreachable
         }
 
@@ -92,7 +96,11 @@ final class DeviceViewModel {
             uploadFilename = nil
         }
 
+        DebugLogger.log("Ensuring folder: /\(folder)/", level: .info, category: .device)
         try await service.ensureFolder(folder)
+        DebugLogger.log("Folder ready: /\(folder)/", level: .info, category: .device)
+
+        DebugLogger.log("Uploading \(filename) (\(data.count) bytes) to /\(folder)/", level: .info, category: .device)
         try await service.uploadFile(data: data, filename: filename, toFolder: folder) { [weak self] progress in
             Task { @MainActor [weak self] in
                 self?.uploadProgress = progress
@@ -100,5 +108,6 @@ final class DeviceViewModel {
         }
 
         uploadProgress = 1.0
+        DebugLogger.log("Upload complete: \(filename) -> /\(folder)/", level: .info, category: .device)
     }
 }

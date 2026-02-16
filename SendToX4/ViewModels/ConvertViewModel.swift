@@ -65,6 +65,11 @@ final class ConvertViewModel {
         let article = Article(url: url.absoluteString, sourceDomain: url.host ?? "unknown")
         modelContext.insert(article)
 
+        DebugLogger.log(
+            "Conversion started: \(url.absoluteString)",
+            level: .info, category: .conversion
+        )
+
         do {
             // Phase 1: Fetch
             currentPhase = .fetching
@@ -109,6 +114,11 @@ final class ConvertViewModel {
                 article.status = .sent
                 statusMessage = loc(.sentArticleToX4, content.title.truncated(to: 40))
 
+                DebugLogger.log(
+                    "Conversion complete + sent: '\(content.title)' (\(filename))",
+                    level: .info, category: .conversion
+                )
+
                 if ReviewPromptManager.shouldPromptAfterSuccess() {
                     shouldRequestReview = true
                 }
@@ -128,6 +138,11 @@ final class ConvertViewModel {
                 )
                 statusMessage = loc(.queuedArticle, content.title.truncated(to: 40))
 
+                DebugLogger.log(
+                    "Conversion complete + queued: '\(content.title)' (\(filename))",
+                    level: .info, category: .conversion
+                )
+
                 // Auto-reset after delay so the user sees the queued message
                 try? await Task.sleep(for: .seconds(1.5))
                 reset()
@@ -139,6 +154,11 @@ final class ConvertViewModel {
             article.errorMessage = error.localizedDescription
             lastError = error.localizedDescription
             statusMessage = ""
+
+            DebugLogger.log(
+                "Conversion failed for \(url.absoluteString): \(error.localizedDescription)",
+                level: .error, category: .conversion
+            )
         }
 
         isProcessing = false
