@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct SendToX4App: App {
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Article.self,
@@ -36,6 +38,22 @@ struct SendToX4App: App {
     var body: some Scene {
         WindowGroup {
             MainView()
+                #if os(iOS)
+                .fullScreenCover(isPresented: Binding(
+                    get: { !hasSeenOnboarding },
+                    set: { if !$0 { hasSeenOnboarding = true } }
+                )) {
+                    OnboardingView(hasSeenOnboarding: $hasSeenOnboarding)
+                }
+                #else
+                .sheet(isPresented: Binding(
+                    get: { !hasSeenOnboarding },
+                    set: { if !$0 { hasSeenOnboarding = true } }
+                )) {
+                    OnboardingView(hasSeenOnboarding: $hasSeenOnboarding)
+                        .frame(width: 520, height: 640)
+                }
+                #endif
         }
         .modelContainer(sharedModelContainer)
     }

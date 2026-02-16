@@ -18,6 +18,7 @@ struct SettingsSheet: View {
     @State private var webCacheSize: Int64 = 0
     @State private var tempSize: Int64 = 0
     @State private var queueSize: Int64 = 0
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = true
     @State private var showClearHistoryConfirm = false
     @State private var showClearCacheConfirm = false
     @State private var showClearQueueConfirm = false
@@ -210,6 +211,19 @@ struct SettingsSheet: View {
                 Section {
                     LabeledContent("Version", value: "1.0")
                     LabeledContent("EPUB Format", value: "EPUB 2.0")
+
+                    Button {
+                        hasSeenOnboarding = false
+                        dismiss()
+                    } label: {
+                        HStack {
+                            Label("Show Onboarding", systemImage: "hand.wave")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
                 } header: {
                     Text("About")
                 }
