@@ -8,6 +8,7 @@ struct DeviceConnectionAccessory: View {
     var deviceVM: DeviceViewModel
     var convertVM: ConvertViewModel
     var settings: DeviceSettings
+    var queueCount: Int = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -86,6 +87,10 @@ struct DeviceConnectionAccessory: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+        } else if queueCount > 0 {
+            Text("\(queueCount) EPUB\(queueCount == 1 ? "" : "s") queued")
+                .font(.caption)
+                .foregroundStyle(AppColor.warning)
         } else {
             Text("Tap Connect to search")
                 .font(.caption)

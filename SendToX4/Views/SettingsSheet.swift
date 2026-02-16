@@ -8,6 +8,8 @@ struct SettingsSheet: View {
     var deviceVM: DeviceViewModel
     @Bindable var settings: DeviceSettings
 
+    @Query(sort: \QueueItem.queuedAt) private var queueItems: [QueueItem]
+
     @State private var isTesting = false
     @State private var testResult: String?
 
@@ -15,8 +17,10 @@ struct SettingsSheet: View {
     @State private var databaseSize: Int64 = 0
     @State private var webCacheSize: Int64 = 0
     @State private var tempSize: Int64 = 0
+    @State private var queueSize: Int64 = 0
     @State private var showClearHistoryConfirm = false
     @State private var showClearCacheConfirm = false
+    @State private var showClearQueueConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -131,6 +135,10 @@ struct SettingsSheet: View {
                         Text(StorageCalculator.formatted(tempSize))
                             .foregroundStyle(.secondary)
                     }
+                    LabeledContent("Queue (\(queueItems.count) EPUB\(queueItems.count == 1 ? "" : "s"))") {
+                        Text(StorageCalculator.formatted(queueSize))
+                            .foregroundStyle(.secondary)
+                    }
 
                     Button("Clear History Data", role: .destructive) {
                         showClearHistoryConfirm = true
@@ -138,6 +146,12 @@ struct SettingsSheet: View {
 
                     Button("Clear Web Cache", role: .destructive) {
                         showClearCacheConfirm = true
+                    }
+
+                    if !queueItems.isEmpty {
+                        Button("Clear Queue", role: .destructive) {
+                            showClearQueueConfirm = true
+                        }
                     }
                 } header: {
                     Text("Storage")
@@ -188,6 +202,17 @@ struct SettingsSheet: View {
             } message: {
                 Text("Cached web pages will be removed. Future conversions may take slightly longer.")
             }
+            .confirmationDialog(
+                "Clear EPUB Queue?",
+                isPresented: $showClearQueueConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Clear Queue", role: .destructive) {
+                    clearQueue()
+                }
+            } message: {
+                Text("All \(queueItems.count) queued EPUB\(queueItems.count == 1 ? "" : "s") will be permanently deleted.")
+            }
         }
     }
 
@@ -197,6 +222,7 @@ struct SettingsSheet: View {
         databaseSize = StorageCalculator.swiftDataStoreSize()
         webCacheSize = StorageCalculator.urlCacheSize()
         tempSize = StorageCalculator.tempDirectorySize()
+        queueSize = StorageCalculator.queueDirectorySize()
     }
 
     private func clearHistoryData() {
@@ -211,6 +237,21 @@ struct SettingsSheet: View {
 
     private func clearWebCache() {
         URLCache.shared.removeAllCachedResponses()
+        refreshStorageSizes()
+    }
+
+    private func clearQueue() {
+        // Delete all files in the queue directory
+        let dirURL = QueueViewModel.queueDirectoryURL
+        if let contents = try? FileManager.default.contentsOfDirectory(
+            at: dirURL, includingPropertiesForKeys: nil
+        ) {
+            for fileURL in contents {
+                try? FileManager.default.removeItem(at: fileURL)
+            }
+        }
+        // Delete all QueueItem records
+        try? modelContext.delete(model: QueueItem.self)
         refreshStorageSizes()
     }
 }

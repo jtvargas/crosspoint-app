@@ -7,6 +7,7 @@ import SwiftData
 enum ActivityCategory: String, Codable, CaseIterable {
     case fileManager
     case wallpaper
+    case queue
 }
 
 /// Specific action performed within a category.
@@ -18,6 +19,7 @@ enum ActivityAction: String, Codable {
     case deleteFile
     case deleteFolder
     case wallpaperUpload
+    case queueSend
 }
 
 /// Outcome of the activity.
@@ -86,6 +88,7 @@ final class ActivityEvent {
         case .deleteFile:      return "trash.fill"
         case .deleteFolder:    return "trash.fill"
         case .wallpaperUpload: return "photo.artframe"
+        case .queueSend:       return "paperplane.circle.fill"
         }
     }
 
@@ -98,6 +101,16 @@ final class ActivityEvent {
         case .deleteFile:      return "File Deleted"
         case .deleteFolder:    return "Folder Deleted"
         case .wallpaperUpload: return "Wallpaper Sent"
+        case .queueSend:       return "Queue Sent to Device"
+        }
+    }
+
+    /// Human-readable category label.
+    var categoryLabel: String {
+        switch category {
+        case .fileManager: return "File Manager"
+        case .wallpaper:   return "Wallpaper"
+        case .queue:       return "Queue"
         }
     }
 }

@@ -18,10 +18,14 @@ struct MainView: View {
 
     @State private var deviceVM = DeviceViewModel()
     @State private var convertVM = ConvertViewModel()
+    @State private var queueVM = QueueViewModel()
     @State private var historyVM = HistoryViewModel()
     @State private var wallpaperVM = WallpaperViewModel()
     @State private var selectedTab: AppTab = .convert
     @State private var showAdvancedWallpaperSettings = false
+    @State private var showQueuePrompt = false
+
+    @Query(sort: \QueueItem.queuedAt) private var queueItems: [QueueItem]
 
     /// Ensure a DeviceSettings singleton exists.
     private var settings: DeviceSettings {
@@ -46,6 +50,28 @@ struct MainView: View {
         .task {
             await deviceVM.search(settings: settings)
         }
+        .onChange(of: deviceVM.isConnected) { _, isConnected in
+            if isConnected && !queueItems.isEmpty {
+                showQueuePrompt = true
+            }
+        }
+        .alert(
+            "Send Queued Files?",
+            isPresented: $showQueuePrompt
+        ) {
+            Button("Send All (\(queueItems.count))") {
+                Task {
+                    await queueVM.sendAll(
+                        deviceVM: deviceVM,
+                        settings: settings,
+                        modelContext: modelContext
+                    )
+                }
+            }
+            Button("Later", role: .cancel) {}
+        } message: {
+            Text("You have \(queueItems.count) EPUB\(queueItems.count == 1 ? "" : "s") queued. Send them to X4 now?")
+        }
         #else
         tabContent
             .tabViewBottomAccessory {
@@ -59,7 +85,8 @@ struct MainView: View {
                     DeviceConnectionAccessory(
                         deviceVM: deviceVM,
                         convertVM: convertVM,
-                        settings: settings
+                        settings: settings,
+                        queueCount: queueItems.count
                     )
                 }
             }
@@ -68,6 +95,28 @@ struct MainView: View {
             }
             .task {
                 await deviceVM.search(settings: settings)
+            }
+            .onChange(of: deviceVM.isConnected) { _, isConnected in
+                if isConnected && !queueItems.isEmpty {
+                    showQueuePrompt = true
+                }
+            }
+            .alert(
+                "Send Queued Files?",
+                isPresented: $showQueuePrompt
+            ) {
+                Button("Send All (\(queueItems.count))") {
+                    Task {
+                        await queueVM.sendAll(
+                            deviceVM: deviceVM,
+                            settings: settings,
+                            modelContext: modelContext
+                        )
+                    }
+                }
+                Button("Later", role: .cancel) {}
+            } message: {
+                Text("You have \(queueItems.count) EPUB\(queueItems.count == 1 ? "" : "s") queued. Send them to X4 now?")
             }
         #endif
     }
@@ -78,6 +127,7 @@ struct MainView: View {
                 ConvertView(
                     convertVM: convertVM,
                     deviceVM: deviceVM,
+                    queueVM: queueVM,
                     settings: settings,
                     selectedTab: $selectedTab
                 )

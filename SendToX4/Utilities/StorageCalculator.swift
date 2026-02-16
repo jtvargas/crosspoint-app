@@ -28,6 +28,14 @@ nonisolated struct StorageCalculator {
         directorySize(at: FileManager.default.temporaryDirectory)
     }
 
+    /// Total size of the EPUB queue directory.
+    static func queueDirectorySize() -> Int64 {
+        guard let appSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask
+        ).first else { return 0 }
+        return directorySize(at: appSupport.appendingPathComponent("EPUBQueue"))
+    }
+
     // MARK: - Formatting
 
     /// Format a byte count to a human-readable string (e.g. "2.4 MB").

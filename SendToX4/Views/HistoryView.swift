@@ -8,6 +8,7 @@ private enum HistoryFilter: String, CaseIterable {
     case all = "All"
     case conversions = "Conversions"
     case fileActivity = "File Activity"
+    case queueActivity = "Queue"
 }
 
 // MARK: - Timeline Item
@@ -65,7 +66,9 @@ struct HistoryView: View {
         case .conversions:
             items += articles.map { .conversion($0) }
         case .fileActivity:
-            items += activities.map { .activity($0) }
+            items += activities.filter { $0.category != .queue }.map { .activity($0) }
+        case .queueActivity:
+            items += activities.filter { $0.category == .queue }.map { .activity($0) }
         }
 
         return items.sorted { $0.date > $1.date }
@@ -373,7 +376,7 @@ struct HistoryView: View {
                     .lineLimit(isExpanded(itemID) ? nil : 2)
 
                 HStack(spacing: 6) {
-                    Text("File Manager")
+                    Text(event.categoryLabel)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
 
@@ -472,6 +475,8 @@ struct HistoryView: View {
                 Text("No conversion history. Convert a web page to EPUB to see it here.")
             case .fileActivity:
                 Text("No file activity. Upload, move, or delete files to see activity here.")
+            case .queueActivity:
+                Text("No queue activity. Queued EPUBs sent to the device will appear here.")
             }
         }
     }

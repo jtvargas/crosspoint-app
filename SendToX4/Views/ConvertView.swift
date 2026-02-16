@@ -8,6 +8,7 @@ struct ConvertView: View {
     @Environment(\.requestReview) private var requestReview
     @Bindable var convertVM: ConvertViewModel
     var deviceVM: DeviceViewModel
+    var queueVM: QueueViewModel
     var settings: DeviceSettings
     @Binding var selectedTab: AppTab
 
@@ -17,6 +18,8 @@ struct ConvertView: View {
         order: .reverse
     ) private var completedArticles: [Article]
 
+    @Query(sort: \QueueItem.queuedAt) private var queueItems: [QueueItem]
+
     @State private var showShareSheet = false
     @State private var selectedArticle: Article?
     @State private var shareEPUBData: Data?
@@ -24,7 +27,7 @@ struct ConvertView: View {
     @FocusState private var isURLFieldFocused: Bool
 
     private var recentArticles: [Article] {
-        Array(completedArticles.prefix(5))
+        Array(completedArticles.prefix(3))
     }
 
     var body: some View {
@@ -39,6 +42,9 @@ struct ConvertView: View {
 
                     // Status / Error Display
                     statusDisplay
+
+                    // Send Queue
+                    queueSection
 
                     // Recent Conversions
                     recentConversionsSection
@@ -141,6 +147,7 @@ struct ConvertView: View {
                                 await convertVM.convertAndSend(
                                     modelContext: modelContext,
                                     deviceVM: deviceVM,
+                                    queueVM: queueVM,
                                     settings: settings
                                 )
                             }
@@ -180,6 +187,7 @@ struct ConvertView: View {
                     await convertVM.convertAndSend(
                         modelContext: modelContext,
                         deviceVM: deviceVM,
+                        queueVM: queueVM,
                         settings: settings
                     )
                 }
@@ -359,6 +367,134 @@ struct ConvertView: View {
             }
         }
         .font(.subheadline)
+    }
+
+    // MARK: - Queue Section
+
+    private var queueSection: some View {
+        VStack(spacing: 0) {
+            // Section header
+            HStack {
+                Text("Send Queue")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+
+                Spacer()
+
+                if !queueItems.isEmpty {
+                    if queueVM.isSending, let progress = queueVM.sendProgress {
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .controlSize(.mini)
+                            Text("\(progress.current)/\(progress.total)")
+                                .font(.caption2.weight(.medium).monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if deviceVM.isConnected {
+                        Button {
+                            Task {
+                                await queueVM.sendAll(
+                                    deviceVM: deviceVM,
+                                    settings: settings,
+                                    modelContext: modelContext
+                                )
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "paperplane.fill")
+                                Text("Send All")
+                            }
+                            .font(.caption.weight(.medium))
+                        }
+                        .disabled(queueVM.isSending)
+                    }
+                }
+            }
+            .padding(.horizontal, 4)
+            .padding(.bottom, 8)
+
+            // Content: populated or empty
+            if queueItems.isEmpty {
+                queueEmptyState
+            } else {
+                queueList
+            }
+        }
+    }
+
+    private var queueEmptyState: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "tray")
+                .font(.title2)
+                .foregroundStyle(.tertiary)
+
+            Text("No Items Queued")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+
+            Text("EPUBs converted while offline will appear here for sending later.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .glassEffect(.regular, in: .rect(cornerRadius: 16))
+    }
+
+    private var queueList: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(queueItems.enumerated()), id: \.element.id) { index, item in
+                queueRow(item)
+
+                if index < queueItems.count - 1 {
+                    Divider()
+                        .padding(.leading, 32)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+        .glassEffect(.regular, in: .rect(cornerRadius: 16))
+    }
+
+    private func queueRow(_ item: QueueItem) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "doc.text.fill")
+                .foregroundStyle(AppColor.accent)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+
+                HStack(spacing: 4) {
+                    Text(item.sourceDomain)
+                    Text("\u{00B7}")
+                    Text(item.formattedSize)
+                }
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            }
+
+            Spacer(minLength: 0)
+
+            // Swipe-to-delete alternative: small delete button
+            Button(role: .destructive) {
+                withAnimation {
+                    queueVM.remove(item, modelContext: modelContext)
+                }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 8)
     }
 }
 

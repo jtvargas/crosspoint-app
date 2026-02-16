@@ -44,6 +44,7 @@ final class ConvertViewModel {
     func convertAndSend(
         modelContext: ModelContext,
         deviceVM: DeviceViewModel,
+        queueVM: QueueViewModel,
         settings: DeviceSettings?
     ) async {
         guard let url = validatedURL else {
@@ -116,10 +117,20 @@ final class ConvertViewModel {
                 try? await Task.sleep(for: .seconds(1.5))
                 reset()
             } else {
-                // Save locally if device not connected
+                // Queue for later sending
                 currentPhase = .savedLocally
                 article.status = .savedLocally
-                statusMessage = "EPUB ready. Connect to X4 to send."
+                queueVM.enqueue(
+                    epubData: epubData,
+                    filename: filename,
+                    article: article,
+                    modelContext: modelContext
+                )
+                statusMessage = "Queued \"\(content.title.truncated(to: 40))\" — will send when connected."
+
+                // Auto-reset after delay so the user sees the queued message
+                try? await Task.sleep(for: .seconds(1.5))
+                reset()
             }
 
         } catch {

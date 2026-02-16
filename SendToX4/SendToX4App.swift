@@ -15,6 +15,7 @@ struct SendToX4App: App {
             Article.self,
             DeviceSettings.self,
             ActivityEvent.self,
+            QueueItem.self,
         ])
         let modelConfiguration = ModelConfiguration(
             schema: schema,
