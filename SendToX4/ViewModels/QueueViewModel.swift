@@ -29,16 +29,51 @@ final class QueueViewModel {
     }
 
     /// Ensure the queue directory exists on disk.
-    private static func ensureQueueDirectory() throws {
+    static func ensureQueueDirectory() throws {
         let url = queueDirectoryURL
         if !FileManager.default.fileExists(atPath: url.path) {
             try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         }
     }
 
-    // MARK: - Enqueue
+    // MARK: - Enqueue (Shared)
 
     /// Write EPUB data to disk and create a QueueItem record.
+    ///
+    /// This is a static helper so it can be called from both the ViewModel
+    /// and headless contexts (e.g. App Intents, Share Extension).
+    @discardableResult
+    static func enqueueEPUB(
+        epubData: Data,
+        filename: String,
+        article: Article,
+        modelContext: ModelContext
+    ) throws -> QueueItem {
+        try ensureQueueDirectory()
+
+        let itemID = UUID()
+        let relativePath = "EPUBQueue/\(itemID.uuidString).epub"
+        let fileURL = queueDirectoryURL.appendingPathComponent("\(itemID.uuidString).epub")
+
+        try epubData.write(to: fileURL)
+
+        let item = QueueItem(
+            articleID: article.id,
+            title: article.title.isEmpty ? "Untitled" : article.title,
+            filename: filename,
+            filePath: relativePath,
+            fileSize: Int64(epubData.count),
+            sourceURL: article.url,
+            sourceDomain: article.sourceDomain
+        )
+        item.id = itemID
+        modelContext.insert(item)
+        return item
+    }
+
+    // MARK: - Enqueue (Instance)
+
+    /// Convenience wrapper that captures errors into `errorMessage`.
     func enqueue(
         epubData: Data,
         filename: String,
@@ -46,25 +81,12 @@ final class QueueViewModel {
         modelContext: ModelContext
     ) {
         do {
-            try Self.ensureQueueDirectory()
-
-            let itemID = UUID()
-            let relativePath = "EPUBQueue/\(itemID.uuidString).epub"
-            let fileURL = Self.queueDirectoryURL.appendingPathComponent("\(itemID.uuidString).epub")
-
-            try epubData.write(to: fileURL)
-
-            let item = QueueItem(
-                articleID: article.id,
-                title: article.title.isEmpty ? "Untitled" : article.title,
+            try Self.enqueueEPUB(
+                epubData: epubData,
                 filename: filename,
-                filePath: relativePath,
-                fileSize: Int64(epubData.count),
-                sourceURL: article.url,
-                sourceDomain: article.sourceDomain
+                article: article,
+                modelContext: modelContext
             )
-            item.id = itemID
-            modelContext.insert(item)
         } catch {
             errorMessage = "Failed to queue EPUB: \(error.localizedDescription)"
         }
