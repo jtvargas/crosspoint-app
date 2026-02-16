@@ -1,9 +1,7 @@
 {
   "fill-specializations" : [
     {
-      "value" : {
-        "automatic-gradient" : "display-p3:0.96783,0.94559,0.95448,1.00000"
-      }
+      "value" : "system-dark"
     },
     {
       "appearance" : "dark",
