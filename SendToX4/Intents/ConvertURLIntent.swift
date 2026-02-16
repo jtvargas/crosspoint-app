@@ -7,6 +7,7 @@ import SwiftData
 /// User-facing errors for the Convert URL shortcut.
 enum ConvertURLIntentError: Error, CustomLocalizedStringResourceConvertible {
     case invalidURL
+    case notAWebPage
     case fetchFailed(String)
     case extractionFailed
     case epubBuildFailed(String)
@@ -15,7 +16,9 @@ enum ConvertURLIntentError: Error, CustomLocalizedStringResourceConvertible {
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .invalidURL:
-            return "The URL could not be loaded. Please check it and try again."
+            return "The input is not a valid URL. Please provide a web page link."
+        case .notAWebPage:
+            return "This doesn't appear to be a web page. CrossX can only convert web URLs to EPUB — images, files, and other content are not supported."
         case .fetchFailed(let detail):
             return "Failed to fetch the web page: \(detail)"
         case .extractionFailed:
@@ -32,23 +35,32 @@ enum ConvertURLIntentError: Error, CustomLocalizedStringResourceConvertible {
 
 /// Siri Shortcut that converts a web page URL to EPUB and queues it for sending to X4.
 ///
+/// Designed to work seamlessly from:
+/// - **Shortcuts Share Sheet**: auto-receives the shared URL via `connectToPreviousIntentResult`
+/// - **Siri**: asks "Which web page would you like to convert?" when invoked by voice
+/// - **Shortcuts app**: can be chained with other actions
+///
 /// Runs entirely in the background — no app launch required. The EPUB is persisted
 /// to disk and tracked via SwiftData so it appears in the Convert tab's queue section
 /// the next time the app is opened.
 struct ConvertURLIntent: AppIntent {
 
-    static var title: LocalizedStringResource = "Convert Web Page to EPUB"
+    static var title: LocalizedStringResource = "Convert to EPUB & Add to Queue"
 
     static var description = IntentDescription(
         "Converts a web page to EPUB format and queues it for sending to your X4 e-reader.",
         categoryName: "Convert"
     )
 
-    @Parameter(title: "Web Page URL")
-    var url: URL
+    @Parameter(
+        title: "Web Page URL",
+        description: "The URL of the web page to convert to EPUB",
+        inputConnectionBehavior: .connectToPreviousIntentResult
+    )
+    var urlString: String?
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Convert \(\.$url) to EPUB")
+        Summary("Convert \(\.$urlString) to EPUB")
     }
 
     static var openAppWhenRun: Bool = false
@@ -57,20 +69,41 @@ struct ConvertURLIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog & ReturnsValue<String> {
-        // 1. Create a SwiftData context (same default store the app uses)
+        // 1. Resolve the URL: auto-received from share sheet, or ask if invoked standalone
+        let resolvedURL: URL
+        if let raw = urlString?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !raw.isEmpty {
+            var candidate = raw
+            if !candidate.contains("://") {
+                candidate = "https://" + candidate
+            }
+            guard let parsed = URL(string: candidate),
+                  parsed.scheme != nil,
+                  parsed.host != nil else {
+                throw ConvertURLIntentError.invalidURL
+            }
+            resolvedURL = parsed
+        } else {
+            throw $urlString.needsValueError("Please provide a web page URL to convert.")
+        }
+
+        // 2. Validate it's a web page URL (not an image, media file, etc.)
+        try Self.validateWebPage(url: resolvedURL)
+
+        // 3. Create a SwiftData context (same default store the app uses)
         let modelContext = try Self.makeModelContext()
 
-        // 2. Create Article record for history tracking
+        // 4. Create Article record for history tracking
         let article = Article(
-            url: url.absoluteString,
-            sourceDomain: url.host ?? "unknown"
+            url: resolvedURL.absoluteString,
+            sourceDomain: resolvedURL.host ?? "unknown"
         )
         modelContext.insert(article)
 
-        // 3. Fetch the web page
+        // 5. Fetch the web page
         let page: FetchedPage
         do {
-            page = try await WebPageFetcher.fetch(url: url)
+            page = try await WebPageFetcher.fetch(url: resolvedURL)
         } catch {
             article.status = .failed
             article.errorMessage = error.localizedDescription
@@ -78,7 +111,7 @@ struct ConvertURLIntent: AppIntent {
             throw ConvertURLIntentError.fetchFailed(error.localizedDescription)
         }
 
-        // 4. Extract content (Twitter -> SwiftSoup -> Readability.js fallback)
+        // 6. Extract content (Twitter -> SwiftSoup -> Readability.js fallback)
         let content: ExtractedContent
         do {
             content = try await Self.extractContent(html: page.html, url: page.finalURL)
@@ -91,9 +124,9 @@ struct ConvertURLIntent: AppIntent {
 
         article.title = content.title
         article.author = content.author
-        article.sourceDomain = page.finalURL.host ?? url.host ?? "unknown"
+        article.sourceDomain = page.finalURL.host ?? resolvedURL.host ?? "unknown"
 
-        // 5. Build the EPUB
+        // 7. Build the EPUB
         let epubData: Data
         let filename: String
         do {
@@ -117,7 +150,7 @@ struct ConvertURLIntent: AppIntent {
             throw ConvertURLIntentError.epubBuildFailed(error.localizedDescription)
         }
 
-        // 6. Enqueue the EPUB for later sending
+        // 8. Enqueue the EPUB for later sending
         article.status = .savedLocally
         do {
             try QueueViewModel.enqueueEPUB(
@@ -135,7 +168,7 @@ struct ConvertURLIntent: AppIntent {
 
         try? modelContext.save()
 
-        // 7. Build a rich result message
+        // 9. Build a rich result message
         let sizeStr = ByteCountFormatter.string(
             fromByteCount: Int64(epubData.count),
             countStyle: .file
@@ -149,6 +182,25 @@ struct ConvertURLIntent: AppIntent {
             value: resultValue,
             dialog: IntentDialog(stringLiteral: dialogText)
         )
+    }
+
+    // MARK: - URL Validation
+
+    /// Validate that the URL is an HTTP(S) web page — not an image, media file, or non-web scheme.
+    private static func validateWebPage(url: URL) throws {
+        guard let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme),
+              url.host != nil else {
+            throw ConvertURLIntentError.invalidURL
+        }
+
+        // Reject URLs that point directly to common image/media file extensions
+        let pathExtension = url.pathExtension.lowercased()
+        let mediaExtensions = ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp",
+                               "mp4", "mov", "avi", "mp3", "wav", "pdf"]
+        if mediaExtensions.contains(pathExtension) {
+            throw ConvertURLIntentError.notAWebPage
+        }
     }
 
     // MARK: - Private Helpers

@@ -1,4 +1,4 @@
-# CrossX — Xtreink iOS App Manager
+# CrossX — Xteink iOS App Manager
 
 <p align="center">
   <strong>Convert web pages to EPUB. Send them to your e-reader. All over WiFi.</strong>
@@ -11,7 +11,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="MIT License"></a>
 </p>
 
-**CrossX** is a native SwiftUI app for **iOS, iPadOS, and macOS** that converts any web page into an EPUB 2.0 e-book and transfers it to an [Xtreink X4](https://xtreink.com) e-reader over its local WiFi hotspot. No cloud services, no accounts, no subscriptions — just paste a URL, tap convert, and read.
+**CrossX** is a native SwiftUI app for **iOS, iPadOS, and macOS** that converts any web page into an EPUB 2.0 e-book and transfers it to an [Xteink device](https://www.xteink.com/) e-reader over its local WiFi hotspot. No cloud services, no accounts, no subscriptions — just paste a URL, tap convert, and read.
 
 The app supports both **Stock** and **CrossPoint** firmware variants with automatic device detection, includes a full on-device **file manager**, and ships with an **iOS Share Extension** so you can send pages directly from Safari.
 
@@ -52,7 +52,7 @@ The app supports both **Stock** and **CrossPoint** firmware variants with automa
 ### Activity History
 
 - **Unified timeline** — merges EPUB conversion history and file manager operations into a single chronological view
-- **Filtering** — switch between All, Conversions, and File Activity
+- **Filtering** — switch between All, Conversions, File Activity, and Queue
 - **Search** — full-text search across all activity events
 - **Granular clear** — clear conversions only, file activity only, or everything
 - **Expandable detail rows** — tap to see full URLs, error messages, and metadata
@@ -63,6 +63,23 @@ The app supports both **Stock** and **CrossPoint** firmware variants with automa
 - **Auto-detect device** — the extension finds your X4 automatically
 - **Fallback to local save** — if the device isn't connected, the EPUB is saved locally
 - **Full pipeline** — runs the complete fetch → extract → build → send flow in the extension
+
+### EPUB Send Queue
+
+- **Offline queuing** — EPUBs converted while the device is disconnected are saved to disk and queued for later sending
+- **Auto-prompt on connect** — when the device connects, an alert offers to send all queued items at once
+- **Queue management** — view queued items in the Convert tab, remove individual items, or clear the entire queue from Settings
+- **Persistent storage** — queued EPUBs survive app restarts; stored in Application Support with SwiftData tracking
+- **Batch sending** — sends queued items sequentially with progress indicator, logs results to activity history
+
+### Siri Shortcuts
+
+- **Convert from Shortcuts** — use the "Convert to EPUB & Add to Queue" action in the Shortcuts app
+- **Share Sheet integration** — create a Shortcut with "Show in Share Sheet" to convert pages directly from Safari
+- **Background execution** — conversions run without opening the app; results are queued automatically
+- **Siri voice support** — say "Convert a page with CrossX" to convert by voice
+- **Rich feedback** — shows article title, file size, and queue count on completion
+- **Setup guide** — in-app guide in Settings walks you through enabling the Share Sheet shortcut
 
 ### Cross-Platform
 
@@ -76,35 +93,42 @@ The app supports both **Stock** and **CrossPoint** firmware variants with automa
 ## How It Works
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   CrossX App                        │
-│                                                     │
-│  URL ──► Fetch HTML ──► Extract Content ──► Sanitize│
-│              │               │                  │   │
-│              │          SwiftSoup (fast)         │   │
-│              │              or                   │   │
-│              │       Readability.js (fallback)   │   │
-│              │              or                   │   │
-│              │       Twitter API (tweets)        │   │
-│              │                                   ▼   │
-│              │                          Build EPUB   │
-│              │                     (in-memory ZIP)   │
-│              │                               │      │
-│              ▼                               ▼      │
-│         URLSession                  multipart POST  │
-└─────────────────────────────────┬───────────────────┘
-                                  │
-                          WiFi Hotspot
-                                  │
-                                  ▼
-                    ┌─────────────────────────┐
-                    │      Xtreink X4         │
-                    │      E-Reader           │
-                    │                         │
-                    │  Stock:     192.168.3.3  │
-                    │  CrossPoint: 192.168.4.1 │
-                    │             (or mDNS)    │
-                    └─────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                      CrossX App                          │
+│                                                          │
+│  URL ──► Fetch HTML ──► Extract Content ──► Sanitize     │
+│              │               │                  │        │
+│              │          SwiftSoup (fast)         │        │
+│              │              or                   │        │
+│              │       Readability.js (fallback)   │        │
+│              │              or                   │        │
+│              │       Twitter API (tweets)        │        │
+│              │                                   ▼        │
+│              │                             Build EPUB     │
+│              │                          (in-memory ZIP)   │
+│              │                                │           │
+│              │                     ┌──────────┴─────────┐│
+│              │                     │                    ││
+│              ▼               Device connected?          ││
+│         URLSession                 │                    ││
+│                              ┌─────┴─────┐              ││
+│                              Yes         No             ││
+│                              │           │              ││
+│                        multipart    Queue to disk       ││
+│                          POST       (send later)        ││
+└──────────────────────────┬───────────────┬──────────────┘│
+                           │               │
+                    WiFi Hotspot     App Support/
+                           │         EPUBQueue/
+                           ▼
+                 ┌─────────────────────────┐
+                 │       Xteink X4         │
+                 │       E-Reader          │
+                 │                         │
+                 │  Stock:     192.168.3.3  │
+                 │  CrossPoint: 192.168.4.1 │
+                 │             (or mDNS)    │
+                 └─────────────────────────┘
 ```
 
 ---
@@ -169,11 +193,11 @@ See [Device Setup](#device-setup) below.
 
 ## Device Setup
 
-The Xtreink X4 e-reader creates its own WiFi hotspot. CrossX communicates with it over plain HTTP on the local network.
+The Xteink X4 e-reader creates its own WiFi hotspot. CrossX communicates with it over plain HTTP on the local network.
 
 ### Step 1: Connect to the X4 WiFi
 
-1. Power on your Xtreink X4
+1. Power on your Xteink X4
 2. On your iPhone/iPad/Mac, go to **Settings → WiFi**
 3. Connect to the X4's WiFi network (the SSID varies by firmware)
 
@@ -219,7 +243,8 @@ Views → ViewModels → Services
   └─ SwiftData Models
        ├─ Article (conversion history)
        ├─ DeviceSettings (configuration)
-       └─ ActivityEvent (file operations log)
+       ├─ ActivityEvent (file operations log)
+       └─ QueueItem (EPUB send queue)
 ```
 
 ### Key design decisions
@@ -227,6 +252,8 @@ Views → ViewModels → Services
 - **Protocol-oriented device communication** — `DeviceService` protocol with concrete implementations per firmware, enabling easy mocking and future firmware support
 - **Dual content extraction** — SwiftSoup for speed (primary), WKWebView + Readability.js for accuracy (fallback), Twitter API for tweets
 - **In-memory EPUB generation** — no temporary files; all ZIP operations produce `Data` objects directly
+- **Offline queue** — EPUBs are written to disk and tracked via SwiftData when the device is disconnected; batch-sent when it reconnects
+- **Headless Siri Shortcuts** — `ConvertURLIntent` runs the full conversion pipeline without opening the app, using its own `ModelContext` against the shared SwiftData store
 - **`@MainActor` by default** — the project uses `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`; services are explicitly marked `nonisolated` to avoid stack overflows
 - **Native multiplatform** — `SDKROOT = auto` with `#if os(iOS)` / `#if canImport(UIKit)` conditional compilation (not Mac Catalyst)
 
@@ -244,12 +271,13 @@ crosspoint-app/
 │
 ├── SendToX4/                    # Main app target
 │   ├── SendToX4App.swift        # @main entry point, SwiftData ModelContainer setup
-│   ├── SendToX4.entitlements    # App Sandbox + network client (macOS)
+│   ├── SendToX4.entitlements    # App Sandbox + network client + Siri
 │   │
 │   ├── Models/
 │   │   ├── Article.swift        # Conversion history model (URL, title, status, error)
 │   │   ├── DeviceSettings.swift # Device config singleton (firmware type, IP, toggles)
-│   │   └── ActivityEvent.swift  # File operation log (upload, mkdir, move, delete)
+│   │   ├── ActivityEvent.swift  # File operation log (upload, mkdir, move, delete, queue)
+│   │   └── QueueItem.swift      # EPUB send queue model (file path, size, linked Article)
 │   │
 │   ├── Views/
 │   │   ├── MainView.swift       # Root tab view (Convert, History, File Manager, WallpaperX)
@@ -271,7 +299,8 @@ crosspoint-app/
 │   │   ├── ConvertViewModel.swift     # URL → EPUB → device pipeline orchestrator
 │   │   ├── DeviceViewModel.swift      # Connection state, auto-detection, upload progress
 │   │   ├── FileManagerViewModel.swift # File browsing, CRUD operations, activity logging
-│   │   └── HistoryViewModel.swift     # Search, delete, granular clear for history
+│   │   ├── HistoryViewModel.swift     # Search, delete, granular clear for history
+│   │   └── QueueViewModel.swift       # Queue management (enqueue, sendAll, remove, clear)
 │   │
 │   ├── Services/
 │   │   ├── DeviceService.swift        # Protocol + models (DeviceFile, DeviceStatus, DeviceError)
@@ -286,11 +315,17 @@ crosspoint-app/
 │   │   ├── WebPageFetcher.swift       # URLSession HTML fetcher with encoding detection
 │   │   └── TwitterExtractor.swift     # X/Twitter via fxtwitter API
 │   │
+│   ├── Intents/
+│   │   ├── ConvertURLIntent.swift     # App Intent: URL → EPUB → queue (Siri/Shortcuts)
+│   │   └── CrossXShortcuts.swift      # AppShortcutsProvider (Siri phrases)
+│   │
 │   ├── Utilities/
 │   │   ├── HTMLSanitizer.swift        # Strip unsafe HTML for text-only EPUB
 │   │   ├── StringExtensions.swift     # XML escaping, domain extraction, truncation
 │   │   ├── FileNameGenerator.swift    # EPUB filename from metadata
 │   │   ├── ClipboardHelper.swift      # Cross-platform clipboard (UIKit/AppKit)
+│   │   ├── StorageCalculator.swift    # Storage size calculations (DB, cache, queue, temp)
+│   │   ├── ReviewPromptManager.swift  # In-app review prompt after successful actions
 │   │   └── DesignTokens.swift         # AppColor design system (accent, success, error, warning)
 │   │
 │   ├── Resources/
@@ -363,6 +398,7 @@ Dependencies are managed via **Xcode's Swift Package Manager** integration. They
 ## Roadmap
 
 - [ ] **WallpaperX** — custom wallpaper upload and management for the X4
+- [ ] **Share Extension queue integration** — update the iOS Share Extension to use the queue system instead of temp file saves
 - [ ] **File rename** — currently disabled; waiting for CrossPoint firmware API stabilization
 - [ ] **Image support in EPUBs** — optionally include images for richer e-books
 - [ ] **Batch conversion** — convert multiple URLs in one session
@@ -398,5 +434,5 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 ---
 
 <p align="center">
-  Built for the <a href="https://xtreink.com">Xtreink X4</a> e-reader community.
+  Built for the <a href="https://Xteink.com">Xteink X4</a> e-reader community.
 </p>

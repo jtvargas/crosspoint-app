@@ -120,6 +120,52 @@ struct SettingsSheet: View {
                     .disabled(isTesting)
                 }
 
+                // MARK: - Siri Shortcut Setup
+
+                Section {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Convert web pages to EPUB directly from the Share menu using a Siri Shortcut and add it to the Queue")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            setupStep(1, "Open the **Shortcuts** app")
+                            setupStep(2, "Tap **+** to create a new Shortcut")
+                            setupStep(3, "Search for **\"CrossX\"** in the search bar")
+                            setupStep(3, "Press **\"Convert to EPUB & Add to Queue\"**")
+                            setupStep(4, "Tap the **info icon** (i) at the bottom")
+                            setupStep(5, "Enable **\"Show in Share Sheet\"** and close it")
+                            setupStep(6, "Press **\"Web Page URL\"** input")
+                            setupStep(7, "Press **\"Select Variable\"**")
+                            setupStep(8, "Press **\"Shortcut Input\"**")
+                            setupStep(9, "Done")
+                        }
+
+                        #if os(iOS)
+                        Button {
+                            if let url = URL(string: "shortcuts://") {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
+                            HStack {
+                                Spacer()
+                                Label("Open Shortcuts App", systemImage: "arrow.up.forward.app")
+                                    .font(.subheadline.weight(.medium))
+                                Spacer()
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(AppColor.accent)
+                        .padding(.top, 4)
+                        #endif
+                    }
+                    .padding(.vertical, 4)
+                } header: {
+                    Text("Siri Shortcut")
+                } footer: {
+                    Text("The shortcut converts pages in the background and queues them for sending when your X4 connects.")
+                }
+
                 // MARK: - Storage Section
 
                 Section {
@@ -204,6 +250,21 @@ struct SettingsSheet: View {
             } message: {
                 Text("All \(queueItems.count) queued EPUB\(queueItems.count == 1 ? "" : "s") will be permanently deleted.")
             }
+        }
+    }
+
+    // MARK: - Setup Guide Helper
+
+    private func setupStep(_ number: Int, _ text: LocalizedStringKey) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("\(number)")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 20, height: 20)
+                .background(AppColor.accent, in: .circle)
+
+            Text(text)
+                .font(.subheadline)
         }
     }
 

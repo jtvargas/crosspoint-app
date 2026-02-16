@@ -13,10 +13,11 @@ CrossX (bundle name: SendToX4) is a **native multiplatform SwiftUI app** for iOS
 
 ```
 SendToX4/
-  Models/          — SwiftData @Model classes (Article, DeviceSettings, ActivityEvent)
+  Models/          — SwiftData @Model classes (Article, DeviceSettings, ActivityEvent, QueueItem)
   Views/           — SwiftUI views (Liquid Glass, iOS 26 / macOS 26 adaptive)
   ViewModels/      — @Observable view models with async orchestration (@MainActor)
   Services/        — Business logic (EPUB, device communication, content extraction)
+  Intents/         — App Intents for Siri Shortcuts (ConvertURLIntent, CrossXShortcuts)
   Utilities/       — Pure helpers (HTML sanitization, string extensions, design tokens)
   Resources/       — Bundled assets (readability.js)
 
@@ -45,22 +46,30 @@ Views → ViewModels → Services → Device (HTTP) / SwiftData (persistence)
 5. **Unified activity history** — merged timeline of EPUB conversions (`Article`) and file operations (`ActivityEvent`)
 6. **iOS Share Extension** — convert and send from Safari or any app that shares URLs
 7. **Native multiplatform** — iOS, iPadOS, and macOS from a single codebase (not Mac Catalyst)
+8. **EPUB send queue** — persists EPUBs to disk when offline, batch-sends when device connects, with queue UI in Convert tab
+9. **Siri Shortcuts** — App Intent (`ConvertURLIntent`) for URL-to-EPUB conversion from Shortcuts app, Siri, or Share Sheet automations
+10. **Recent conversions** — last 3 completed conversions shown in Convert tab with inline action menus (Resend, Reconvert & Share, Copy URL)
 
 ### Content Extraction
 
-8. **SwiftSoup heuristic extraction** — primary extractor using CSS selectors for article body, title, author, description
-9. **Readability.js fallback** — WKWebView-based extraction when SwiftSoup yields < 400 characters
-10. **Twitter/X extractor** — dedicated handler using fxtwitter API for tweet content and metadata
-11. **Chapter splitting** — auto-splits long content at `<h2>` headings or every 50 paragraphs (15,000-char threshold)
+11. **SwiftSoup heuristic extraction** — primary extractor using CSS selectors for article body, title, author, description
+12. **Readability.js fallback** — WKWebView-based extraction when SwiftSoup yields < 400 characters
+13. **Twitter/X extractor** — dedicated handler using fxtwitter API for tweet content and metadata
+14. **Chapter splitting** — auto-splits long content at `<h2>` headings or every 50 paragraphs (15,000-char threshold)
 
 ### UI/UX
 
-12. **Liquid Glass design** — `.glassEffect()` modifiers on iOS 26 / macOS 26
-13. **Design system** — `AppColor` enum (accent/success/error/warning) with `AccentColor` asset (teal, light+dark)
-14. **Platform-adaptive status bar** — iOS tab bar bottom accessory vs macOS Xcode-style bottom status bar
-15. **Device status display** — firmware version, IP, WiFi mode, RSSI, free heap, uptime
-16. **Expandable history rows** — tap to reveal full URL, error details, metadata
-17. **History filtering** — All / Conversions / File Activity tabs with full-text search
+15. **Liquid Glass design** — `.glassEffect()` modifiers on iOS 26 / macOS 26
+16. **Design system** — `AppColor` enum (accent/success/error/warning) with `AccentColor` asset (teal, light+dark)
+17. **Platform-adaptive status bar** — iOS tab bar bottom accessory vs macOS Xcode-style bottom status bar
+18. **Device status display** — firmware version, IP, WiFi mode, RSSI, free heap, uptime
+19. **Expandable history rows** — tap to reveal full URL, error details, metadata
+20. **History filtering** — All / Conversions / File Activity / Queue tabs with full-text search
+21. **Queue section in Convert tab** — always-visible section with populated/empty glass-card states, Send All button, individual remove
+22. **Queue connection prompt** — alert when device connects offering to send all queued items
+23. **Settings Siri Shortcut guide** — inline 5-step setup guide with "Open Shortcuts App" button (iOS)
+24. **Settings storage info** — queue EPUB count and size display with Clear Queue option
+25. **Device accessory queue count** — shows "N EPUBs queued" in warning color when disconnected
 
 ## Key Design Decisions
 
@@ -118,15 +127,40 @@ OEBPS/chapter-2.xhtml  (if split)
 OEBPS/style.css
 ```
 
+### EPUB send queue
+
+When the device is not connected, converted EPUBs are persisted to disk and tracked in SwiftData for later batch-sending:
+
+- **Storage**: EPUBs are written to `Application Support/EPUBQueue/<uuid>.epub`
+- **Tracking**: Each file is tracked by a `QueueItem` SwiftData record linked to its `Article` by `articleID`
+- **Shared enqueue logic**: `QueueViewModel.enqueueEPUB()` is a `static` throwing method used by both the ViewModel (instance wrapper captures errors into `errorMessage`) and the `ConvertURLIntent` (calls directly)
+- **Batch send**: `QueueViewModel.sendAll()` sends items sequentially, updates linked `Article` status to `.sent`, deletes files + records on success, logs a summary `ActivityEvent`
+- **Connection prompt**: `MainView` observes `deviceVM.isConnected` via `.onChange` and presents an alert offering to send all queued items when the device connects
+- **UI**: Convert tab shows an always-visible queue section (glass card with empty state or item list); Settings shows queue storage size with a Clear Queue option; DeviceConnectionAccessory shows queue count when disconnected
+
+### Siri Shortcuts (App Intents)
+
+The app provides a built-in Siri Shortcut for URL-to-EPUB conversion via the App Intents framework (iOS 16+ / macOS 13+):
+
+- **`ConvertURLIntent`** — accepts an optional `String?` parameter with `inputConnectionBehavior: .connectToPreviousIntentResult` to auto-receive URLs from a Shortcuts "Share Sheet" trigger
+- **`String?` over `URL?`** — the Shortcuts runtime's type coercion from Share Sheet input to `URL` is unreliable (silently fails to `nil`); `String` is the most universal coercion target and is parsed manually in `perform()`
+- **Headless execution** — `openAppWhenRun = false`; the intent creates its own `ModelContainer`/`ModelContext` (same default SwiftData store) and calls the service layer directly (no ViewModel dependency)
+- **Pipeline**: validates URL → creates `Article` → fetches page → extracts content (Twitter/SwiftSoup/Readability.js) → builds EPUB → enqueues via `QueueViewModel.enqueueEPUB()`
+- **Rich feedback**: returns `ProvidesDialog` with article title, file size, and queue count
+- **Error handling**: five specific `ConvertURLIntentError` cases with user-facing `LocalizedStringResource` messages
+- **`CrossXShortcuts: AppShortcutsProvider`** — registers pre-built Siri phrases ("Convert a page with CrossX", etc.)
+- **Setup guide**: Settings includes an inline 5-step guide for creating a Shortcut with "Show in Share Sheet" enabled, plus an "Open Shortcuts App" button (iOS)
+
 ### SwiftData persistence
 
-Three `@Model` types:
+Four `@Model` types:
 
 | Model | Purpose | Key fields |
 |-------|---------|------------|
 | `Article` | Conversion history | url, title, author, domain, status (enum), errorMessage |
 | `DeviceSettings` | Device configuration (singleton) | firmwareType, customIP, feature toggles, destination folders |
 | `ActivityEvent` | File operation log | category, action, status, fileName, detail, timestamp |
+| `QueueItem` | EPUB send queue | id, articleID, title, filename, filePath, fileSize, sourceURL, sourceDomain, queuedAt |
 
 ## Multiplatform Strategy
 
@@ -158,6 +192,7 @@ These SwiftUI modifiers don't exist on macOS and must be conditionally compiled:
 `SendToX4.entitlements` enables:
 - `com.apple.security.app-sandbox` — required for macOS App Store / notarization
 - `com.apple.security.network.client` — required for HTTP to device (macOS sandbox blocks all networking without this)
+- `com.apple.developer.siri` — required for App Intents / Siri Shortcuts
 
 ### Share Extension
 
@@ -211,11 +246,11 @@ The history view presents a **unified timeline** merging two data sources:
 2. **`ActivityEvent` records** — created by `FileManagerViewModel` when file operations complete
 
 `ActivityEvent` uses three enums:
-- `ActivityCategory`: `.fileManager` (extensible for future categories)
-- `ActivityAction`: `.upload`, `.createFolder`, `.moveFile`, `.deleteFile`, `.deleteFolder`
+- `ActivityCategory`: `.fileManager`, `.queue`
+- `ActivityAction`: `.upload`, `.createFolder`, `.moveFile`, `.deleteFile`, `.deleteFolder`, `.queueSend`
 - `ActivityStatus`: `.success`, `.failed`
 
-The `HistoryView` merges both types by timestamp and supports filtering by category.
+The `HistoryView` merges both types by timestamp and supports filtering by category (All / Conversions / File Activity / Queue).
 
 ## Design System
 
@@ -289,6 +324,7 @@ xcodebuild -project SendToX4.xcodeproj \
 - Services are `nonisolated` and stateless (receive all inputs as parameters)
 - All service methods `throw` — ViewModels catch and surface user-friendly `errorMessage` strings
 - SwiftData `ModelContext` is injected via `@Environment(\.modelContext)` in Views and passed to ViewModels as needed
+- **No `.confirmationDialog`** — use `.alert` for destructive confirmations and inline `Menu` for contextual actions (`.confirmationDialog` has broken positioning on iOS/iPad)
 
 ### Platform wrapping
 
