@@ -53,7 +53,7 @@ struct MoveFileSheet: View {
                             Button {
                                 Task { await navigateTo(component.path) }
                             } label: {
-                                Text(component.name == "/" ? "Root" : component.name)
+                                Text(component.name == "/" ? loc(.root) : component.name)
                                     .font(.caption.weight(index == pathComponents.count - 1 ? .semibold : .regular))
                             }
                             .buttonStyle(.plain)
@@ -72,9 +72,9 @@ struct MoveFileSheet: View {
                     Spacer()
                 } else if folders.isEmpty {
                     ContentUnavailableView {
-                        Label("No Subfolders", systemImage: "folder")
+                        Label(loc(.noSubfolders), systemImage: "folder")
                     } description: {
-                        Text("This directory has no subfolders.")
+                        Text(loc(.noSubfoldersDescription))
                     }
                 } else {
                     List(folders) { folder in
@@ -96,16 +96,16 @@ struct MoveFileSheet: View {
                     .listStyle(.plain)
                 }
             }
-            .navigationTitle("Move \"\(file.name)\"")
+            .navigationTitle(loc(.moveFileTitle, file.name))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(loc(.cancel)) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Move Here") {
+                    Button(loc(.moveHere)) {
                         Task { await move() }
                     }
                     .disabled(!canMoveHere || isMoving)

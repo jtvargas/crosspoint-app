@@ -14,7 +14,7 @@ struct CreateFolderSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Folder name", text: $folderName)
+                    TextField(loc(.folderName), text: $folderName)
                         .autocorrectionDisabled()
                         #if os(iOS)
                         .textInputAutocapitalization(.never)
@@ -31,20 +31,20 @@ struct CreateFolderSheet: View {
                         Text(error)
                             .foregroundStyle(AppColor.error)
                     } else {
-                        Text("Avoid special characters: \" * : < > ? / \\ |")
+                        Text(loc(.avoidSpecialCharacters))
                     }
                 }
             }
-            .navigationTitle("New Folder")
+            .navigationTitle(loc(.newFolder))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(loc(.cancel)) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Create") {
+                    Button(loc(.create)) {
                         Task { await create() }
                     }
                     .disabled(folderName.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)

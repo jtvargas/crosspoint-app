@@ -95,22 +95,22 @@ final class ActivityEvent {
     /// Human-readable action label.
     var actionLabel: String {
         switch action {
-        case .upload:          return "File Uploaded"
-        case .createFolder:    return "Folder Created"
-        case .moveFile:        return "File Moved"
-        case .deleteFile:      return "File Deleted"
-        case .deleteFolder:    return "Folder Deleted"
-        case .wallpaperUpload: return "Wallpaper Sent"
-        case .queueSend:       return "Queue Sent to Device"
+        case .upload:          return loc(.activityFileUploaded)
+        case .createFolder:    return loc(.activityFolderCreated)
+        case .moveFile:        return loc(.activityFileMoved)
+        case .deleteFile:      return loc(.activityFileDeleted)
+        case .deleteFolder:    return loc(.activityFolderDeleted)
+        case .wallpaperUpload: return loc(.activityWallpaperSent)
+        case .queueSend:       return loc(.activityQueueSent)
         }
     }
 
     /// Human-readable category label.
     var categoryLabel: String {
         switch category {
-        case .fileManager: return "File Manager"
-        case .wallpaper:   return "Wallpaper"
-        case .queue:       return "Queue"
+        case .fileManager: return loc(.categoryFileManager)
+        case .wallpaper:   return loc(.categoryWallpaper)
+        case .queue:       return loc(.filterQueue)
         }
     }
 }

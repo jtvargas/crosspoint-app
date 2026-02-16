@@ -48,7 +48,7 @@ struct WallpaperXView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             statusBar
         }
-        .navigationTitle("WallpaperX")
+        .navigationTitle(loc(.tabWallpaperX))
         .toolbar { wallpaperToolbar }
         .fileImporter(
             isPresented: $wallpaperVM.showFileImporter,
@@ -88,7 +88,7 @@ struct WallpaperXView: View {
             .padding(.horizontal)
             .padding(.top, 8)
         }
-        .navigationTitle("WallpaperX")
+        .navigationTitle(loc(.tabWallpaperX))
         .settingsToolbar(deviceVM: deviceVM, settings: settings)
         .toolbar { toolbarActions }
         .fileImporter(
@@ -142,7 +142,7 @@ struct WallpaperXView: View {
                                 Image(systemName: "photo.artframe")
                                     .font(.system(size: 36))
                                     .foregroundStyle(.tertiary)
-                                Text("Select an image")
+                                Text(loc(.selectAnImage))
                                     .font(.subheadline)
                                     .foregroundStyle(.tertiary)
                             }
@@ -180,7 +180,7 @@ struct WallpaperXView: View {
                 matching: .images,
                 photoLibrary: .shared()
             ) {
-                Label("Photos", systemImage: "photo.on.rectangle")
+                Label(loc(.photos), systemImage: "photo.on.rectangle")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
             }
@@ -190,7 +190,7 @@ struct WallpaperXView: View {
             Button {
                 wallpaperVM.showFileImporter = true
             } label: {
-                Label("Files", systemImage: "folder")
+                Label(loc(.tabFiles), systemImage: "folder")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
             }
@@ -215,12 +215,12 @@ struct WallpaperXView: View {
         VStack(spacing: 20) {
             // Fit Mode
             VStack(alignment: .leading, spacing: 8) {
-                Text("Fit")
+                Text(loc(.fit))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
 
-                Picker("Fit Mode", selection: $wallpaperVM.settings.fitMode) {
+                Picker(loc(.fitMode), selection: $wallpaperVM.settings.fitMode) {
                     ForEach(WallpaperFitMode.allCases, id: \.self) { mode in
                         Image(systemName: mode.iconName).tag(mode)
                     }
@@ -231,7 +231,7 @@ struct WallpaperXView: View {
             // Alignment
             if wallpaperVM.settings.fitMode != .stretch {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Alignment")
+                    Text(loc(.alignment))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                         .textCase(.uppercase)
@@ -244,7 +244,7 @@ struct WallpaperXView: View {
 
             // Rotation
             HStack {
-                Text("Rotate")
+                Text(loc(.rotate))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
@@ -258,12 +258,12 @@ struct WallpaperXView: View {
 
             // Color Depth
             VStack(alignment: .leading, spacing: 8) {
-                Text("Depth")
+                Text(loc(.depth))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
 
-                Picker("Depth", selection: $wallpaperVM.settings.colorDepth) {
+                Picker(loc(.depth), selection: $wallpaperVM.settings.colorDepth) {
                     ForEach(BMPColorDepth.allCases, id: \.self) { depth in
                         Text(depth.label).tag(depth)
                     }
@@ -280,10 +280,10 @@ struct WallpaperXView: View {
             Divider()
 
             // Effects
-            Toggle("Grayscale", isOn: $wallpaperVM.settings.grayscale)
+            Toggle(loc(.grayscale), isOn: $wallpaperVM.settings.grayscale)
                 .font(.subheadline)
 
-            Toggle("Invert", isOn: $wallpaperVM.settings.invert)
+            Toggle(loc(.invert), isOn: $wallpaperVM.settings.invert)
                 .font(.subheadline)
         }
     }
@@ -386,7 +386,7 @@ struct WallpaperXView: View {
                         .frame(width: 7, height: 7)
                     Text(
                         deviceVM.isConnected
-                            ? "Connected" : "Not Connected"
+                            ? loc(.connected) : loc(.notConnected)
                     )
                     .font(.caption2)
                 }
@@ -408,7 +408,7 @@ struct WallpaperXView: View {
                 Button {
                     wallpaperVM.showShareSheet = true
                 } label: {
-                    Label("Save", systemImage: "square.and.arrow.up")
+                    Label(loc(.save), systemImage: "square.and.arrow.up")
                 }
             }
 
@@ -426,7 +426,7 @@ struct WallpaperXView: View {
                         .controlSize(.small)
                 } else {
                     Label(
-                        deviceVM.isConnected ? "Send" : "Convert",
+                        deviceVM.isConnected ? loc(.sendLabel) : loc(.tabConvert),
                         systemImage: deviceVM.isConnected
                             ? "paperplane.fill" : "photo.artframe"
                     )
@@ -463,7 +463,7 @@ struct WallpaperXView: View {
                 Button {
                     Task { await deviceVM.refresh(settings: settings) }
                 } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+                    Label(loc(.refresh), systemImage: "arrow.clockwise")
                         .font(.subheadline)
                 }
                 .buttonStyle(.bordered)
@@ -477,7 +477,7 @@ struct WallpaperXView: View {
                     }
                 } label: {
                     Text(
-                        deviceVM.isConnected ? "Disconnect" : "Connect"
+                        deviceVM.isConnected ? loc(.disconnect) : loc(.connect)
                     )
                     .font(.subheadline)
                 }
@@ -491,7 +491,7 @@ struct WallpaperXView: View {
                 HStack(spacing: 6) {
                     ProgressView()
                         .controlSize(.small)
-                    Text("Scanning...")
+                    Text(loc(.scanning))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -511,7 +511,7 @@ struct WallpaperXView: View {
                 Button {
                     wallpaperVM.showShareSheet = true
                 } label: {
-                    Label("Save", systemImage: "square.and.arrow.up")
+                    Label(loc(.save), systemImage: "square.and.arrow.up")
                 }
             }
 
@@ -529,7 +529,7 @@ struct WallpaperXView: View {
                         .controlSize(.small)
                 } else {
                     Label(
-                        deviceVM.isConnected ? "Send" : "Convert",
+                        deviceVM.isConnected ? loc(.sendLabel) : loc(.tabConvert),
                         systemImage: deviceVM.isConnected
                             ? "paperplane.fill" : "photo.artframe"
                     )
@@ -578,7 +578,7 @@ struct WallpaperXView: View {
             HStack(spacing: 6) {
                 ProgressView()
                     .controlSize(.mini)
-                Text(wallpaperVM.statusMessage ?? "Processing...")
+                Text(wallpaperVM.statusMessage ?? loc(.processing))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -703,7 +703,7 @@ struct WallpaperQuickControls: View {
                     Button {
                         showAdvancedSettings = true
                     } label: {
-                        Label("Advanced", systemImage: "slider.horizontal.3")
+                        Label(loc(.advanced), systemImage: "slider.horizontal.3")
                             .font(.subheadline.weight(.medium))
                     }
                     .buttonStyle(.bordered)
@@ -736,11 +736,11 @@ struct WallpaperAdvancedSheet: View {
                     .padding(.bottom, 24)
             }
             .scrollBounceBehavior(.basedOnSize)
-            .navigationTitle("Settings")
+            .navigationTitle(loc(.settings))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
+                    Button(loc(.done)) {
                         dismiss()
                     }
                     .fontWeight(.semibold)
@@ -774,12 +774,12 @@ private struct _SettingsControlsContent: View {
         VStack(spacing: 20) {
             // Fit Mode
             VStack(alignment: .leading, spacing: 8) {
-                Text("Fit")
+                Text(loc(.fit))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
 
-                Picker("Fit Mode", selection: $wallpaperVM.settings.fitMode) {
+                Picker(loc(.fitMode), selection: $wallpaperVM.settings.fitMode) {
                     ForEach(WallpaperFitMode.allCases, id: \.self) { mode in
                         Image(systemName: mode.iconName).tag(mode)
                     }
@@ -790,7 +790,7 @@ private struct _SettingsControlsContent: View {
             // Alignment
             if wallpaperVM.settings.fitMode != .stretch {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Alignment")
+                    Text(loc(.alignment))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                         .textCase(.uppercase)
@@ -803,7 +803,7 @@ private struct _SettingsControlsContent: View {
 
             // Rotation
             HStack {
-                Text("Rotate")
+                Text(loc(.rotate))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
@@ -817,13 +817,13 @@ private struct _SettingsControlsContent: View {
 
             // Color Depth
             VStack(alignment: .leading, spacing: 8) {
-                Text("Depth")
+                Text(loc(.depth))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
 
                 Picker(
-                    "Depth", selection: $wallpaperVM.settings.colorDepth
+                    loc(.depth), selection: $wallpaperVM.settings.colorDepth
                 ) {
                     ForEach(BMPColorDepth.allCases, id: \.self) { depth in
                         Text(depth.label).tag(depth)
@@ -845,10 +845,10 @@ private struct _SettingsControlsContent: View {
             Divider()
 
             // Effects
-            Toggle("Grayscale", isOn: $wallpaperVM.settings.grayscale)
+            Toggle(loc(.grayscale), isOn: $wallpaperVM.settings.grayscale)
                 .font(.subheadline)
 
-            Toggle("Invert", isOn: $wallpaperVM.settings.invert)
+            Toggle(loc(.invert), isOn: $wallpaperVM.settings.invert)
                 .font(.subheadline)
         }
     }

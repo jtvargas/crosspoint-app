@@ -9,6 +9,15 @@ private enum HistoryFilter: String, CaseIterable {
     case conversions = "Conversions"
     case fileActivity = "File Activity"
     case queueActivity = "Queue"
+
+    var displayName: String {
+        switch self {
+        case .all:           return loc(.filterAll)
+        case .conversions:   return loc(.filterConversions)
+        case .fileActivity:  return loc(.filterFileActivity)
+        case .queueActivity: return loc(.filterQueue)
+        }
+    }
 }
 
 // MARK: - Timeline Item
@@ -88,7 +97,7 @@ struct HistoryView: View {
                     timelineList
                 }
             }
-            .navigationTitle("History")
+            .navigationTitle(loc(.tabHistory))
             .settingsToolbar(deviceVM: deviceVM, settings: settings)
             .toolbar {
                 // Filter menu
@@ -114,13 +123,13 @@ struct HistoryView: View {
                 }
             }
             // MARK: - Clear Confirmation
-            .alert("Clear All History?", isPresented: $showClearConfirmation) {
-                Button("Delete All", role: .destructive) {
+            .alert(loc(.clearAllHistoryTitle), isPresented: $showClearConfirmation) {
+                Button(loc(.deleteAll), role: .destructive) {
                     historyVM.clearAll(modelContext: modelContext)
                 }
-                Button("Cancel", role: .cancel) {}
+                Button(loc(.cancel), role: .cancel) {}
             } message: {
-                Text("This will permanently delete all conversion history and file activity.")
+                Text(loc(.clearAllHistoryMessage))
             }
         }
     }
@@ -143,7 +152,7 @@ struct HistoryView: View {
                             Button(role: .destructive) {
                                 historyVM.delete(article: article, from: modelContext)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label(loc(.delete), systemImage: "trash")
                             }
                         }
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
@@ -158,7 +167,7 @@ struct HistoryView: View {
                                         )
                                     }
                                 } label: {
-                                    Label("Resend", systemImage: "paperplane")
+                                    Label(loc(.resend), systemImage: "paperplane")
                                 }
                                 .tint(AppColor.accent)
                             }
@@ -176,7 +185,7 @@ struct HistoryView: View {
                             Button(role: .destructive) {
                                 historyVM.delete(activity: event, from: modelContext)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label(loc(.delete), systemImage: "trash")
                             }
                         }
                 }
@@ -205,7 +214,7 @@ struct HistoryView: View {
             conversionStatusIcon(for: article.status)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(article.title.isEmpty ? "Untitled" : article.title)
+                Text(article.title.isEmpty ? loc(.untitled) : article.title)
                     .font(.body.weight(.medium))
                     .lineLimit(isExpanded(itemID) ? nil : 2)
 
@@ -253,7 +262,7 @@ struct HistoryView: View {
                     }
                 }
             } label: {
-                Label("Reconvert & Share", systemImage: "square.and.arrow.up")
+                Label(loc(.reconvertAndShare), systemImage: "square.and.arrow.up")
             }
 
             if deviceVM.isConnected {
@@ -268,14 +277,14 @@ struct HistoryView: View {
                         )
                     }
                 } label: {
-                    Label("Resend to X4", systemImage: "paperplane")
+                    Label(loc(.resendToX4), systemImage: "paperplane")
                 }
             }
 
             Button {
                 ClipboardHelper.copy(article.url)
             } label: {
-                Label("Copy URL", systemImage: "doc.on.doc")
+                Label(loc(.copyURL), systemImage: "doc.on.doc")
             }
 
             Divider()
@@ -283,7 +292,7 @@ struct HistoryView: View {
             Button(role: .destructive) {
                 historyVM.delete(article: article, from: modelContext)
             } label: {
-                Label("Delete", systemImage: "trash")
+                Label(loc(.delete), systemImage: "trash")
             }
         } label: {
             Image(systemName: "ellipsis.circle")
@@ -364,9 +373,9 @@ struct HistoryView: View {
                     withAnimation { filter = option }
                 } label: {
                     if filter == option {
-                        Label(option.rawValue, systemImage: "checkmark")
+                        Label(option.displayName, systemImage: "checkmark")
                     } else {
-                        Text(option.rawValue)
+                        Text(option.displayName)
                     }
                 }
             }
@@ -374,7 +383,7 @@ struct HistoryView: View {
             HStack(spacing: 4) {
                 Image(systemName: "line.3.horizontal.decrease.circle")
                 if filter != .all {
-                    Text(filter.rawValue)
+                    Text(filter.displayName)
                         .font(.caption)
                 }
             }
@@ -385,25 +394,25 @@ struct HistoryView: View {
 
     private var clearMenu: some View {
         Menu {
-            Button("Clear All", role: .destructive) {
+            Button(loc(.clearAll), role: .destructive) {
                 showClearConfirmation = true
             }
 
             Divider()
 
             if !articles.isEmpty {
-                Button("Clear Conversions", role: .destructive) {
+                Button(loc(.clearConversions), role: .destructive) {
                     historyVM.clearConversions(modelContext: modelContext)
                 }
             }
 
             if !activities.isEmpty {
-                Button("Clear File Activity", role: .destructive) {
+                Button(loc(.clearFileActivity), role: .destructive) {
                     historyVM.clearActivities(modelContext: modelContext)
                 }
             }
         } label: {
-            Text("Clear")
+            Text(loc(.clear))
                 .font(.footnote)
         }
     }
@@ -412,25 +421,25 @@ struct HistoryView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label("No Activity Yet", systemImage: "clock")
+            Label(loc(.noActivityYet), systemImage: "clock")
         } description: {
-            Text("Convert a web page or manage files on your device to see your activity here.")
+            Text(loc(.noActivityDescription))
         }
     }
 
     private var filteredEmptyState: some View {
         ContentUnavailableView {
-            Label("No \(filter.rawValue)", systemImage: "tray")
+            Label(loc(.filterNoItems, filter.displayName), systemImage: "tray")
         } description: {
             switch filter {
             case .all:
-                Text("No activity recorded yet.")
+                Text(loc(.noActivityRecorded))
             case .conversions:
-                Text("No conversion history. Convert a web page to EPUB to see it here.")
+                Text(loc(.noConversionHistory))
             case .fileActivity:
-                Text("No file activity. Upload, move, or delete files to see activity here.")
+                Text(loc(.noFileActivity))
             case .queueActivity:
-                Text("No queue activity. Queued EPUBs sent to the device will appear here.")
+                Text(loc(.noQueueActivity))
             }
         }
     }

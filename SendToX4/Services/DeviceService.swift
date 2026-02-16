@@ -56,7 +56,7 @@ nonisolated struct DeviceStatus {
 
     /// WiFi mode display label.
     var modeLabel: String {
-        mode == "AP" ? "Access Point" : "Station"
+        mode == "AP" ? loc(.accessPoint) : loc(.stationMode)
     }
 }
 
@@ -81,31 +81,31 @@ nonisolated enum DeviceError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unreachable:
-            return "Cannot reach X4 device. Make sure you are connected to the X4 WiFi hotspot."
+            return loc(.errorCannotReachDevice)
         case .uploadFailed(let code):
-            return "Upload failed with status code \(code)."
+            return loc(.errorUploadFailed, code)
         case .folderCreationFailed:
-            return "Could not create folder on device."
+            return loc(.errorCreateFolderFailed)
         case .invalidResponse:
-            return "Received an unexpected response from the device."
+            return loc(.errorUnexpectedResponse)
         case .timeout:
-            return "Connection to the device timed out."
+            return loc(.errorTimeout)
         case .connectionLost:
-            return "The connection to the device was lost during upload. The file may be too large or the WiFi signal too weak. Please try again."
+            return loc(.errorConnectionLostDuringUpload)
         case .deleteFailed(let message):
-            return "Delete failed: \(message)"
+            return loc(.errorDeleteFailed, message)
         case .moveFailed(let message):
-            return "Move failed: \(message)"
+            return loc(.errorMoveFailed, message)
         case .renameFailed(let message):
-            return "Rename failed: \(message)"
+            return loc(.errorRenameFailed, message)
         case .folderNotEmpty:
-            return "Folder is not empty. Delete its contents first."
+            return loc(.errorFolderNotEmpty)
         case .itemAlreadyExists:
-            return "An item with that name already exists."
+            return loc(.errorNameAlreadyExists)
         case .protectedItem:
-            return "This item is protected and cannot be modified."
+            return loc(.errorItemProtected)
         case .unsupportedOperation:
-            return "This operation is not supported by the current firmware."
+            return loc(.errorOperationNotSupported)
         }
     }
 }
@@ -193,19 +193,19 @@ nonisolated enum FileNameValidator {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
 
         if trimmed.isEmpty {
-            return "Name cannot be empty."
+            return loc(.validatorNameEmpty)
         }
 
         if trimmed == "." || trimmed == ".." {
-            return "Name cannot be \".\" or \"..\"."
+            return loc(.validatorNameDotOrDotDot)
         }
 
         if trimmed.hasPrefix(".") {
-            return "Name cannot start with a dot."
+            return loc(.validatorNameStartsWithDot)
         }
 
         if trimmed.contains(where: { invalidCharacters.contains($0) }) {
-            return "Name contains invalid characters. Avoid \" * : < > ? / \\ |"
+            return loc(.validatorNameInvalidCharacters)
         }
 
         return nil

@@ -30,7 +30,7 @@ enum FileNameGenerator {
         if cleaned.count > maxLength {
             return String(cleaned.prefix(maxLength)).trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        return cleaned.isEmpty ? "Untitled" : cleaned
+        return cleaned.isEmpty ? loc(.untitled) : cleaned
     }
 }
 

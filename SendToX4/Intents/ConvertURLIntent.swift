@@ -84,7 +84,7 @@ struct ConvertURLIntent: AppIntent {
             }
             resolvedURL = parsed
         } else {
-            throw $urlString.needsValueError("Please provide a web page URL to convert.")
+            throw $urlString.needsValueError(IntentDialog(stringLiteral: loc(.intentProvideURL)))
         }
 
         // 2. Validate it's a web page URL (not an image, media file, etc.)
@@ -175,8 +175,8 @@ struct ConvertURLIntent: AppIntent {
         )
         let queueCount = Self.queueItemCount(modelContext: modelContext)
 
-        let resultValue = "Queued \"\(content.title)\" (\(sizeStr))"
-        let dialogText = "\(resultValue)\n\(queueCount) item\(queueCount == 1 ? "" : "s") waiting to send."
+        let resultValue = loc(.intentQueued, content.title, sizeStr)
+        let dialogText = "\(resultValue)\n\(loc(.intentItemsWaiting, queueCount))"
 
         return .result(
             value: resultValue,

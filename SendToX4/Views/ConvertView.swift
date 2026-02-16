@@ -53,7 +53,7 @@ struct ConvertView: View {
                 .padding(.horizontal)
                 .padding(.top, 8)
             }
-            .navigationTitle("Convert")
+            .navigationTitle(loc(.tabConvert))
             .settingsToolbar(deviceVM: deviceVM, settings: settings)
             .sheet(isPresented: $showShareSheet) {
                 if let shareEPUBData, let shareFilename {
@@ -86,7 +86,7 @@ struct ConvertView: View {
                 Image(systemName: "link")
                     .foregroundStyle(.secondary)
 
-                TextField("Enter webpage URL", text: $convertVM.urlString)
+                TextField(loc(.enterWebpageURL), text: $convertVM.urlString)
                     #if os(iOS)
                     .textContentType(.URL)
                     .keyboardType(.URL)
@@ -153,7 +153,7 @@ struct ConvertView: View {
                             ProgressView(value: deviceVM.uploadProgress)
                                 .progressViewStyle(.circular)
                                 .tint(.white)
-                            Text("Sending \(Int(deviceVM.uploadProgress * 100))%")
+                            Text(loc(.sendingPercent, Int(deviceVM.uploadProgress * 100)))
                         } else {
                             ProgressView()
                                 .tint(.white)
@@ -163,7 +163,7 @@ struct ConvertView: View {
                         Image(systemName: deviceVM.isConnected
                               ? "paperplane.fill" : "doc.text")
                         Text(deviceVM.isConnected
-                             ? "Convert & Send" : "Convert to EPUB")
+                             ? loc(.convertAndSend) : loc(.convertToEPUB))
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -184,7 +184,7 @@ struct ConvertView: View {
                 } label: {
                     HStack {
                         Image(systemName: "square.and.arrow.up")
-                        Text("Save to Files")
+                        Text(loc(.saveToFiles))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
@@ -234,7 +234,7 @@ struct ConvertView: View {
             VStack(spacing: 0) {
                 // Section header
                 HStack {
-                    Text("Recent")
+                    Text(loc(.recent))
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
@@ -245,7 +245,7 @@ struct ConvertView: View {
                         selectedTab = .history
                     } label: {
                         HStack(spacing: 2) {
-                            Text("See All")
+                            Text(loc(.seeAll))
                             Image(systemName: "chevron.right")
                         }
                         .font(.caption.weight(.medium))
@@ -280,7 +280,7 @@ struct ConvertView: View {
                 .frame(width: 20)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(article.title.isEmpty ? "Untitled" : article.title)
+                Text(article.title.isEmpty ? loc(.untitled) : article.title)
                     .font(.subheadline.weight(.medium))
                     .lineLimit(1)
 
@@ -314,7 +314,7 @@ struct ConvertView: View {
                         )
                     }
                 } label: {
-                    Label("Resend to X4", systemImage: "paperplane")
+                    Label(loc(.resendToX4), systemImage: "paperplane")
                 }
             }
 
@@ -331,13 +331,13 @@ struct ConvertView: View {
                     }
                 }
             } label: {
-                Label("Reconvert & Share", systemImage: "square.and.arrow.up")
+                Label(loc(.reconvertAndShare), systemImage: "square.and.arrow.up")
             }
 
             Button {
                 ClipboardHelper.copy(article.url)
             } label: {
-                Label("Copy URL", systemImage: "doc.on.doc")
+                Label(loc(.copyURL), systemImage: "doc.on.doc")
             }
         } label: {
             Image(systemName: "ellipsis.circle")
@@ -369,7 +369,7 @@ struct ConvertView: View {
         VStack(spacing: 0) {
             // Section header
             HStack {
-                Text("Send Queue")
+                Text(loc(.sendQueue))
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
@@ -397,7 +397,7 @@ struct ConvertView: View {
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "paperplane.fill")
-                                Text("Send All")
+                                Text(loc(.sendAll))
                             }
                             .font(.caption.weight(.medium))
                         }
@@ -423,11 +423,11 @@ struct ConvertView: View {
                 .font(.title2)
                 .foregroundStyle(.tertiary)
 
-            Text("No Items Queued")
+            Text(loc(.noItemsQueued))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
 
-            Text("EPUBs converted while offline will appear here for sending later.")
+            Text(loc(.queueEmptyDescription))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)

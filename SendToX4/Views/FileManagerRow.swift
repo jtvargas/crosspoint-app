@@ -46,7 +46,7 @@ struct FileManagerRow: View {
             Button(role: .destructive) {
                 onDelete()
             } label: {
-                Label("Delete", systemImage: "trash")
+                Label(loc(.delete), systemImage: "trash")
             }
 
             if !file.isDirectory && supportsMoveRename {
@@ -54,7 +54,7 @@ struct FileManagerRow: View {
                     Button {
                         onMove()
                     } label: {
-                        Label("Move", systemImage: "folder")
+                        Label(loc(.move), systemImage: "folder")
                     }
                     .tint(AppColor.accent)
                 }
@@ -63,7 +63,7 @@ struct FileManagerRow: View {
         .contextMenu {
             if !file.isDirectory && supportsMoveRename {
                 Button { } label: {
-                    Label("Rename (Coming Soon)", systemImage: "pencil")
+                    Label(loc(.renameComingSoon), systemImage: "pencil")
                 }
                 .disabled(true)
 
@@ -71,7 +71,7 @@ struct FileManagerRow: View {
                     Button {
                         onMove()
                     } label: {
-                        Label("Move to...", systemImage: "folder")
+                        Label(loc(.moveTo), systemImage: "folder")
                     }
                 }
 
@@ -81,7 +81,7 @@ struct FileManagerRow: View {
             Button(role: .destructive) {
                 onDelete()
             } label: {
-                Label("Delete", systemImage: "trash")
+                Label(loc(.delete), systemImage: "trash")
             }
         }
     }
@@ -92,7 +92,7 @@ struct FileManagerRow: View {
         Menu {
             if !file.isDirectory && supportsMoveRename {
                 Button { } label: {
-                    Label("Rename (Coming Soon)", systemImage: "pencil")
+                    Label(loc(.renameComingSoon), systemImage: "pencil")
                 }
                 .disabled(true)
 
@@ -100,7 +100,7 @@ struct FileManagerRow: View {
                     Button {
                         onMove()
                     } label: {
-                        Label("Move to...", systemImage: "folder")
+                        Label(loc(.moveTo), systemImage: "folder")
                     }
                 }
 
@@ -110,7 +110,7 @@ struct FileManagerRow: View {
             Button(role: .destructive) {
                 onDelete()
             } label: {
-                Label("Delete", systemImage: "trash")
+                Label(loc(.delete), systemImage: "trash")
             }
         } label: {
             Image(systemName: "ellipsis.circle")

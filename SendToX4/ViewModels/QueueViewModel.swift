@@ -59,7 +59,7 @@ final class QueueViewModel {
 
         let item = QueueItem(
             articleID: article.id,
-            title: article.title.isEmpty ? "Untitled" : article.title,
+            title: article.title.isEmpty ? loc(.untitled) : article.title,
             filename: filename,
             filePath: relativePath,
             fileSize: Int64(epubData.count),
@@ -88,7 +88,7 @@ final class QueueViewModel {
                 modelContext: modelContext
             )
         } catch {
-            errorMessage = "Failed to queue EPUB: \(error.localizedDescription)"
+            errorMessage = loc(.failedToQueueEPUB, error.localizedDescription)
         }
     }
 
@@ -132,7 +132,7 @@ final class QueueViewModel {
             } catch {
                 failCount += 1
                 // Leave failed items in the queue for retry
-                errorMessage = "Failed to send \(item.filename): \(error.localizedDescription)"
+                errorMessage = loc(.failedToSendItem, item.filename, error.localizedDescription)
             }
         }
 
@@ -140,11 +140,11 @@ final class QueueViewModel {
         if !sentFilenames.isEmpty {
             let detail: String
             if sentFilenames.count == 1 {
-                detail = "Sent \(sentFilenames[0])"
+                detail = loc(.sentItem, sentFilenames[0])
             } else {
                 let names = sentFilenames.prefix(3).joined(separator: ", ")
                 let suffix = sentFilenames.count > 3 ? " and \(sentFilenames.count - 3) more" : ""
-                detail = "Sent \(sentFilenames.count) EPUBs: \(names)\(suffix)"
+                detail = loc(.sentMultipleEPUBs, sentFilenames.count, names + suffix)
             }
             let event = ActivityEvent(
                 category: .queue,

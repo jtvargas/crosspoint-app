@@ -56,10 +56,10 @@ struct MainView: View {
             }
         }
         .alert(
-            "Send Queued Files?",
+            loc(.sendQueuedFilesTitle),
             isPresented: $showQueuePrompt
         ) {
-            Button("Send All (\(queueItems.count))") {
+            Button(loc(.sendAllCount, queueItems.count)) {
                 Task {
                     await queueVM.sendAll(
                         deviceVM: deviceVM,
@@ -68,9 +68,9 @@ struct MainView: View {
                     )
                 }
             }
-            Button("Later", role: .cancel) {}
+            Button(loc(.later), role: .cancel) {}
         } message: {
-            Text("You have \(queueItems.count) EPUB\(queueItems.count == 1 ? "" : "s") queued. Send them to X4 now?")
+            Text(loc(.sendQueuedFilesMessage, queueItems.count))
         }
         #else
         tabContent
@@ -102,10 +102,10 @@ struct MainView: View {
                 }
             }
             .alert(
-                "Send Queued Files?",
+                loc(.sendQueuedFilesTitle),
                 isPresented: $showQueuePrompt
             ) {
-                Button("Send All (\(queueItems.count))") {
+                Button(loc(.sendAllCount, queueItems.count)) {
                     Task {
                         await queueVM.sendAll(
                             deviceVM: deviceVM,
@@ -114,16 +114,16 @@ struct MainView: View {
                         )
                     }
                 }
-                Button("Later", role: .cancel) {}
+                Button(loc(.later), role: .cancel) {}
             } message: {
-                Text("You have \(queueItems.count) EPUB\(queueItems.count == 1 ? "" : "s") queued. Send them to X4 now?")
+                Text(loc(.sendQueuedFilesMessage, queueItems.count))
             }
         #endif
     }
 
     private var tabContent: some View {
         TabView(selection: $selectedTab) {
-            Tab("Convert", systemImage: "doc.text.magnifyingglass", value: .convert) {
+            Tab(loc(.tabConvert), systemImage: "doc.text.magnifyingglass", value: .convert) {
                 ConvertView(
                     convertVM: convertVM,
                     deviceVM: deviceVM,
@@ -133,7 +133,7 @@ struct MainView: View {
                 )
             }
 
-            Tab("WallpaperX", systemImage: "photo.artframe", value: .wallpaperX) {
+            Tab(loc(.tabWallpaperX), systemImage: "photo.artframe", value: .wallpaperX) {
                 WallpaperXView(
                     wallpaperVM: wallpaperVM,
                     deviceVM: deviceVM,
@@ -141,14 +141,14 @@ struct MainView: View {
                 )
             }
 
-            Tab("Files", systemImage: "folder", value: .files) {
+            Tab(loc(.tabFiles), systemImage: "folder", value: .files) {
                 FileManagerView(
                     deviceVM: deviceVM,
                     settings: settings
                 )
             }
 
-            Tab("History", systemImage: "clock.arrow.circlepath", value: .history) {
+            Tab(loc(.tabHistory), systemImage: "clock.arrow.circlepath", value: .history) {
                 HistoryView(
                     historyVM: historyVM,
                     convertVM: convertVM,

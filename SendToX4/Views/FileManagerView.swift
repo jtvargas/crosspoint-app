@@ -30,7 +30,7 @@ struct FileManagerView: View {
                     mainContent
                 }
             }
-            .navigationTitle("File Manager")
+            .navigationTitle(loc(.fileManager))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -53,13 +53,13 @@ struct FileManagerView: View {
                         Button {
                             showCreateFolder = true
                         } label: {
-                            Label("New Folder", systemImage: "folder.badge.plus")
+                            Label(loc(.newFolder), systemImage: "folder.badge.plus")
                         }
 
                         Button {
                             showFileImporter = true
                         } label: {
-                            Label("Upload File", systemImage: "arrow.up.doc")
+                            Label(loc(.uploadFile), systemImage: "arrow.up.doc")
                         }
                     } label: {
                         Image(systemName: "plus")
@@ -101,26 +101,26 @@ struct FileManagerView: View {
                 )
             }
             .alert(
-                "Delete \"\(itemToDelete?.name ?? "")\"?",
+                loc(.deleteItemTitle, itemToDelete?.name ?? ""),
                 isPresented: Binding(
                     get: { itemToDelete != nil },
                     set: { if !$0 { itemToDelete = nil } }
                 )
             ) {
-                Button("Delete", role: .destructive) {
+                Button(loc(.delete), role: .destructive) {
                     if let item = itemToDelete {
                         Task { _ = await fileVM.deleteItem(item, modelContext: modelContext) }
                     }
                     itemToDelete = nil
                 }
-                Button("Cancel", role: .cancel) {
+                Button(loc(.cancel), role: .cancel) {
                     itemToDelete = nil
                 }
             } message: {
                 if let item = itemToDelete {
                     Text(item.isDirectory
-                         ? "This folder must be empty to delete. This action cannot be undone."
-                         : "This file will be permanently deleted from the device.")
+                         ? loc(.deleteFolderMustBeEmpty)
+                         : loc(.deleteFilePermanent))
                 }
             }
             .fileImporter(
@@ -204,9 +204,9 @@ struct FileManagerView: View {
             if fileVM.files.isEmpty && !fileVM.isLoading {
                 Section {
                     ContentUnavailableView {
-                        Label("Empty Folder", systemImage: "folder")
+                        Label(loc(.emptyFolder), systemImage: "folder")
                     } description: {
-                        Text("This directory is empty. Tap + to add files or create folders.")
+                        Text(loc(.emptyFolderDescription))
                     }
                     .listRowInsets(EdgeInsets())
                     .frame(minHeight: 200)
@@ -239,7 +239,7 @@ struct FileManagerView: View {
                     }
                 } header: {
                     HStack {
-                        Text("\(fileVM.files.count) item\(fileVM.files.count == 1 ? "" : "s")")
+                        Text(loc(.itemCount, fileVM.files.count))
                         Spacer()
                         if fileVM.isLoading {
                             ProgressView()
@@ -303,9 +303,9 @@ struct FileManagerView: View {
 
     private var notConnectedView: some View {
         ContentUnavailableView {
-            Label("Not Connected", systemImage: "wifi.slash")
+            Label(loc(.notConnected), systemImage: "wifi.slash")
         } description: {
-            Text("Connect to your X4 device to browse and manage files.")
+            Text(loc(.connectToDeviceToManage))
         }
     }
 
@@ -315,7 +315,7 @@ struct FileManagerView: View {
         VStack(spacing: 16) {
             ProgressView()
                 .controlSize(.large)
-            Text("Loading files...")
+            Text(loc(.loadingFiles))
                 .foregroundStyle(.secondary)
         }
     }
@@ -354,7 +354,7 @@ struct FileManagerView: View {
 
             VStack(spacing: 16) {
                 ProgressView(value: deviceVM.uploadProgress) {
-                    Text("Uploading...")
+                    Text(loc(.uploading))
                         .font(.headline)
                 } currentValueLabel: {
                     if let name = deviceVM.uploadFilename {
@@ -384,7 +384,7 @@ struct FileManagerView: View {
             guard let url = urls.first else { return }
 
             guard url.startAccessingSecurityScopedResource() else {
-                fileVM.errorMessage = "Could not access the selected file."
+                fileVM.errorMessage = loc(.couldNotAccessFile)
                 return
             }
             defer { url.stopAccessingSecurityScopedResource() }
@@ -396,11 +396,11 @@ struct FileManagerView: View {
                     await fileVM.uploadFile(data: data, filename: filename, deviceVM: deviceVM, modelContext: modelContext)
                 }
             } catch {
-                fileVM.errorMessage = "Failed to read file: \(error.localizedDescription)"
+                fileVM.errorMessage = loc(.failedToReadFile, error.localizedDescription)
             }
 
         case .failure(let error):
-            fileVM.errorMessage = "File selection failed: \(error.localizedDescription)"
+            fileVM.errorMessage = loc(.fileSelectionFailed, error.localizedDescription)
         }
     }
 }

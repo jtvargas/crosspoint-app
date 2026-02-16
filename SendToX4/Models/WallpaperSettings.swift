@@ -111,10 +111,10 @@ enum BMPColorDepth: Int, CaseIterable, Sendable {
     /// Human-readable label.
     var label: String {
         switch self {
-        case .depth24: return "24-bit"
-        case .depth8:  return "8-bit"
-        case .depth4:  return "4-bit"
-        case .depth1:  return "1-bit"
+        case .depth24: return loc(.depth24bit)
+        case .depth8:  return loc(.depth8bit)
+        case .depth4:  return loc(.depth4bit)
+        case .depth1:  return loc(.depth1bit)
         }
     }
 
@@ -125,7 +125,7 @@ enum BMPColorDepth: Int, CaseIterable, Sendable {
 
     /// Warning text for non-recommended depths.
     var warningText: String? {
-        isRecommended ? nil : "Not recommended for use with X4"
+        isRecommended ? nil : loc(.depthNotRecommended)
     }
 }
 

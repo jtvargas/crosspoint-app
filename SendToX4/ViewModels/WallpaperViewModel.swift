@@ -73,12 +73,12 @@ final class WallpaperViewModel {
 
         do {
             guard let data = try await item.loadTransferable(type: Data.self) else {
-                errorMessage = "Could not load the selected image."
+                errorMessage = loc(.couldNotLoadImage)
                 return
             }
             loadImageFromData(data, filename: "photo")
         } catch {
-            errorMessage = "Failed to load image: \(error.localizedDescription)"
+            errorMessage = loc(.failedToLoadImage, error.localizedDescription)
         }
     }
 
@@ -88,7 +88,7 @@ final class WallpaperViewModel {
         statusMessage = nil
 
         guard url.startAccessingSecurityScopedResource() else {
-            errorMessage = "Cannot access the selected file."
+            errorMessage = loc(.cannotAccessFile)
             return
         }
         defer { url.stopAccessingSecurityScopedResource() }
@@ -98,7 +98,7 @@ final class WallpaperViewModel {
             let stem = url.deletingPathExtension().lastPathComponent
             loadImageFromData(data, filename: stem)
         } catch {
-            errorMessage = "Failed to read file: \(error.localizedDescription)"
+            errorMessage = loc(.failedToReadFile, error.localizedDescription)
         }
     }
 
@@ -107,7 +107,7 @@ final class WallpaperViewModel {
         #if canImport(UIKit)
         guard let uiImage = UIImage(data: data),
               let cgImage = uiImage.cgImage else {
-            errorMessage = "Unsupported image format."
+            errorMessage = loc(.unsupportedImageFormat)
             return
         }
         #elseif canImport(AppKit)
@@ -117,7 +117,7 @@ final class WallpaperViewModel {
                 context: nil,
                 hints: nil
               ) else {
-            errorMessage = "Unsupported image format."
+            errorMessage = loc(.unsupportedImageFormat)
             return
         }
         #endif
@@ -178,18 +178,18 @@ final class WallpaperViewModel {
         modelContext: ModelContext
     ) async {
         guard let source = sourceImage else {
-            errorMessage = "No image loaded."
+            errorMessage = loc(.noImageLoaded)
             return
         }
 
         guard !deviceVM.isUploading else {
-            errorMessage = "An upload is already in progress."
+            errorMessage = loc(.uploadAlreadyInProgress)
             return
         }
 
         isProcessing = true
         errorMessage = nil
-        statusMessage = "Processing..."
+        statusMessage = loc(.processing)
 
         do {
             // Process the image
@@ -202,7 +202,7 @@ final class WallpaperViewModel {
             }
 
             // Encode to BMP
-            statusMessage = "Encoding BMP..."
+            statusMessage = loc(.encodingBMP)
             let bmpData = BMPEncoder.encode(image: processed, depth: settings.colorDepth)
             let filename = generateFilename()
 
@@ -211,7 +211,7 @@ final class WallpaperViewModel {
 
             // Upload to device if connected
             if deviceVM.isConnected {
-                statusMessage = "Sending to X4..."
+                statusMessage = loc(.phaseSending)
                 try await deviceVM.upload(
                     data: bmpData,
                     filename: filename,
@@ -227,7 +227,7 @@ final class WallpaperViewModel {
                 )
                 modelContext.insert(event)
 
-                statusMessage = "Sent \(filename) to /\(deviceSettings.wallpaperFolder)/"
+                statusMessage = loc(.sentImageToFolder, filename, deviceSettings.wallpaperFolder)
 
                 if ReviewPromptManager.shouldPromptAfterSuccess() {
                     shouldRequestReview = true
@@ -237,7 +237,7 @@ final class WallpaperViewModel {
                 try? await Task.sleep(for: .seconds(1.5))
                 clearImage()
             } else {
-                statusMessage = "Converted \(filename) — save or connect to send."
+                statusMessage = loc(.convertedImageSaveOrConnect, filename)
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -313,8 +313,8 @@ enum WallpaperError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .processingFailed: return "Image processing failed."
-        case .noImage: return "No image loaded."
+        case .processingFailed: return loc(.imageProcessingFailed)
+        case .noImage: return loc(.noImageLoaded)
         }
     }
 }

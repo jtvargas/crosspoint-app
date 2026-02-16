@@ -26,14 +26,14 @@ final class ConvertViewModel {
     /// The current phase label shown to the user.
     var phaseLabel: String {
         switch currentPhase {
-        case .pending: return "Ready"
-        case .fetching: return "Fetching page..."
-        case .extracting: return "Extracting content..."
-        case .building: return "Building EPUB..."
-        case .sending: return "Sending to X4..."
-        case .sent: return "Sent!"
-        case .savedLocally: return "Saved locally"
-        case .failed: return "Failed"
+        case .pending: return loc(.phaseReady)
+        case .fetching: return loc(.phaseFetching)
+        case .extracting: return loc(.phaseExtracting)
+        case .building: return loc(.phaseBuilding)
+        case .sending: return loc(.phaseSending)
+        case .sent: return loc(.phaseSent)
+        case .savedLocally: return loc(.phaseSavedLocally)
+        case .failed: return loc(.phaseFailed)
         }
     }
 
@@ -48,12 +48,12 @@ final class ConvertViewModel {
         settings: DeviceSettings?
     ) async {
         guard let url = validatedURL else {
-            lastError = "Please enter a valid URL."
+            lastError = loc(.enterValidURL)
             return
         }
 
         guard !deviceVM.isUploading else {
-            lastError = "An upload is already in progress."
+            lastError = loc(.uploadAlreadyInProgress)
             return
         }
 
@@ -107,7 +107,7 @@ final class ConvertViewModel {
 
                 currentPhase = .sent
                 article.status = .sent
-                statusMessage = "Sent \"\(content.title.truncated(to: 40))\" to X4"
+                statusMessage = loc(.sentArticleToX4, content.title.truncated(to: 40))
 
                 if ReviewPromptManager.shouldPromptAfterSuccess() {
                     shouldRequestReview = true
@@ -126,7 +126,7 @@ final class ConvertViewModel {
                     article: article,
                     modelContext: modelContext
                 )
-                statusMessage = "Queued \"\(content.title.truncated(to: 40))\" — will send when connected."
+                statusMessage = loc(.queuedArticle, content.title.truncated(to: 40))
 
                 // Auto-reset after delay so the user sees the queued message
                 try? await Task.sleep(for: .seconds(1.5))
@@ -147,7 +147,7 @@ final class ConvertViewModel {
     /// Convert only (no send) — generates EPUB for local save.
     func convertOnly(modelContext: ModelContext) async -> Data? {
         guard let url = validatedURL else {
-            lastError = "Please enter a valid URL."
+            lastError = loc(.enterValidURL)
             return nil
         }
 
@@ -189,7 +189,7 @@ final class ConvertViewModel {
 
             currentPhase = .savedLocally
             article.status = .savedLocally
-            statusMessage = "EPUB created: \"\(content.title.truncated(to: 40))\""
+            statusMessage = loc(.epubCreated, content.title.truncated(to: 40))
 
             isProcessing = false
             return epubData
@@ -212,7 +212,7 @@ final class ConvertViewModel {
         modelContext: ModelContext
     ) async {
         guard deviceVM.isConnected else {
-            lastError = "X4 is not connected."
+            lastError = loc(.x4NotConnected)
             return
         }
 
@@ -220,7 +220,7 @@ final class ConvertViewModel {
         lastError = nil
 
         guard let url = URL(string: article.url) else {
-            lastError = "Invalid article URL."
+            lastError = loc(.invalidArticleURL)
             isProcessing = false
             return
         }
@@ -256,7 +256,7 @@ final class ConvertViewModel {
 
             currentPhase = .sent
             article.status = .sent
-            statusMessage = "Re-sent \"\(content.title.truncated(to: 40))\" to X4"
+            statusMessage = loc(.resentArticleToX4, content.title.truncated(to: 40))
 
             if ReviewPromptManager.shouldPromptAfterSuccess() {
                 shouldRequestReview = true
@@ -279,7 +279,7 @@ final class ConvertViewModel {
         modelContext: ModelContext
     ) async -> (data: Data, filename: String)? {
         guard let url = URL(string: article.url) else {
-            lastError = "Invalid article URL."
+            lastError = loc(.invalidArticleURL)
             return nil
         }
 

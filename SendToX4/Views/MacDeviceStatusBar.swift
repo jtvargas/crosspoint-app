@@ -51,7 +51,7 @@ struct MacDeviceStatusBar: View {
                         }
                     }
                 } label: {
-                    Text(deviceVM.isConnected ? "Disconnect" : "Connect")
+                    Text(deviceVM.isConnected ? loc(.disconnect) : loc(.connect))
                         .font(.caption.weight(.medium))
                 }
                 .buttonStyle(.bordered)
@@ -68,7 +68,7 @@ struct MacDeviceStatusBar: View {
     @ViewBuilder
     private var statusLabel: some View {
         if deviceVM.isSearching {
-            Text("Scanning network...")
+            Text(loc(.scanningNetwork))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } else if deviceVM.isConnected {
@@ -85,7 +85,7 @@ struct MacDeviceStatusBar: View {
                 }
             }
         } else {
-            Text("Not Connected")
+            Text(loc(.notConnected))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

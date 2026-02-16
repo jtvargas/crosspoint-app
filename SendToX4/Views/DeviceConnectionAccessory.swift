@@ -59,7 +59,7 @@ struct DeviceConnectionAccessory: View {
     @ViewBuilder
     private var primaryLine: some View {
         if isUploading, let filename = deviceVM.uploadFilename {
-            Text("Sending \(uploadDisplayName(filename))... \(Int(deviceVM.uploadProgress * 100))%")
+            Text(loc(.sendingFilePercent, uploadDisplayName(filename), Int(deviceVM.uploadProgress * 100)))
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
         } else {
@@ -79,7 +79,7 @@ struct DeviceConnectionAccessory: View {
     @ViewBuilder
     private var secondaryLine: some View {
         if deviceVM.isSearching {
-            Text("Scanning network...")
+            Text(loc(.scanningNetwork))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } else if deviceVM.isConnected {
@@ -88,11 +88,11 @@ struct DeviceConnectionAccessory: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         } else if queueCount > 0 {
-            Text("\(queueCount) EPUB\(queueCount == 1 ? "" : "s") queued")
+            Text(loc(.epubsQueued, queueCount))
                 .font(.caption)
                 .foregroundStyle(AppColor.warning)
         } else {
-            Text("Tap Connect to search")
+            Text(loc(.tapConnectToSearch))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -141,7 +141,7 @@ struct DeviceConnectionAccessory: View {
                         }
                     }
                 } label: {
-                    Text(deviceVM.isConnected ? "Disconnect" : "Connect")
+                    Text(deviceVM.isConnected ? loc(.disconnect) : loc(.connect))
                         .font(.caption.weight(.medium))
                 }
                 .buttonStyle(.bordered)

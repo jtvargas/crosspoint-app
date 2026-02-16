@@ -19,10 +19,10 @@ nonisolated enum DiscoveryResult: Sendable {
     
     var firmwareLabel: String {
         switch self {
-        case .stock: return "Stock"
-        case .crossPoint: return "CrossPoint"
-        case .custom: return "Custom"
-        case .notFound: return "Not Connected"
+        case .stock: return loc(.firmwareStock)
+        case .crossPoint: return loc(.firmwareCrossPoint)
+        case .custom: return loc(.firmwareCustom)
+        case .notFound: return loc(.notConnected)
         }
     }
 }

@@ -37,24 +37,56 @@ struct SendToX4App: App {
 
     var body: some Scene {
         WindowGroup {
-            MainView()
-                #if os(iOS)
-                .fullScreenCover(isPresented: Binding(
-                    get: { !hasSeenOnboarding },
-                    set: { if !$0 { hasSeenOnboarding = true } }
-                )) {
-                    OnboardingView(hasSeenOnboarding: $hasSeenOnboarding)
-                }
-                #else
-                .sheet(isPresented: Binding(
-                    get: { !hasSeenOnboarding },
-                    set: { if !$0 { hasSeenOnboarding = true } }
-                )) {
-                    OnboardingView(hasSeenOnboarding: $hasSeenOnboarding)
-                        .frame(width: 520, height: 640)
-                }
-                #endif
+            LanguageBootstrap(container: sharedModelContainer) {
+                MainView()
+                    #if os(iOS)
+                    .fullScreenCover(isPresented: Binding(
+                        get: { !hasSeenOnboarding },
+                        set: { if !$0 { hasSeenOnboarding = true } }
+                    )) {
+                        OnboardingView(hasSeenOnboarding: $hasSeenOnboarding)
+                    }
+                    #else
+                    .sheet(isPresented: Binding(
+                        get: { !hasSeenOnboarding },
+                        set: { if !$0 { hasSeenOnboarding = true } }
+                    )) {
+                        OnboardingView(hasSeenOnboarding: $hasSeenOnboarding)
+                            .frame(width: 520, height: 640)
+                    }
+                    #endif
+            }
         }
         .modelContainer(sharedModelContainer)
+    }
+}
+
+// MARK: - Language Bootstrap
+
+/// Reads the persisted `DeviceSettings.languageCode` on launch and keeps
+/// `LocalizationManager.shared.currentLanguage` in sync. Also applies
+/// `.environment(\.locale, ...)` so SwiftUI system components (date formatters,
+/// plurals, etc.) honour the override.
+private struct LanguageBootstrap<Content: View>: View {
+    let container: ModelContainer
+    @ViewBuilder let content: Content
+
+    @State private var locManager = LocalizationManager.shared
+
+    var body: some View {
+        content
+            .environment(\.locale, locManager.locale)
+            .onAppear {
+                syncLanguageFromSettings()
+            }
+    }
+
+    private func syncLanguageFromSettings() {
+        let context = ModelContext(container)
+        let descriptor = FetchDescriptor<DeviceSettings>()
+        if let settings = try? context.fetch(descriptor).first {
+            let lang = AppLanguage(rawValue: settings.languageCode) ?? .system
+            LocalizationManager.shared.currentLanguage = lang
+        }
     }
 }

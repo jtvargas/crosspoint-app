@@ -74,7 +74,7 @@ final class FileManagerViewModel {
     /// Load files for the given directory path.
     func loadDirectory(_ path: String? = nil) async {
         guard let service else {
-            errorMessage = "Not connected to device."
+            errorMessage = loc(.notConnectedToDevice)
             files = []
             return
         }
@@ -143,7 +143,7 @@ final class FileManagerViewModel {
     /// Create a new folder in the current directory.
     func createFolder(name: String, modelContext: ModelContext) async -> Bool {
         guard let service else {
-            errorMessage = "Not connected to device."
+            errorMessage = loc(.notConnectedToDevice)
             return false
         }
 
@@ -154,14 +154,14 @@ final class FileManagerViewModel {
 
         do {
             try await service.createFolder(name: name, parent: currentPath)
-            logActivity(.createFolder, detail: "Created folder '\(name)' in \(currentPath)", modelContext: modelContext)
+            logActivity(.createFolder, detail: loc(.createdFolderIn, name, currentPath), modelContext: modelContext)
             if ReviewPromptManager.shouldPromptAfterSuccess() {
                 shouldRequestReview = true
             }
             await loadDirectory()
             return true
         } catch {
-            logActivity(.createFolder, detail: "Failed to create folder '\(name)' in \(currentPath)", status: .failed, error: error, modelContext: modelContext)
+            logActivity(.createFolder, detail: loc(.failedToCreateFolderIn, name, currentPath), status: .failed, error: error, modelContext: modelContext)
             errorMessage = error.localizedDescription
             return false
         }
@@ -175,13 +175,13 @@ final class FileManagerViewModel {
 
         do {
             try await deviceVM.upload(data: data, filename: filename, toFolder: folder)
-            logActivity(.upload, detail: "Uploaded '\(filename)' to \(currentPath)", modelContext: modelContext)
+            logActivity(.upload, detail: loc(.uploadedFileTo, filename, currentPath), modelContext: modelContext)
             if ReviewPromptManager.shouldPromptAfterSuccess() {
                 shouldRequestReview = true
             }
             await loadDirectory()
         } catch {
-            logActivity(.upload, detail: "Failed to upload '\(filename)' to \(currentPath)", status: .failed, error: error, modelContext: modelContext)
+            logActivity(.upload, detail: loc(.failedToUploadFileTo, filename, currentPath), status: .failed, error: error, modelContext: modelContext)
             errorMessage = error.localizedDescription
         }
     }
@@ -189,12 +189,11 @@ final class FileManagerViewModel {
     /// Delete a file or folder.
     func deleteItem(_ file: DeviceFile, modelContext: ModelContext) async -> Bool {
         guard let service else {
-            errorMessage = "Not connected to device."
+            errorMessage = loc(.notConnectedToDevice)
             return false
         }
 
         let action: ActivityAction = file.isDirectory ? .deleteFolder : .deleteFile
-        let label = file.isDirectory ? "folder" : "file"
 
         do {
             if file.isDirectory {
@@ -202,11 +201,17 @@ final class FileManagerViewModel {
             } else {
                 try await service.deleteFile(path: file.path)
             }
-            logActivity(action, detail: "Deleted \(label) '\(file.name)' from \(currentPath)", modelContext: modelContext)
+            let detail = file.isDirectory
+                ? loc(.deletedFolderFrom, currentPath, file.name)
+                : loc(.deletedFileFrom, currentPath, file.name)
+            logActivity(action, detail: detail, modelContext: modelContext)
             await loadDirectory()
             return true
         } catch {
-            logActivity(action, detail: "Failed to delete \(label) '\(file.name)' from \(currentPath)", status: .failed, error: error, modelContext: modelContext)
+            let detail = file.isDirectory
+                ? loc(.failedToDeleteFolderFrom, currentPath, file.name)
+                : loc(.failedToDeleteFileFrom, currentPath, file.name)
+            logActivity(action, detail: detail, status: .failed, error: error, modelContext: modelContext)
             errorMessage = error.localizedDescription
             return false
         }
@@ -215,17 +220,17 @@ final class FileManagerViewModel {
     /// Move a file to a destination folder.
     func moveFile(_ file: DeviceFile, to destination: String, modelContext: ModelContext) async -> Bool {
         guard let service else {
-            errorMessage = "Not connected to device."
+            errorMessage = loc(.notConnectedToDevice)
             return false
         }
 
         do {
             try await service.moveFile(path: file.path, destination: destination)
-            logActivity(.moveFile, detail: "Moved '\(file.name)' to \(destination)", modelContext: modelContext)
+            logActivity(.moveFile, detail: loc(.movedFileTo, file.name, destination), modelContext: modelContext)
             await loadDirectory()
             return true
         } catch {
-            logActivity(.moveFile, detail: "Failed to move '\(file.name)' to \(destination)", status: .failed, error: error, modelContext: modelContext)
+            logActivity(.moveFile, detail: loc(.failedToMoveFileTo, file.name, destination), status: .failed, error: error, modelContext: modelContext)
             errorMessage = error.localizedDescription
             return false
         }
@@ -235,7 +240,7 @@ final class FileManagerViewModel {
     /// Validation is handled by RenameFileSheet before calling this method.
     func renameFile(_ file: DeviceFile, to newName: String) async -> Bool {
         guard let service else {
-            errorMessage = "Not connected to device."
+            errorMessage = loc(.notConnectedToDevice)
             return false
         }
 

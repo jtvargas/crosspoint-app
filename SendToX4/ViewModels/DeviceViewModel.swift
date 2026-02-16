@@ -10,7 +10,7 @@ final class DeviceViewModel {
 
     var isConnected = false
     var isSearching = false
-    var firmwareLabel = "Not Connected"
+    var firmwareLabel = loc(.notConnected)
     var errorMessage: String?
     
     /// The hostname or IP of the currently connected device (e.g. "crosspoint.local", "192.168.4.1").
@@ -55,7 +55,7 @@ final class DeviceViewModel {
         isSearching = false
 
         if !isConnected {
-            errorMessage = "X4 not found. Connect to the X4 WiFi hotspot and try again."
+            errorMessage = loc(.x4NotFoundMessage)
         }
     }
 
@@ -70,7 +70,7 @@ final class DeviceViewModel {
         guard !isUploading else { return }
         activeService = nil
         isConnected = false
-        firmwareLabel = "Not Connected"
+        firmwareLabel = loc(.notConnected)
         connectedHost = nil
         errorMessage = nil
         uploadProgress = 0

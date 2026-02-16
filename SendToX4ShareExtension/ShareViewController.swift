@@ -43,7 +43,7 @@ struct ShareExtensionView: View {
     let itemProvider: NSItemProvider
     let onDismiss: () -> Void
     
-    @State private var status = "Preparing..."
+    @State private var status = loc(.preparing)
     @State private var isProcessing = true
     @State private var isSuccess = false
     @State private var errorMessage: String?
@@ -79,7 +79,7 @@ struct ShareExtensionView: View {
             
             Spacer()
             
-            Button(isProcessing ? "Cancel" : "Done") {
+            Button(isProcessing ? loc(.cancel) : loc(.done)) {
                 onDismiss()
             }
             .buttonStyle(.borderedProminent)
@@ -94,31 +94,31 @@ struct ShareExtensionView: View {
     private func processSharedURL() async {
         // Extract URL from the shared item
         guard let url = await extractURL() else {
-            status = "Invalid URL"
-            errorMessage = "Could not extract a URL from the shared content."
+            status = loc(.invalidURL)
+            errorMessage = loc(.couldNotExtractURL)
             isProcessing = false
             return
         }
         
         do {
             // Fetch
-            status = "Fetching page..."
+            status = loc(.phaseFetching)
             let page = try await WebPageFetcher.fetch(url: url)
             
             // Extract
-            status = "Extracting content..."
+            status = loc(.phaseExtracting)
             let content: ExtractedContent
             if let extracted = try ContentExtractor.extract(from: page.html, url: page.finalURL) {
                 content = extracted
             } else {
-                status = "Content too short"
-                errorMessage = "Could not extract enough content from this page."
+                status = loc(.contentTooShort)
+                errorMessage = loc(.couldNotExtractContent)
                 isProcessing = false
                 return
             }
             
             // Build EPUB
-            status = "Building EPUB..."
+            status = loc(.phaseBuilding)
             let metadata = EPUBBuilder.Metadata(
                 title: content.title,
                 author: content.author ?? "Unknown",
@@ -132,28 +132,28 @@ struct ShareExtensionView: View {
             )
             
             // Try to send to device
-            status = "Connecting to X4..."
+            status = loc(.connectingToX4)
             let discovery = await DeviceDiscovery.detect()
             
             if let service = discovery.service {
-                status = "Sending to X4..."
+                status = loc(.phaseSending)
                 try await service.ensureFolder("send-to-x4")
                 try await service.uploadFile(data: epubData, filename: filename, toFolder: "send-to-x4")
                 
-                status = "Sent to X4!"
+                status = loc(.sentToX4)
                 isSuccess = true
             } else {
                 // Save to temp and offer share
                 let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
                 try epubData.write(to: tempURL)
                 
-                status = "EPUB saved"
-                errorMessage = "X4 not connected. EPUB file created locally."
+                status = loc(.epubSaved)
+                errorMessage = loc(.x4NotConnectedLocalEPUB)
                 isSuccess = true
             }
             
         } catch {
-            status = "Failed"
+            status = loc(.phaseFailed)
             errorMessage = error.localizedDescription
         }
         

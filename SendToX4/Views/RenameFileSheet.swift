@@ -48,7 +48,7 @@ struct RenameFileSheet: View {
             Form {
                 Section {
                     HStack(spacing: 0) {
-                        TextField("Name", text: $stem)
+                        TextField(loc(.name), text: $stem)
                             .autocorrectionDisabled()
                             #if os(iOS)
                             .textInputAutocapitalization(.never)
@@ -66,26 +66,26 @@ struct RenameFileSheet: View {
                         }
                     }
                 } header: {
-                    Text("Rename \"\(file.name)\"")
+                    Text(loc(.renameFileTitle, file.name))
                 } footer: {
                     if let error = validationError {
                         Text(error)
                             .foregroundStyle(AppColor.error)
                     } else if !fileExtension.isEmpty {
-                        Text("The file extension cannot be changed.")
+                        Text(loc(.extensionCannotChange))
                     }
                 }
             }
-            .navigationTitle("Rename")
+            .navigationTitle(loc(.rename))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(loc(.cancel)) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Rename") {
+                    Button(loc(.rename)) {
                         Task { await rename() }
                     }
                     .disabled(

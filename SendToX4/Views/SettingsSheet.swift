@@ -27,6 +27,7 @@ struct SettingsSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                languageSection
                 deviceSection
                 featureFoldersSection
                 connectionTestSection
@@ -35,42 +36,58 @@ struct SettingsSheet: View {
                 storageSection
                 aboutSection
             }
-            .navigationTitle("Settings")
+            .navigationTitle(loc(.settings))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button(loc(.done)) { dismiss() }
                 }
             }
             .task {
                 refreshStorageSizes()
             }
-            .alert("Clear History Data?", isPresented: $showClearHistoryConfirm) {
-                Button("Clear History", role: .destructive) {
+            .onChange(of: settings.appLanguage) { _, newLang in
+                LocalizationManager.shared.currentLanguage = newLang
+            }
+            .alert(loc(.clearHistoryDataTitle), isPresented: $showClearHistoryConfirm) {
+                Button(loc(.clearHistory), role: .destructive) {
                     clearHistoryData()
                 }
-                Button("Cancel", role: .cancel) {}
+                Button(loc(.cancel), role: .cancel) {}
             } message: {
-                Text("This will permanently delete all conversion history and file activity logs.")
+                Text(loc(.clearHistoryDataMessage))
             }
-            .alert("Clear Web Cache?", isPresented: $showClearCacheConfirm) {
-                Button("Clear Cache", role: .destructive) {
+            .alert(loc(.clearWebCacheTitle), isPresented: $showClearCacheConfirm) {
+                Button(loc(.clearCache), role: .destructive) {
                     clearWebCache()
                 }
-                Button("Cancel", role: .cancel) {}
+                Button(loc(.cancel), role: .cancel) {}
             } message: {
-                Text("Cached web pages will be removed. Future conversions may take slightly longer.")
+                Text(loc(.clearWebCacheMessage))
             }
-            .alert("Clear EPUB Queue?", isPresented: $showClearQueueConfirm) {
-                Button("Clear Queue", role: .destructive) {
+            .alert(loc(.clearEPUBQueueTitle), isPresented: $showClearQueueConfirm) {
+                Button(loc(.clearQueue), role: .destructive) {
                     clearQueue()
                 }
-                Button("Cancel", role: .cancel) {}
+                Button(loc(.cancel), role: .cancel) {}
             } message: {
-                Text("All \(queueItems.count) queued EPUB\(queueItems.count == 1 ? "" : "s") will be permanently deleted.")
+                Text(loc(.clearEPUBQueueMessage, queueItems.count))
             }
+        }
+    }
+
+    // MARK: - Language Section
+    private var languageSection: some View {
+        Section {
+            Picker(loc(.language), selection: $settings.appLanguage) {
+                ForEach(AppLanguage.allCases, id: \.self) { lang in
+                    Text(lang.displayName).tag(lang)
+                }
+            }
+        } header: {
+            Text(loc(.language))
         }
     }
 
@@ -78,26 +95,26 @@ struct SettingsSheet: View {
 
     private var deviceSection: some View {
         Section {
-            Picker("Firmware", selection: $settings.firmwareType) {
+            Picker(loc(.firmware), selection: $settings.firmwareType) {
                 ForEach(FirmwareType.allCases, id: \.self) { type in
-                    Text(type.rawValue).tag(type)
+                    Text(type.displayName).tag(type)
                 }
             }
 
             if settings.firmwareType == .custom {
-                TextField("Device IP Address", text: $settings.customIP)
+                TextField(loc(.deviceIPAddress), text: $settings.customIP)
                     #if os(iOS)
                     .keyboardType(.decimalPad)
                     .textContentType(.none)
                     #endif
             }
 
-            LabeledContent("Address", value: settings.resolvedHost)
+            LabeledContent(loc(.address), value: settings.resolvedHost)
                 .foregroundStyle(.secondary)
         } header: {
-            Text("Device")
+            Text(loc(.device))
         } footer: {
-            Text("CrossPoint uses crosspoint.local (fallback: 192.168.4.1). Stock uses 192.168.3.3.")
+            Text(loc(.firmwareIPDescription))
         }
     }
 
@@ -106,7 +123,7 @@ struct SettingsSheet: View {
     private var featureFoldersSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Convert")
+                Text(loc(.convertSectionLabel))
                     .font(.subheadline.weight(.medium))
                 HStack {
                     Image(systemName: "folder")
@@ -121,7 +138,7 @@ struct SettingsSheet: View {
             .padding(.vertical, 2)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("WallpaperX")
+                Text(loc(.wallpaperXSectionLabel))
                     .font(.subheadline.weight(.medium))
                 HStack {
                     Image(systemName: "folder")
@@ -135,9 +152,9 @@ struct SettingsSheet: View {
             }
             .padding(.vertical, 2)
         } header: {
-            Text("Feature Folders")
+            Text(loc(.featureFolders))
         } footer: {
-            Text("Each feature uploads to its own folder on the device (e.g. /\(settings.convertFolder)/). Tap a field to change the destination.")
+            Text(loc(.featureFoldersDescription, settings.convertFolder))
         }
     }
 
@@ -151,13 +168,13 @@ struct SettingsSheet: View {
                     testResult = nil
                     await deviceVM.refresh(settings: settings)
                     testResult = deviceVM.isConnected
-                        ? "Connected (\(deviceVM.firmwareLabel))"
-                        : "Not reachable"
+                        ? loc(.connectedWithInfo, deviceVM.firmwareLabel)
+                        : loc(.notReachable)
                     isTesting = false
                 }
             } label: {
                 HStack {
-                    Text("Test Connection")
+                    Text(loc(.testConnection))
                     Spacer()
                     if isTesting {
                         ProgressView()
@@ -180,21 +197,20 @@ struct SettingsSheet: View {
     private var siriShortcutSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Convert web pages to EPUB directly from the Share menu using a Siri Shortcut and add it to the Queue")
+                Text(loc(.siriShortcutDescription))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
                 VStack(alignment: .leading, spacing: 10) {
-                    setupStep(1, "Open the **Shortcuts** app")
-                    setupStep(2, "Tap **+** to create a new Shortcut")
-                    setupStep(3, "Search for **\"CrossX\"** in the search bar")
-                    setupStep(3, "Press **\"Convert to EPUB & Add to Queue\"**")
-                    setupStep(4, "Tap the **info icon** (i) at the bottom")
-                    setupStep(5, "Enable **\"Show in Share Sheet\"** and close it")
-                    setupStep(6, "Press **\"Web Page URL\"** input")
-                    setupStep(7, "Press **\"Select Variable\"**")
-                    setupStep(8, "Press **\"Shortcut Input\"**")
-                    setupStep(9, "Done")
+                    setupStep(1, loc(.siriStep1))
+                    setupStep(2, loc(.siriStep2))
+                    setupStep(3, loc(.siriStep3))
+                    setupStep(3, loc(.siriStep4))
+                    setupStep(4, loc(.siriStep5))
+                    setupStep(5, loc(.siriStep6))
+                    setupStep(6, loc(.siriStep7))
+                    setupStep(7, loc(.siriStep8))
+                    setupStep(8, loc(.siriStep9))
                 }
 
                 #if os(iOS)
@@ -205,7 +221,7 @@ struct SettingsSheet: View {
                 } label: {
                     HStack {
                         Spacer()
-                        Label("Open Shortcuts App", systemImage: "arrow.up.forward.app")
+                        Label(loc(.openShortcutsApp), systemImage: "arrow.up.forward.app")
                             .font(.subheadline.weight(.medium))
                         Spacer()
                     }
@@ -217,9 +233,9 @@ struct SettingsSheet: View {
             }
             .padding(.vertical, 4)
         } header: {
-            Text("Siri Shortcut")
+            Text(loc(.siriShortcut))
         } footer: {
-            Text("The shortcut converts pages in the background and queues them for sending when your X4 connects.")
+            Text(loc(.siriShortcutFooter))
         }
     }
 
@@ -227,40 +243,40 @@ struct SettingsSheet: View {
 
     private var storageSection: some View {
         Section {
-            LabeledContent("Database") {
+            LabeledContent(loc(.database)) {
                 Text(StorageCalculator.formatted(databaseSize))
                     .foregroundStyle(.secondary)
             }
-            LabeledContent("Web Cache") {
+            LabeledContent(loc(.webCache)) {
                 Text(StorageCalculator.formatted(webCacheSize))
                     .foregroundStyle(.secondary)
             }
-            LabeledContent("Temp Files") {
+            LabeledContent(loc(.tempFiles)) {
                 Text(StorageCalculator.formatted(tempSize))
                     .foregroundStyle(.secondary)
             }
-            LabeledContent("Queue (\(queueItems.count) EPUB\(queueItems.count == 1 ? "" : "s"))") {
+            LabeledContent(loc(.queueEPUBCount, queueItems.count)) {
                 Text(StorageCalculator.formatted(queueSize))
                     .foregroundStyle(.secondary)
             }
 
-            Button("Clear History Data", role: .destructive) {
+            Button(loc(.clearHistoryData), role: .destructive) {
                 showClearHistoryConfirm = true
             }
 
-            Button("Clear Web Cache", role: .destructive) {
+            Button(loc(.clearWebCache), role: .destructive) {
                 showClearCacheConfirm = true
             }
 
             if !queueItems.isEmpty {
-                Button("Clear Queue", role: .destructive) {
+                Button(loc(.clearQueue), role: .destructive) {
                     showClearQueueConfirm = true
                 }
             }
         } header: {
-            Text("Storage")
+            Text(loc(.storage))
         } footer: {
-            Text("Database includes conversion history and file activity logs. Web Cache stores fetched web pages for faster re-conversion.")
+            Text(loc(.storageDescription))
         }
     }
 
@@ -271,24 +287,24 @@ struct SettingsSheet: View {
             Button {
                 openURL(Self.githubCodeURL)
             } label: {
-                Label("Source Code", systemImage: "chevron.left.forwardslash.chevron.right")
+                Label(loc(.sourceCode), systemImage: "chevron.left.forwardslash.chevron.right")
             }
             
             Button {
                 openURL(Self.githubIssuesURL)
             } label: {
-                Label("Feature Requests", systemImage: "lightbulb")
+                Label(loc(.featureRequests), systemImage: "lightbulb")
             }
 
             Button {
                 openURL(Self.githubIssuesURL)
             } label: {
-                Label("Report a Bug", systemImage: "ladybug")
+                Label(loc(.reportABug), systemImage: "ladybug")
             }
         } header: {
-            Text("Feedback & Support")
+            Text(loc(.feedbackAndSupport))
         } footer: {
-            Text("Opens GitHub Issues where you can suggest features or report bugs. Also you can inspect the Source Code")
+            Text(loc(.feedbackDescription))
         }
     }
 
@@ -299,15 +315,15 @@ struct SettingsSheet: View {
 
     private var aboutSection: some View {
         Section {
-            LabeledContent("Version", value: "1.0")
-            LabeledContent("EPUB Format", value: "EPUB 2.0")
+            LabeledContent(loc(.version), value: "1.0")
+            LabeledContent(loc(.epubFormat), value: "EPUB 2.0")
 
             Button {
                 hasSeenOnboarding = false
                 dismiss()
             } label: {
                 HStack {
-                    Label("Show Onboarding", systemImage: "hand.wave")
+                    Label(loc(.showOnboarding), systemImage: "hand.wave")
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.caption)
@@ -315,13 +331,13 @@ struct SettingsSheet: View {
                 }
             }
         } header: {
-            Text("About")
+            Text(loc(.about))
         }
     }
 
     // MARK: - Setup Guide Helper
 
-    private func setupStep(_ number: Int, _ text: LocalizedStringKey) -> some View {
+    private func setupStep(_ number: Int, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Text("\(number)")
                 .font(.caption2.weight(.bold))
@@ -329,7 +345,7 @@ struct SettingsSheet: View {
                 .frame(width: 20, height: 20)
                 .background(AppColor.accent, in: .circle)
 
-            Text(text)
+            Text(LocalizedStringKey(text))
                 .font(.subheadline)
         }
     }

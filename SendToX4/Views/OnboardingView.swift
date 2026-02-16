@@ -40,7 +40,7 @@ struct OnboardingView: View {
                 // macOS navigation buttons
                 HStack {
                     if currentPage > 0 {
-                        Button("Back") {
+                        Button(loc(.back)) {
                             withAnimation { currentPage -= 1 }
                         }
                         .buttonStyle(.bordered)
@@ -60,7 +60,7 @@ struct OnboardingView: View {
                     Spacer()
 
                     if currentPage < pageCount - 1 {
-                        Button("Next") {
+                        Button(loc(.next)) {
                             withAnimation { currentPage += 1 }
                         }
                         .buttonStyle(.borderedProminent)
@@ -74,7 +74,7 @@ struct OnboardingView: View {
 
             // Skip button (hidden on last page)
             if currentPage < pageCount - 1 {
-                Button("Skip") {
+                Button(loc(.skip)) {
                     hasSeenOnboarding = true
                 }
                 .font(.subheadline.weight(.medium))
@@ -93,8 +93,8 @@ struct OnboardingView: View {
     private var welcomePage: some View {
         OnboardingPage(
             icon: "doc.text.magnifyingglass",
-            title: "Welcome to CrossX",
-            description: "Convert any web page to EPUB and send it to your Xteink X4 e-reader \u{2014} no cloud, no accounts, just WiFi."
+            title: loc(.welcomeTitle),
+            description: loc(.welcomeDescription)
         )
     }
 
@@ -103,15 +103,15 @@ struct OnboardingView: View {
     private var convertPage: some View {
         OnboardingPage(
             icon: "link",
-            title: "Paste. Convert. Read.",
-            description: "Paste a URL, tap Convert, and CrossX fetches the page, extracts the article, and builds a clean EPUB \u{2014} all in seconds."
+            title: loc(.pasteConvertRead),
+            description: loc(.pasteConvertReadDescription)
         ) {
             HStack(spacing: 12) {
-                pipelineStep(icon: "globe", label: "Fetch")
+                pipelineStep(icon: "globe", label: loc(.fetch))
                 pipelineArrow
-                pipelineStep(icon: "text.magnifyingglass", label: "Extract")
+                pipelineStep(icon: "text.magnifyingglass", label: loc(.extract))
                 pipelineArrow
-                pipelineStep(icon: "book.closed.fill", label: "EPUB")
+                pipelineStep(icon: "book.closed.fill", label: loc(.epub))
             }
             .padding(.horizontal, 24)
             .padding(.top, 8)
@@ -123,15 +123,15 @@ struct OnboardingView: View {
     private var queuePage: some View {
         OnboardingPage(
             icon: "tray.full.fill",
-            title: "Works Offline",
-            description: "No device connected? No problem. Converted EPUBs are queued and sent automatically when your X4 connects."
+            title: loc(.worksOffline),
+            description: loc(.worksOfflineDescription)
         ) {
             HStack(spacing: 16) {
                 VStack(spacing: 6) {
                     Image(systemName: "iphone")
                         .font(.title2)
                         .foregroundStyle(AppColor.accent)
-                    Text("Convert")
+                    Text(loc(.tabConvert))
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
@@ -144,7 +144,7 @@ struct OnboardingView: View {
                     Image(systemName: "tray.and.arrow.down.fill")
                         .font(.title2)
                         .foregroundStyle(AppColor.warning)
-                    Text("Queue")
+                    Text(loc(.queueLabel))
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
@@ -157,7 +157,7 @@ struct OnboardingView: View {
                     Image(systemName: "wifi")
                         .font(.title2)
                         .foregroundStyle(AppColor.success)
-                    Text("Send")
+                    Text(loc(.sendLabel))
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
@@ -171,20 +171,20 @@ struct OnboardingView: View {
     private var shortcutPage: some View {
         OnboardingPage(
             icon: "wand.and.stars",
-            title: "Convert from Anywhere",
-            description: "Set up a Siri Shortcut to convert pages directly from Safari's Share menu."
+            title: loc(.convertFromAnywhere),
+            description: loc(.convertFromAnywhereDescription)
         ) {
             VStack(spacing: 10) {
-                shortcutStep(1, "Open the **Shortcuts** app")
-                shortcutStep(2, "Tap **+** to create a new Shortcut")
-                shortcutStep(3, "Search for **\"CrossX\"** in the search bar")
-                shortcutStep(3, "Press **\"Convert to EPUB & Add to Queue\"**")
-                shortcutStep(4, "Tap the **info icon** (i) at the bottom")
-                shortcutStep(5, "Enable **\"Show in Share Sheet\"** and close it")
-                shortcutStep(6, "Press **\"Web Page URL\"** input")
-                shortcutStep(7, "Press **\"Select Variable\"**")
-                shortcutStep(8, "Press **\"Shortcut Input\"**")
-                shortcutStep(9, "Done")
+                shortcutStep(1, loc(.siriStep1))
+                shortcutStep(2, loc(.siriStep2))
+                shortcutStep(3, loc(.siriStep3))
+                shortcutStep(3, loc(.siriStep4))
+                shortcutStep(4, loc(.siriStep5))
+                shortcutStep(5, loc(.siriStep6))
+                shortcutStep(6, loc(.siriStep7))
+                shortcutStep(7, loc(.siriStep8))
+                shortcutStep(8, loc(.siriStep9))
+                shortcutStep(9, loc(.done))
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -198,7 +198,7 @@ struct OnboardingView: View {
                     UIApplication.shared.open(url)
                 }
             } label: {
-                Label("Open Shortcuts App", systemImage: "arrow.up.forward.app")
+                Label(loc(.openShortcutsApp), systemImage: "arrow.up.forward.app")
                     .font(.subheadline.weight(.medium))
             }
             .buttonStyle(.bordered)
@@ -213,13 +213,13 @@ struct OnboardingView: View {
     private var getStartedPage: some View {
         OnboardingPage(
             icon: "checkmark.circle.fill",
-            title: "You're All Set",
-            description: "Connect to your X4's WiFi hotspot and start converting. Your e-reader is waiting."
+            title: loc(.youreAllSet),
+            description: loc(.youreAllSetDescription)
         ) {
             Button {
                 hasSeenOnboarding = true
             } label: {
-                Text("Get Started")
+                Text(loc(.getStarted))
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
@@ -252,7 +252,7 @@ struct OnboardingView: View {
             .foregroundStyle(.tertiary)
     }
 
-    private func shortcutStep(_ number: Int, _ text: LocalizedStringKey) -> some View {
+    private func shortcutStep(_ number: Int, _ text: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             Text("\(number)")
                 .font(.caption2.weight(.bold))
@@ -260,7 +260,7 @@ struct OnboardingView: View {
                 .frame(width: 20, height: 20)
                 .background(AppColor.accent, in: .circle)
 
-            Text(text)
+            Text(LocalizedStringKey(text))
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
