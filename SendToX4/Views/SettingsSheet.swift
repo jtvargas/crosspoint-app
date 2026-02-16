@@ -271,7 +271,7 @@ struct SettingsSheet: View {
             Button {
                 openURL(Self.githubCodeURL)
             } label: {
-                Label("Source Code", systemImage: "code")
+                Label("Source Code", systemImage: "chevron.left.forwardslash.chevron.right")
             }
             
             Button {
