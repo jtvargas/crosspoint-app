@@ -106,23 +106,20 @@ struct FileManagerView: View {
                     get: { itemToDelete != nil },
                     set: { if !$0 { itemToDelete = nil } }
                 ),
-                titleVisibility: .visible
-            ) {
-                Button("Delete", role: .destructive) {
-                    if let item = itemToDelete {
-                        Task { _ = await fileVM.deleteItem(item, modelContext: modelContext) }
-                    }
+                titleVisibility: .visible,
+                presenting: itemToDelete
+            ) { item in
+                Button("Delete \"\(item.name)\"", role: .destructive) {
+                    Task { _ = await fileVM.deleteItem(item, modelContext: modelContext) }
                 }
                 Button("Cancel", role: .cancel) {
                     itemToDelete = nil
                 }
-            } message: {
-                if let item = itemToDelete {
-                    if item.isDirectory {
-                        Text("This folder must be empty to delete. This action cannot be undone.")
-                    } else {
-                        Text("This file will be permanently deleted from the device.")
-                    }
+            } message: { item in
+                if item.isDirectory {
+                    Text("This folder must be empty to delete. This action cannot be undone.")
+                } else {
+                    Text("This file will be permanently deleted from the device.")
                 }
             }
             .fileImporter(
