@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/banner.png" alt="CrossX - Send To X4" width="100%">
+</p>
+
 # CrossX — Xteink iOS App Manager
 
 <p align="center">
@@ -5,6 +9,7 @@
 </p>
 
 <p align="center">
+  <a href="https://apps.apple.com/us/app/crossx-send-to-x4/id6759236578"><img src="https://img.shields.io/badge/Download_on_the-App_Store-black?style=for-the-badge&logo=apple&logoColor=white" alt="Download on the App Store"></a>
   <img src="https://img.shields.io/badge/Platform-iOS_26%2B_|_macOS_26%2B-blue?style=for-the-badge&logo=apple" alt="Platform">
   <img src="https://img.shields.io/badge/Swift-5-orange?style=for-the-badge&logo=swift&logoColor=white" alt="Swift 5">
   <img src="https://img.shields.io/badge/SwiftUI-Liquid_Glass-007AFF?style=for-the-badge" alt="SwiftUI">
@@ -13,9 +18,24 @@
 
 **CrossX** is a native SwiftUI app for **iOS, iPadOS, and macOS** that converts any web page into an EPUB 2.0 e-book and transfers it to an [Xteink device](https://www.xteink.com/) e-reader over its local WiFi hotspot. No cloud services, no accounts, no subscriptions — just paste a URL, tap convert, and read.
 
+**Now available on the [App Store](https://apps.apple.com/us/app/crossx-send-to-x4/id6759236578)** — free to download.
+
 The app supports both **Stock** and **CrossPoint** firmware variants with automatic device detection, includes a full on-device **file manager**, and ships with an **iOS Share Extension** so you can send pages directly from Safari.
 
-[Features](#features) · [How It Works](#how-it-works) · [Getting Started](#getting-started) · [Device Setup](#device-setup) · [Architecture](#architecture) · [Roadmap](#roadmap)
+[Features](#features) · [Screenshots](#screenshots) · [How It Works](#how-it-works) · [Getting Started](#getting-started) · [Device Setup](#device-setup) · [Architecture](#architecture) · [Roadmap](#roadmap)
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/77/e7/50/77e75079-4002-a63c-4406-5b9c2383930d/1298.png/600x1300bb-60.jpg" alt="Convert View" width="150">
+  <img src="https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/73/91/e5/7391e5fe-0bde-4395-1191-293d6edd7492/1299.png/600x1300bb-60.jpg" alt="Send to E-Reader" width="150">
+  <img src="https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/10/14/03/10140334-a746-8155-b265-b6797aadb7cd/1300.png/600x1300bb-60.jpg" alt="EPUB Queue" width="150">
+  <img src="https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/10/58/bf/1058bf1b-2959-2e1b-5bb6-fa97b3a30ddf/1301.png/600x1300bb-60.jpg" alt="File Manager" width="150">
+  <img src="https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/b7/b7/da/b7b7da2a-1504-21fb-57f1-f9edc6602048/1302.png/600x1300bb-60.jpg" alt="WallpaperX" width="150">
+  <img src="https://is1-ssl.mzstatic.com/image/thumb/PurpleSource221/v4/7d/0a/56/7d0a5635-c46b-357a-ee39-b514bdc036fb/1303.png/600x1300bb-60.jpg" alt="Activity History" width="150">
+</p>
 
 ---
 
