@@ -100,26 +100,27 @@ struct FileManagerView: View {
                     }
                 )
             }
-            .confirmationDialog(
+            .alert(
                 "Delete \"\(itemToDelete?.name ?? "")\"?",
                 isPresented: Binding(
                     get: { itemToDelete != nil },
                     set: { if !$0 { itemToDelete = nil } }
-                ),
-                titleVisibility: .visible,
-                presenting: itemToDelete
-            ) { item in
-                Button("Delete \"\(item.name)\"", role: .destructive) {
-                    Task { _ = await fileVM.deleteItem(item, modelContext: modelContext) }
+                )
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let item = itemToDelete {
+                        Task { _ = await fileVM.deleteItem(item, modelContext: modelContext) }
+                    }
+                    itemToDelete = nil
                 }
                 Button("Cancel", role: .cancel) {
                     itemToDelete = nil
                 }
-            } message: { item in
-                if item.isDirectory {
-                    Text("This folder must be empty to delete. This action cannot be undone.")
-                } else {
-                    Text("This file will be permanently deleted from the device.")
+            } message: {
+                if let item = itemToDelete {
+                    Text(item.isDirectory
+                         ? "This folder must be empty to delete. This action cannot be undone."
+                         : "This file will be permanently deleted from the device.")
                 }
             }
             .fileImporter(

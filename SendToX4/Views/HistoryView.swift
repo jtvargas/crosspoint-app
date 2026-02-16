@@ -46,7 +46,6 @@ struct HistoryView: View {
     var deviceVM: DeviceViewModel
     var settings: DeviceSettings
 
-    @State private var selectedArticle: Article?
     @State private var showShareSheet = false
     @State private var shareEPUBData: Data?
     @State private var shareFilename: String?
@@ -104,51 +103,6 @@ struct HistoryView: View {
                     ToolbarItem(placement: .primaryAction) {
                         clearMenu
                     }
-                }
-            }
-            // MARK: - Article Action Dialog
-            .confirmationDialog(
-                selectedArticle?.title ?? "Article",
-                isPresented: .init(
-                    get: { selectedArticle != nil },
-                    set: { if !$0 { selectedArticle = nil } }
-                ),
-                titleVisibility: .visible
-            ) {
-                if let article = selectedArticle {
-                    Button("Reconvert & Share") {
-                        let target = article
-                        Task {
-                            if let result = await convertVM.reconvertForShare(
-                                article: target,
-                                modelContext: modelContext
-                            ) {
-                                shareEPUBData = result.data
-                                shareFilename = result.filename
-                                showShareSheet = true
-                            }
-                        }
-                    }
-
-                    if deviceVM.isConnected {
-                        Button("Resend to X4") {
-                            let target = article
-                            Task {
-                                await convertVM.resend(
-                                    article: target,
-                                    deviceVM: deviceVM,
-                                    settings: settings,
-                                    modelContext: modelContext
-                                )
-                            }
-                        }
-                    }
-
-                    Button("Copy URL") {
-                        ClipboardHelper.copy(article.url)
-                    }
-
-                    Button("Cancel", role: .cancel) {}
                 }
             }
             // MARK: - Share Sheet

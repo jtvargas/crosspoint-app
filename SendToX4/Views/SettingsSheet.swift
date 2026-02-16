@@ -180,36 +180,27 @@ struct SettingsSheet: View {
             .task {
                 refreshStorageSizes()
             }
-            .confirmationDialog(
-                "Clear History Data?",
-                isPresented: $showClearHistoryConfirm,
-                titleVisibility: .visible
-            ) {
+            .alert("Clear History Data?", isPresented: $showClearHistoryConfirm) {
                 Button("Clear History", role: .destructive) {
                     clearHistoryData()
                 }
+                Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This will permanently delete all conversion history and file activity logs.")
             }
-            .confirmationDialog(
-                "Clear Web Cache?",
-                isPresented: $showClearCacheConfirm,
-                titleVisibility: .visible
-            ) {
+            .alert("Clear Web Cache?", isPresented: $showClearCacheConfirm) {
                 Button("Clear Cache", role: .destructive) {
                     clearWebCache()
                 }
+                Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Cached web pages will be removed. Future conversions may take slightly longer.")
             }
-            .confirmationDialog(
-                "Clear EPUB Queue?",
-                isPresented: $showClearQueueConfirm,
-                titleVisibility: .visible
-            ) {
+            .alert("Clear EPUB Queue?", isPresented: $showClearQueueConfirm) {
                 Button("Clear Queue", role: .destructive) {
                     clearQueue()
                 }
+                Button("Cancel", role: .cancel) {}
             } message: {
                 Text("All \(queueItems.count) queued EPUB\(queueItems.count == 1 ? "" : "s") will be permanently deleted.")
             }

@@ -21,7 +21,6 @@ struct ConvertView: View {
     @Query(sort: \QueueItem.queuedAt) private var queueItems: [QueueItem]
 
     @State private var showShareSheet = false
-    @State private var selectedArticle: Article?
     @State private var shareEPUBData: Data?
     @State private var shareFilename: String?
     @FocusState private var isURLFieldFocused: Bool
@@ -75,52 +74,7 @@ struct ConvertView: View {
                     requestReview()
                 }
             }
-            // MARK: - Article Action Dialog
-            .confirmationDialog(
-                selectedArticle?.title ?? "Article",
-                isPresented: Binding(
-                    get: { selectedArticle != nil },
-                    set: { if !$0 { selectedArticle = nil } }
-                ),
-                titleVisibility: .visible,
-                presenting: selectedArticle
-            ) { article in
-                if deviceVM.isConnected {
-                    Button("Resend to X4") {
-                        let target = article
-                        Task {
-                            await convertVM.resend(
-                                article: target,
-                                deviceVM: deviceVM,
-                                settings: settings,
-                                modelContext: modelContext
-                            )
-                        }
-                    }
-                }
 
-                Button("Reconvert & Share") {
-                    let target = article
-                    Task {
-                        if let result = await convertVM.reconvertForShare(
-                            article: target,
-                            modelContext: modelContext
-                        ) {
-                            shareEPUBData = result.data
-                            shareFilename = result.filename
-                            showShareSheet = true
-                        }
-                    }
-                }
-
-                Button("Copy URL") {
-                    ClipboardHelper.copy(article.url)
-                }
-
-                Button("Cancel", role: .cancel) {}
-            } message: { article in
-                Text(article.sourceDomain)
-            }
         }
     }
 
@@ -305,10 +259,6 @@ struct ConvertView: View {
                 VStack(spacing: 0) {
                     ForEach(Array(recentArticles.enumerated()), id: \.element.id) { index, article in
                         recentRow(article)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedArticle = article
-                            }
 
                         if index < recentArticles.count - 1 {
                             Divider()
@@ -345,11 +295,55 @@ struct ConvertView: View {
 
             Spacer(minLength: 0)
 
-            Image(systemName: "ellipsis")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            recentMenu(for: article)
         }
         .padding(.vertical, 8)
+    }
+
+    private func recentMenu(for article: Article) -> some View {
+        Menu {
+            if deviceVM.isConnected {
+                Button {
+                    let target = article
+                    Task {
+                        await convertVM.resend(
+                            article: target,
+                            deviceVM: deviceVM,
+                            settings: settings,
+                            modelContext: modelContext
+                        )
+                    }
+                } label: {
+                    Label("Resend to X4", systemImage: "paperplane")
+                }
+            }
+
+            Button {
+                let target = article
+                Task {
+                    if let result = await convertVM.reconvertForShare(
+                        article: target,
+                        modelContext: modelContext
+                    ) {
+                        shareEPUBData = result.data
+                        shareFilename = result.filename
+                        showShareSheet = true
+                    }
+                }
+            } label: {
+                Label("Reconvert & Share", systemImage: "square.and.arrow.up")
+            }
+
+            Button {
+                ClipboardHelper.copy(article.url)
+            } label: {
+                Label("Copy URL", systemImage: "doc.on.doc")
+            }
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private func recentStatusIcon(for status: ConversionStatus) -> some View {
