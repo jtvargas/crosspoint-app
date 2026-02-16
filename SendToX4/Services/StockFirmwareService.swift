@@ -84,10 +84,12 @@ nonisolated struct StockFirmwareService: DeviceService {
         body.appendMultipartEnd(boundary: boundary)
         request.httpBody = body
         
-        let (_, response) = try await session.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw DeviceError.folderCreationFailed
+        let (data, response) = try await session.data(for: request)
+        if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
+            // 409 Conflict means the folder already exists — our goal is met
+            if httpResponse.statusCode == 409 { return }
+            let bodyText = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw DeviceError.folderCreationFailed(bodyText)
         }
     }
     

@@ -66,7 +66,7 @@ nonisolated struct DeviceStatus {
 nonisolated enum DeviceError: LocalizedError {
     case unreachable
     case uploadFailed(statusCode: Int)
-    case folderCreationFailed
+    case folderCreationFailed(String? = nil)
     case invalidResponse
     case timeout
     case connectionLost
@@ -84,7 +84,10 @@ nonisolated enum DeviceError: LocalizedError {
             return loc(.errorCannotReachDevice)
         case .uploadFailed(let code):
             return loc(.errorUploadFailed, code)
-        case .folderCreationFailed:
+        case .folderCreationFailed(let detail):
+            if let detail {
+                return "\(loc(.errorCreateFolderFailed)) (\(detail))"
+            }
             return loc(.errorCreateFolderFailed)
         case .invalidResponse:
             return loc(.errorUnexpectedResponse)
@@ -167,9 +170,12 @@ nonisolated protocol DeviceService: Sendable {
 nonisolated extension DeviceService {
     func ensureFolder(_ name: String) async throws {
         let files = try await listFiles(directory: "/")
-        let exists = files.contains { $0.isDirectory && $0.name == name }
+        let normalizedName = name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let exists = files.contains {
+            $0.isDirectory && $0.name.trimmingCharacters(in: CharacterSet(charactersIn: "/")) == normalizedName
+        }
         if !exists {
-            try await createFolder(name: name, parent: "/")
+            try await createFolder(name: normalizedName, parent: "/")
         }
     }
 
