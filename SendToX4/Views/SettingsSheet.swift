@@ -30,9 +30,9 @@ struct SettingsSheet: View {
                 deviceSection
                 featureFoldersSection
                 connectionTestSection
+                feedbackSection
                 siriShortcutSection
                 storageSection
-                feedbackSection
                 aboutSection
             }
             .navigationTitle("Settings")
