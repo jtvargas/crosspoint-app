@@ -16,8 +16,10 @@ struct FileManagerView: View {
     @State private var showCreateFolder = false
     @State private var showFileImporter = false
     @State private var itemToDelete: DeviceFile?
+    @State private var showDeleteConfirmation = false
     @State private var itemToMove: DeviceFile?
     @State private var itemToRename: DeviceFile?
+    @State private var infoDismissed = false
 
     var body: some View {
         NavigationStack {
@@ -102,25 +104,36 @@ struct FileManagerView: View {
             }
             .alert(
                 loc(.deleteItemTitle, itemToDelete?.name ?? ""),
-                isPresented: Binding(
-                    get: { itemToDelete != nil },
-                    set: { if !$0 { itemToDelete = nil } }
-                )
+                isPresented: $showDeleteConfirmation
             ) {
                 Button(loc(.delete), role: .destructive) {
                     if let item = itemToDelete {
-                        Task { _ = await fileVM.deleteItem(item, modelContext: modelContext) }
+                        let contentCount = fileVM.folderContentCount ?? 0
+                        Task {
+                            if item.isDirectory && contentCount > 0 {
+                                _ = await fileVM.deleteItemRecursive(item, totalCount: contentCount, modelContext: modelContext)
+                            } else {
+                                _ = await fileVM.deleteItem(item, modelContext: modelContext)
+                            }
+                        }
                     }
                     itemToDelete = nil
                 }
                 Button(loc(.cancel), role: .cancel) {
                     itemToDelete = nil
+                    fileVM.folderContentCount = nil
                 }
             } message: {
                 if let item = itemToDelete {
-                    Text(item.isDirectory
-                         ? loc(.deleteFolderMustBeEmpty)
-                         : loc(.deleteFilePermanent))
+                    if item.isDirectory {
+                        if let count = fileVM.folderContentCount, count > 0 {
+                            Text(loc(.deleteFolderWithContents, count))
+                        } else {
+                            Text(loc(.deleteFolderMustBeEmpty))
+                        }
+                    } else {
+                        Text(loc(.deleteFilePermanent))
+                    }
                 }
             }
             .fileImporter(
@@ -147,18 +160,24 @@ struct FileManagerView: View {
                     uploadOverlay
                 }
             }
+            // MARK: - Delete Progress Overlay
+            .overlay {
+                if fileVM.isDeleting {
+                    deleteOverlay
+                }
+            }
         }
         .onChange(of: deviceVM.isConnected) {
-            fileVM.bind(to: deviceVM.activeService)
+            fileVM.bind(to: deviceVM.activeService, deviceVM: deviceVM)
             if deviceVM.isConnected {
                 Task { await fileVM.refresh() }
             }
         }
         .onChange(of: deviceVM.activeService?.baseURL) {
-            fileVM.bind(to: deviceVM.activeService)
+            fileVM.bind(to: deviceVM.activeService, deviceVM: deviceVM)
         }
         .task {
-            fileVM.bind(to: deviceVM.activeService)
+            fileVM.bind(to: deviceVM.activeService, deviceVM: deviceVM)
             if deviceVM.isConnected {
                 await fileVM.refresh()
             }
@@ -221,7 +240,7 @@ struct FileManagerView: View {
                                 FileManagerRow(
                                     file: file,
                                     supportsMoveRename: fileVM.supportsMoveRename,
-                                    onDelete: { itemToDelete = file },
+                                    onDelete: { prepareDelete(file) },
                                     onMove: nil,
                                     onRename: nil
                                 )
@@ -231,21 +250,42 @@ struct FileManagerView: View {
                             FileManagerRow(
                                 file: file,
                                 supportsMoveRename: fileVM.supportsMoveRename,
-                                onDelete: { itemToDelete = file },
+                                onDelete: { prepareDelete(file) },
                                 onMove: fileVM.supportsMoveRename ? { itemToMove = file } : nil,
                                 onRename: nil // Rename disabled — coming soon
                             )
                         }
                     }
                 } header: {
-                    HStack {
+                    HStack(spacing: 4) {
                         Text(loc(.itemCount, fileVM.files.count))
+                        if !fileVM.files.isEmpty {
+                            Text("·")
+                                .foregroundStyle(.quaternary)
+                            if fileVM.fileCount > 0 {
+                                Text(loc(.fileListSummary, fileVM.folderCount, fileVM.fileCount, fileVM.formattedTotalFileSize))
+                                    .foregroundStyle(.tertiary)
+                            } else {
+                                Text(loc(.fileListSummaryNoFiles, fileVM.folderCount, fileVM.fileCount))
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
                         Spacer()
                         if fileVM.isLoading {
                             ProgressView()
                                 .controlSize(.mini)
                         }
                     }
+                }
+            }
+
+            // Device info note
+            if !infoDismissed {
+                Section {
+                    deviceInfoNote
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
             }
         }
@@ -373,6 +413,103 @@ struct FileManagerView: View {
             .padding(24)
             .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 16))
             .padding(40)
+        }
+    }
+
+    // MARK: - Delete Progress Overlay
+
+    private var deleteOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                if let progress = fileVM.deleteProgress {
+                    ProgressView(value: Double(progress.current), total: Double(progress.total)) {
+                        Text(loc(.deletingProgress, progress.current, progress.total))
+                            .font(.headline)
+                    } currentValueLabel: {
+                        if let name = fileVM.currentDeleteItem {
+                            Text(loc(.deletingItem, name))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .progressViewStyle(.linear)
+
+                    Text("\(Int(Double(progress.current) / Double(max(progress.total, 1)) * 100))%")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+
+                    Button {
+                        fileVM.cancelDelete()
+                    } label: {
+                        Text(loc(.stopDelete))
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(AppColor.error)
+                    .disabled(fileVM.deleteCancelled)
+                } else {
+                    ProgressView()
+                        .controlSize(.large)
+                    Text(loc(.deleteFolderCountingContents))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(24)
+            .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .padding(40)
+        }
+    }
+
+    // MARK: - Device Info Note
+
+    private var deviceInfoNote: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "info.circle")
+                .foregroundStyle(AppColor.accent)
+                .font(.subheadline)
+                .padding(.top, 1)
+            Text(loc(.fileManagerDeviceNote))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            Button {
+                withAnimation { infoDismissed = true }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.tertiary)
+                    .font(.subheadline)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .glassEffect(.regular, in: .rect(cornerRadius: 12))
+        .padding(.horizontal, 4)
+        .padding(.vertical, 8)
+    }
+
+    // MARK: - Prepare Delete
+
+    /// Prepares a delete operation: for folders, counts contents first, then shows confirmation.
+    /// For files, shows confirmation immediately.
+    private func prepareDelete(_ file: DeviceFile) {
+        itemToDelete = file
+        fileVM.folderContentCount = nil
+
+        if file.isDirectory {
+            // Count contents first, then show confirmation
+            Task {
+                let count = await fileVM.countFolderContents(file)
+                fileVM.folderContentCount = count
+                showDeleteConfirmation = true
+            }
+        } else {
+            showDeleteConfirmation = true
         }
     }
 

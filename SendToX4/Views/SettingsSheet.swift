@@ -22,6 +22,8 @@ struct SettingsSheet: View {
     @State private var showClearHistoryConfirm = false
     @State private var showClearCacheConfirm = false
     @State private var showClearQueueConfirm = false
+    @State private var showClearLogsConfirm = false
+    @State private var showReportBugAlert = false
     @Environment(\.openURL) private var openURL
 
     var body: some View {
@@ -74,6 +76,26 @@ struct SettingsSheet: View {
                 Button(loc(.cancel), role: .cancel) {}
             } message: {
                 Text(loc(.clearEPUBQueueMessage, queueItems.count))
+            }
+            .alert(loc(.clearDebugLogsTitle), isPresented: $showClearLogsConfirm) {
+                Button(loc(.clearDebugLogs), role: .destructive) {
+                    DebugLogger.shared.clearAll()
+                }
+                Button(loc(.cancel), role: .cancel) {}
+            } message: {
+                Text(loc(.clearDebugLogsMessage))
+            }
+            .alert(loc(.reportBugTitle), isPresented: $showReportBugAlert) {
+                Button(loc(.copyLogsAndReport)) {
+                    copyBugReportToClipboard()
+                    openURL(Self.githubIssuesURL)
+                }
+                Button(loc(.reportWithoutLogs)) {
+                    openURL(Self.githubIssuesURL)
+                }
+                Button(loc(.cancel), role: .cancel) {}
+            } message: {
+                Text(loc(.reportBugMessage))
             }
         }
     }
@@ -260,6 +282,18 @@ struct SettingsSheet: View {
                     .foregroundStyle(.secondary)
             }
 
+            NavigationLink {
+                DebugLogView()
+            } label: {
+                HStack {
+                    Label(loc(.debugLogs), systemImage: "doc.text")
+                    Spacer()
+                    Text(DebugLogger.shared.formattedLogSize)
+                        .foregroundStyle(.secondary)
+                        .font(.footnote)
+                }
+            }
+
             Button(loc(.clearHistoryData), role: .destructive) {
                 showClearHistoryConfirm = true
             }
@@ -273,10 +307,20 @@ struct SettingsSheet: View {
                     showClearQueueConfirm = true
                 }
             }
+
+            if TransferStatsTracker.hasHistory {
+                Button(loc(.resetTransferStats), role: .destructive) {
+                    TransferStatsTracker.reset()
+                }
+            }
+
+            Button(loc(.clearDebugLogs), role: .destructive) {
+                showClearLogsConfirm = true
+            }
         } header: {
             Text(loc(.storage))
         } footer: {
-            Text(loc(.storageDescription))
+            Text(loc(.storageAndLogsDescription))
         }
     }
 
@@ -297,7 +341,7 @@ struct SettingsSheet: View {
             }
 
             Button {
-                openURL(Self.githubIssuesURL)
+                showReportBugAlert = true
             } label: {
                 Label(loc(.reportABug), systemImage: "ladybug")
             }
@@ -386,6 +430,49 @@ struct SettingsSheet: View {
         }
         // Delete all QueueItem records
         try? modelContext.delete(model: QueueItem.self)
+        // Reset transfer stats so estimates start fresh
+        TransferStatsTracker.reset()
         refreshStorageSizes()
+    }
+
+    // MARK: - Bug Report Helpers
+
+    /// Copy a bug report with device info header + debug logs to the system clipboard.
+    private func copyBugReportToClipboard() {
+        let report = buildBugReportText()
+        #if canImport(UIKit)
+        UIPasteboard.general.string = report
+        #elseif canImport(AppKit)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(report, forType: .string)
+        #endif
+    }
+
+    /// Assemble a bug report string with device info header and full debug logs.
+    private func buildBugReportText() -> String {
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withFullDate, .withFullTime]
+
+        var lines: [String] = []
+        lines.append("--- CrossX Bug Report ---")
+        lines.append("App Version: 1.0")
+
+        #if os(iOS)
+        lines.append("Platform: iOS")
+        #elseif os(macOS)
+        lines.append("Platform: macOS")
+        #endif
+
+        let firmwareType = settings.firmwareType.displayName
+        let host = deviceVM.connectedHost ?? "N/A"
+        lines.append("Firmware: \(firmwareType) (\(host))")
+        lines.append("Connected: \(deviceVM.isConnected ? "Yes" : "No")")
+        lines.append("Queue: \(queueItems.count) item(s)")
+        lines.append("Date: \(dateFormatter.string(from: Date()))")
+        lines.append("")
+        lines.append("--- Debug Logs ---")
+        lines.append(DebugLogger.shared.exportAsText())
+
+        return lines.joined(separator: "\n")
     }
 }

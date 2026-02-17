@@ -21,6 +21,27 @@ final class FileManagerViewModel {
     /// Error message to display to user.
     var errorMessage: String?
 
+    // MARK: - Recursive Delete State
+
+    /// Whether a recursive folder deletion is in progress.
+    var isDeleting = false
+
+    /// Progress during recursive delete: (current 1-based index, total count).
+    var deleteProgress: (current: Int, total: Int)?
+
+    /// Name of the item currently being deleted.
+    var currentDeleteItem: String?
+
+    /// Number of items counted inside a folder (set after counting, before confirmation).
+    var folderContentCount: Int?
+
+    /// Whether we're currently counting folder contents.
+    var isCountingContents = false
+
+    /// Set to `true` to request cancellation of the current recursive delete.
+    /// The loop checks this between items and stops gracefully.
+    var deleteCancelled = false
+
     /// Device status info (nil if not fetched or unsupported).
     var deviceStatus: DeviceStatus?
 
@@ -50,16 +71,43 @@ final class FileManagerViewModel {
     /// Whether we're at the root directory.
     var isAtRoot: Bool { currentPath == "/" }
 
+    /// Number of folders in the current directory.
+    var folderCount: Int { files.filter(\.isDirectory).count }
+
+    /// Number of files (non-directories) in the current directory.
+    var fileCount: Int { files.filter { !$0.isDirectory }.count }
+
+    /// Total size of all files (not folders) in the current directory.
+    var totalFileSize: Int64 { files.filter { !$0.isDirectory }.reduce(0) { $0 + $1.size } }
+
+    /// Formatted total file size (e.g. "81.94 KB"). Empty string if no files.
+    var formattedTotalFileSize: String {
+        let size = totalFileSize
+        guard size > 0 else { return "" }
+        if size < 1024 {
+            return "\(size) B"
+        } else if size < 1024 * 1024 {
+            return String(format: "%.2f KB", Double(size) / 1024.0)
+        } else {
+            return String(format: "%.2f MB", Double(size) / (1024.0 * 1024.0))
+        }
+    }
+
     // MARK: - Private
 
     private var service: (any DeviceService)?
 
+    /// Weak reference to the device view model for operation tracking.
+    /// The health ping suspends while any operation is in progress.
+    private weak var deviceVM: DeviceViewModel?
+
     // MARK: - Service Binding
 
-    /// Update the service reference (called when device connects/disconnects).
-    func bind(to service: (any DeviceService)?) {
+    /// Update the service reference and device view model (called when device connects/disconnects).
+    func bind(to service: (any DeviceService)?, deviceVM: DeviceViewModel?) {
         let changed = (self.service?.baseURL.absoluteString != service?.baseURL.absoluteString)
         self.service = service
+        self.deviceVM = deviceVM
         if changed {
             // Reset state when service changes
             currentPath = "/"
@@ -82,6 +130,9 @@ final class FileManagerViewModel {
         let targetPath = path ?? currentPath
         isLoading = true
         errorMessage = nil
+
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
 
         do {
             let result = try await service.listFiles(directory: targetPath)
@@ -123,6 +174,8 @@ final class FileManagerViewModel {
     /// Fetch device status (silently fails for unsupported firmware).
     func refreshStatus() async {
         guard let service else { return }
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
         do {
             deviceStatus = try await service.fetchStatus()
         } catch {
@@ -151,6 +204,9 @@ final class FileManagerViewModel {
             errorMessage = validationError
             return false
         }
+
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
 
         do {
             try await service.createFolder(name: name, parent: currentPath)
@@ -187,6 +243,8 @@ final class FileManagerViewModel {
     }
 
     /// Delete a file or folder.
+    /// For folders, attempts a simple delete first; if it fails with `.folderNotEmpty`,
+    /// the caller should use `deleteItemRecursive` instead.
     func deleteItem(_ file: DeviceFile, modelContext: ModelContext) async -> Bool {
         guard let service else {
             errorMessage = loc(.notConnectedToDevice)
@@ -194,6 +252,9 @@ final class FileManagerViewModel {
         }
 
         let action: ActivityAction = file.isDirectory ? .deleteFolder : .deleteFile
+
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
 
         do {
             if file.isDirectory {
@@ -217,12 +278,359 @@ final class FileManagerViewModel {
         }
     }
 
+    // MARK: - Recursive Folder Deletion
+
+    /// Maximum retry attempts per individual delete or listFiles operation.
+    private static let maxDeleteRetries = 2
+    /// Delay before retrying a failed delete operation.
+    private static let deleteRetryDelay: Duration = .seconds(1)
+    /// Cooldown between sequential delete operations to let the ESP32 recover.
+    private static let deleteCooldown: Duration = .milliseconds(300)
+    /// Number of consecutive failures before aborting the batch (device probably gone).
+    private static let deleteCircuitBreakerThreshold = 3
+
+    /// Count all items (files + folders) inside a folder recursively.
+    /// Sets `folderContentCount` and `isCountingContents` for UI binding.
+    func countFolderContents(_ folder: DeviceFile) async -> Int {
+        guard let service, folder.isDirectory else { return 0 }
+
+        isCountingContents = true
+        defer { isCountingContents = false }
+
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
+
+        let count = await recursiveCount(path: folder.path, service: service)
+        folderContentCount = count
+        return count
+    }
+
+    /// Recursively count all items under a path using the device service.
+    /// Retries `listFiles` up to `maxDeleteRetries` times per directory.
+    private func recursiveCount(path: String, service: any DeviceService) async -> Int {
+        guard let items = await listFilesWithRetry(path: path, service: service) else { return 0 }
+
+        var count = items.count
+        for item in items where item.isDirectory {
+            count += await recursiveCount(path: item.path, service: service)
+        }
+        return count
+    }
+
+    /// Request cancellation of the current recursive delete.
+    /// The loop will stop after the in-flight operation completes.
+    func cancelDelete() {
+        deleteCancelled = true
+        DebugLogger.log("Recursive delete cancellation requested by user", level: .info, category: .device)
+    }
+
+    /// Delete a folder and all its contents recursively with progress feedback.
+    ///
+    /// Strategy: depth-first traversal — delete files in each directory first,
+    /// then recurse into subdirectories, then delete the now-empty directory.
+    /// Each operation has retry logic (2 retries, 1s delay) and a circuit breaker
+    /// (3 consecutive failures = abort) to handle ESP32 WiFi instability.
+    /// Individual item failures are logged and skipped — the delete continues
+    /// with remaining items unless the circuit breaker trips or the user cancels.
+    func deleteItemRecursive(_ folder: DeviceFile, totalCount: Int, modelContext: ModelContext) async -> Bool {
+        guard let service, folder.isDirectory else {
+            errorMessage = loc(.notConnectedToDevice)
+            return false
+        }
+
+        let totalWithFolder = totalCount + 1 // +1 for the folder itself
+
+        isDeleting = true
+        deleteCancelled = false
+        deleteProgress = (0, totalWithFolder)
+        currentDeleteItem = nil
+        errorMessage = nil
+
+        deviceVM?.beginOperation()
+        deviceVM?.isBatchDeleting = true
+
+        var deletedCount = 0
+        var consecutiveFailures = 0
+        var skippedItems: [String] = []
+
+        DebugLogger.log(
+            "Recursive delete started: \(folder.name) (\(totalCount) items)",
+            level: .info, category: .device
+        )
+
+        let contentsCleared = await recursiveDelete(
+            path: folder.path,
+            service: service,
+            totalCount: totalWithFolder,
+            deletedCount: &deletedCount,
+            consecutiveFailures: &consecutiveFailures,
+            skippedItems: &skippedItems
+        )
+
+        let wasCancelled = deleteCancelled
+
+        // Attempt to delete the top-level folder itself (only if not cancelled)
+        var folderDeleted = false
+        if !wasCancelled {
+            if contentsCleared || skippedItems.isEmpty {
+                // All contents removed (or folder was already empty) — safe to delete
+                deletedCount += 1
+                deleteProgress = (deletedCount, totalWithFolder)
+                currentDeleteItem = folder.name
+                folderDeleted = await deleteWithRetry(service: service, isDirectory: true, path: folder.path)
+                if !folderDeleted {
+                    DebugLogger.log(
+                        "Failed to delete top-level folder: \(folder.path)",
+                        level: .error, category: .device
+                    )
+                }
+            } else if !skippedItems.isEmpty {
+                // Some items failed — try deleting the folder anyway
+                deletedCount += 1
+                deleteProgress = (deletedCount, totalWithFolder)
+                currentDeleteItem = folder.name
+                folderDeleted = await deleteWithRetry(service: service, isDirectory: true, path: folder.path)
+            }
+        }
+
+        deviceVM?.isBatchDeleting = false
+        deviceVM?.endOperation()
+
+        // Log results
+        if wasCancelled {
+            let detail = loc(.deleteStopped, deletedCount, totalWithFolder)
+            logActivity(.deleteFolder, detail: detail, modelContext: modelContext)
+            DebugLogger.log(
+                "Recursive delete stopped by user: \(folder.name) — \(deletedCount) of \(totalWithFolder) items deleted",
+                level: .info, category: .device
+            )
+        } else {
+            let failedCount = skippedItems.count + (folderDeleted ? 0 : 1)
+            let successCount = deletedCount - failedCount
+
+            if failedCount == 0 {
+                // Complete success
+                let detail = loc(.deletedFolderRecursive, folder.name, totalCount, currentPath)
+                logActivity(.deleteFolder, detail: detail, modelContext: modelContext)
+                DebugLogger.log(
+                    "Recursive delete complete: \(folder.name) — \(successCount) items deleted",
+                    level: .info, category: .device
+                )
+                if ReviewPromptManager.shouldPromptAfterSuccess() {
+                    shouldRequestReview = true
+                }
+            } else if contentsCleared || folderDeleted {
+                // Partial success — some items failed but the folder was deleted
+                let detail = loc(.deletedFolderRecursivePartial, folder.name, successCount, currentPath, failedCount)
+                logActivity(.deleteFolder, detail: detail, status: .failed, modelContext: modelContext)
+                DebugLogger.log(
+                    "Recursive delete partial: \(folder.name) — \(successCount) deleted, \(failedCount) failed",
+                    level: .warning, category: .device
+                )
+            } else {
+                // Total failure — circuit breaker tripped or couldn't clear contents
+                let detail = loc(.failedToDeleteFolderRecursive, currentPath, folder.name, deletedCount, totalCount)
+                logActivity(.deleteFolder, detail: detail, status: .failed, modelContext: modelContext)
+                DebugLogger.log(
+                    "Recursive delete failed: \(folder.name) — aborted after \(deletedCount) of \(totalCount) items",
+                    level: .error, category: .device
+                )
+            }
+        }
+
+        cleanupDeleteState()
+        await loadDirectory()
+        return !wasCancelled && skippedItems.isEmpty && folderDeleted
+    }
+
+    /// Depth-first recursive delete of all contents under a path.
+    ///
+    /// Returns `true` if the recursive traversal completed (even with some skipped items).
+    /// Returns `false` only if the circuit breaker tripped or listing failed.
+    /// Individual item failures are logged and skipped — the traversal continues.
+    private func recursiveDelete(
+        path: String,
+        service: any DeviceService,
+        totalCount: Int,
+        deletedCount: inout Int,
+        consecutiveFailures: inout Int,
+        skippedItems: inout [String]
+    ) async -> Bool {
+
+        // List directory contents with retry
+        guard let items = await listFilesWithRetry(path: path, service: service) else {
+            DebugLogger.log(
+                "Failed to list directory after retries: \(path)",
+                level: .error, category: .device
+            )
+            errorMessage = loc(.errorUnexpectedResponse)
+            return false
+        }
+
+        // Separate files and directories
+        let files = items.filter { !$0.isDirectory }
+        let directories = items.filter { $0.isDirectory }
+
+        // Delete all files first (leaves)
+        for file in files {
+            // User cancellation
+            if deleteCancelled { return false }
+
+            // Circuit breaker: abort if too many consecutive failures
+            if consecutiveFailures >= Self.deleteCircuitBreakerThreshold {
+                DebugLogger.log(
+                    "Circuit breaker tripped after \(consecutiveFailures) consecutive failures. Aborting recursive delete.",
+                    level: .error, category: .device
+                )
+                errorMessage = loc(.queueCircuitBreaker, consecutiveFailures)
+                return false
+            }
+
+            deletedCount += 1
+            deleteProgress = (deletedCount, totalCount)
+            currentDeleteItem = file.name
+
+            let success = await deleteWithRetry(service: service, isDirectory: false, path: file.path)
+            if success {
+                consecutiveFailures = 0
+            } else {
+                consecutiveFailures += 1
+                skippedItems.append(file.path)
+                DebugLogger.log(
+                    "Skipped file (delete failed after retries): \(file.path)",
+                    level: .error, category: .device
+                )
+                // Continue to next item instead of aborting
+            }
+
+            // Cooldown to let the ESP32 recover between operations
+            try? await Task.sleep(for: Self.deleteCooldown)
+        }
+
+        // Recurse into subdirectories (depth-first)
+        for dir in directories {
+            // User cancellation
+            if deleteCancelled { return false }
+
+            // Circuit breaker check before recursing
+            if consecutiveFailures >= Self.deleteCircuitBreakerThreshold {
+                DebugLogger.log(
+                    "Circuit breaker tripped after \(consecutiveFailures) consecutive failures. Aborting recursive delete.",
+                    level: .error, category: .device
+                )
+                errorMessage = loc(.queueCircuitBreaker, consecutiveFailures)
+                return false
+            }
+
+            let childCompleted = await recursiveDelete(
+                path: dir.path,
+                service: service,
+                totalCount: totalCount,
+                deletedCount: &deletedCount,
+                consecutiveFailures: &consecutiveFailures,
+                skippedItems: &skippedItems
+            )
+
+            // If child aborted (circuit breaker), propagate the abort
+            guard childCompleted else { return false }
+
+            // Delete the now-empty subdirectory
+            deletedCount += 1
+            deleteProgress = (deletedCount, totalCount)
+            currentDeleteItem = dir.name
+
+            let folderDeleted = await deleteWithRetry(service: service, isDirectory: true, path: dir.path)
+            if folderDeleted {
+                consecutiveFailures = 0
+            } else {
+                consecutiveFailures += 1
+                skippedItems.append(dir.path)
+                DebugLogger.log(
+                    "Skipped folder (delete failed after retries): \(dir.path)",
+                    level: .error, category: .device
+                )
+            }
+
+            try? await Task.sleep(for: Self.deleteCooldown)
+        }
+
+        return true
+    }
+
+    /// List files in a directory with retry logic.
+    /// Returns `nil` if all retries are exhausted.
+    private func listFilesWithRetry(path: String, service: any DeviceService) async -> [DeviceFile]? {
+        for attempt in 0...Self.maxDeleteRetries {
+            do {
+                return try await service.listFiles(directory: path)
+            } catch {
+                if attempt < Self.maxDeleteRetries {
+                    DebugLogger.log(
+                        "listFiles retry \(attempt + 1)/\(Self.maxDeleteRetries) for \(path): \(error.localizedDescription)",
+                        level: .warning, category: .device
+                    )
+                    try? await Task.sleep(for: Self.deleteRetryDelay)
+                } else {
+                    DebugLogger.log(
+                        "listFiles failed after all retries for \(path): \(error.localizedDescription)",
+                        level: .error, category: .device
+                    )
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Attempt to delete a single file or folder with retry logic.
+    /// Returns `true` on success, `false` after all retries are exhausted.
+    private func deleteWithRetry(service: any DeviceService, isDirectory: Bool, path: String) async -> Bool {
+        let kind = isDirectory ? "folder" : "file"
+
+        for attempt in 0...Self.maxDeleteRetries {
+            do {
+                if isDirectory {
+                    try await service.deleteFolder(path: path)
+                } else {
+                    try await service.deleteFile(path: path)
+                }
+                return true
+            } catch {
+                if attempt < Self.maxDeleteRetries {
+                    DebugLogger.log(
+                        "Delete \(kind) retry \(attempt + 1)/\(Self.maxDeleteRetries) for \(path): \(error.localizedDescription)",
+                        level: .warning, category: .device
+                    )
+                    try? await Task.sleep(for: Self.deleteRetryDelay)
+                } else {
+                    DebugLogger.log(
+                        "Delete \(kind) failed after all retries: \(path) — \(error.localizedDescription)",
+                        level: .error, category: .device
+                    )
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+        return false
+    }
+
+    /// Reset all recursive delete state.
+    private func cleanupDeleteState() {
+        isDeleting = false
+        deleteCancelled = false
+        deleteProgress = nil
+        currentDeleteItem = nil
+        folderContentCount = nil
+    }
+
     /// Move a file to a destination folder.
     func moveFile(_ file: DeviceFile, to destination: String, modelContext: ModelContext) async -> Bool {
         guard let service else {
             errorMessage = loc(.notConnectedToDevice)
             return false
         }
+
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
 
         do {
             try await service.moveFile(path: file.path, destination: destination)
@@ -243,6 +651,9 @@ final class FileManagerViewModel {
             errorMessage = loc(.notConnectedToDevice)
             return false
         }
+
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
 
         do {
             try await service.renameFile(path: file.path, newName: newName)
@@ -279,6 +690,8 @@ final class FileManagerViewModel {
     /// Fetch all folders from a given path (for the move destination picker).
     func fetchFolders(at path: String) async -> [DeviceFile] {
         guard let service else { return [] }
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
         do {
             let items = try await service.listFiles(directory: path)
             return items

@@ -18,6 +18,17 @@ final class QueueItem {
     var sourceDomain: String
     var queuedAt: Date
 
+    /// Optional override for the device destination folder.
+    /// When `nil`, the queue sender uses `settings.convertFolder` (the default).
+    /// RSS feed articles set this to `"feed/<domain>"` so they are organized
+    /// by source on the device.
+    var destinationFolder: String?
+
+    /// Optional link back to the originating `RSSArticle` record.
+    /// When non-nil, the queue sender updates the RSS article's status to `.sent`
+    /// after a successful send — fixing the stale "Queued" badge in the RSS feed sheet.
+    var rssArticleID: UUID?
+
     init(
         articleID: UUID,
         title: String,
@@ -25,7 +36,9 @@ final class QueueItem {
         filePath: String,
         fileSize: Int64,
         sourceURL: String,
-        sourceDomain: String
+        sourceDomain: String,
+        destinationFolder: String? = nil,
+        rssArticleID: UUID? = nil
     ) {
         self.id = UUID()
         self.articleID = articleID
@@ -36,6 +49,8 @@ final class QueueItem {
         self.sourceURL = sourceURL
         self.sourceDomain = sourceDomain
         self.queuedAt = Date()
+        self.destinationFolder = destinationFolder
+        self.rssArticleID = rssArticleID
     }
 
     /// Formatted file size for display (e.g., "1.2 MB").

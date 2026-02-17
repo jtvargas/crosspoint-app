@@ -4,9 +4,11 @@ import SwiftUI
 /// Persistent bottom status bar for macOS showing device connection status.
 ///
 /// Similar to Xcode's status bar — a thin horizontal bar at the bottom of the window
-/// showing connection state, firmware info, upload progress, and connect/disconnect controls.
+/// showing connection state, firmware info, upload/batch progress, and connect/disconnect controls.
 struct MacDeviceStatusBar: View {
     var deviceVM: DeviceViewModel
+    var queueVM: QueueViewModel
+    var rssVM: RSSFeedViewModel
     var settings: DeviceSettings
 
     var body: some View {
@@ -21,7 +23,7 @@ struct MacDeviceStatusBar: View {
 
             Spacer()
 
-            // Upload progress replaces action buttons when active
+            // Upload / batch progress replaces action buttons when active
             if isUploading {
                 ProgressView(value: deviceVM.uploadProgress, total: 1.0)
                     .frame(width: 120)
@@ -30,6 +32,16 @@ struct MacDeviceStatusBar: View {
                 Text("\(Int(deviceVM.uploadProgress * 100))%")
                     .font(.caption.weight(.semibold).monospacedDigit())
                     .foregroundStyle(Color.accentColor)
+            } else if isBatchActive {
+                ProgressView(value: batchFraction, total: 1.0)
+                    .frame(width: 120)
+                    .controlSize(.small)
+
+                if let progress = queueVM.sendProgress ?? rssVM.batchProgress {
+                    Text("\(progress.current)/\(progress.total)")
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(Color.accentColor)
+                }
             } else {
                 // Refresh button
                 Button {
@@ -71,6 +83,16 @@ struct MacDeviceStatusBar: View {
             Text(loc(.scanningNetwork))
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        } else if queueVM.isSending, let progress = queueVM.sendProgress {
+            Text(loc(.batchSendingProgress, progress.current, progress.total))
+                .font(.caption.weight(.medium))
+        } else if rssVM.isBatchProcessing, let progress = rssVM.batchProgress {
+            Text(loc(.batchConvertingProgress, progress.current, progress.total))
+                .font(.caption.weight(.medium))
+        } else if isUploading, let filename = deviceVM.uploadFilename {
+            Text(loc(.batchSendingItem, filename))
+                .font(.caption.weight(.medium))
+                .lineLimit(1)
         } else if deviceVM.isConnected {
             HStack(spacing: 6) {
                 Text(deviceVM.firmwareLabel)
@@ -91,14 +113,32 @@ struct MacDeviceStatusBar: View {
         }
     }
 
+    /// True when a single-file upload is actively transferring data.
     private var isUploading: Bool {
         deviceVM.isUploading
             && deviceVM.uploadProgress > 0
             && deviceVM.uploadProgress < 1.0
     }
 
+    /// True when a multi-item batch operation is running (queue send or RSS batch).
+    private var isBatchActive: Bool {
+        queueVM.isSending || rssVM.isBatchProcessing
+    }
+
+    /// Fractional progress for batch operations (0.0 to 1.0).
+    private var batchFraction: Double {
+        if let progress = queueVM.sendProgress, progress.total > 0 {
+            return Double(progress.current) / Double(progress.total)
+        }
+        if let progress = rssVM.batchProgress, progress.total > 0 {
+            return Double(progress.current) / Double(progress.total)
+        }
+        return 0
+    }
+
     private var statusColor: Color {
         if deviceVM.isSearching { return AppColor.warning }
+        if isBatchActive { return AppColor.accent }
         return deviceVM.isConnected ? AppColor.success : AppColor.error
     }
 }

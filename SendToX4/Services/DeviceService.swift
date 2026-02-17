@@ -73,6 +73,7 @@ nonisolated enum DeviceError: LocalizedError {
     case deleteFailed(String)
     case moveFailed(String)
     case renameFailed(String)
+    case batchDeleteInProgress
     case folderNotEmpty
     case itemAlreadyExists
     case protectedItem
@@ -101,6 +102,8 @@ nonisolated enum DeviceError: LocalizedError {
             return loc(.errorMoveFailed, message)
         case .renameFailed(let message):
             return loc(.errorRenameFailed, message)
+        case .batchDeleteInProgress:
+            return loc(.errorBatchDeleteInProgress)
         case .folderNotEmpty:
             return loc(.errorFolderNotEmpty)
         case .itemAlreadyExists:
@@ -168,14 +171,52 @@ nonisolated protocol DeviceService: Sendable {
 // MARK: - Default Implementations
 
 nonisolated extension DeviceService {
+    /// Ensure a folder path exists on the device, creating intermediate directories
+    /// as needed. Supports nested paths like `"feed/techcrunch.com"` by splitting
+    /// into segments and creating each level: `/feed/` then `/feed/techcrunch.com/`.
+    ///
+    /// Each segment is created with retry logic (2 retries, 0.5s delay) to handle
+    /// transient network failures common with ESP32 WiFi.
     func ensureFolder(_ name: String) async throws {
-        let files = try await listFiles(directory: "/")
-        let normalizedName = name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        let exists = files.contains {
-            $0.isDirectory && $0.name.trimmingCharacters(in: CharacterSet(charactersIn: "/")) == normalizedName
-        }
-        if !exists {
-            try await createFolder(name: normalizedName, parent: "/")
+        let segments = name
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .split(separator: "/")
+            .map(String.init)
+
+        guard !segments.isEmpty else { return }
+
+        var currentPath = "/"
+
+        for segment in segments {
+            var created = false
+
+            for attempt in 0...2 {
+                do {
+                    let files = try await listFiles(directory: currentPath)
+                    let exists = files.contains { $0.isDirectory && $0.name == segment }
+
+                    if !exists {
+                        try await createFolder(name: segment, parent: currentPath)
+                    }
+                    created = true
+                    break // Success — move to next segment
+                } catch {
+                    if attempt < 2 {
+                        // Wait before retry — give the ESP32 time to recover
+                        try? await Task.sleep(for: .milliseconds(500))
+                    } else {
+                        // All retries exhausted — propagate the error
+                        throw error
+                    }
+                }
+            }
+
+            guard created else { break }
+
+            // Advance to the next level
+            currentPath = currentPath == "/"
+                ? "/\(segment)"
+                : "\(currentPath)/\(segment)"
         }
     }
 

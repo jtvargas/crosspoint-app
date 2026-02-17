@@ -641,17 +641,49 @@ struct WallpaperXView: View {
 // MARK: - WallpaperQuickControls (tab bar bottom accessory)
 
 /// Minimal controls shown in the tab bar bottom accessory when WallpaperX is selected.
-/// Contains rotation buttons, an "Advanced" button, and a global upload progress indicator.
+/// Contains rotation buttons, an "Advanced" button, and a global upload/batch progress indicator.
 struct WallpaperQuickControls: View {
     @Bindable var wallpaperVM: WallpaperViewModel
     var deviceVM: DeviceViewModel
+    var queueVM: QueueViewModel
+    var rssVM: RSSFeedViewModel
     @Binding var showAdvancedSettings: Bool
+
+    /// True when a single-file upload is actively transferring data.
+    private var isUploading: Bool {
+        deviceVM.isUploading
+    }
+
+    /// True when a multi-item batch operation is running (queue send or RSS batch).
+    private var isBatchActive: Bool {
+        queueVM.isSending || rssVM.isBatchProcessing
+    }
+
+    /// True when any send/upload operation is active.
+    private var isBusy: Bool {
+        isUploading || isBatchActive
+    }
+
+    /// Fractional progress for batch operations (0.0 to 1.0).
+    private var batchFraction: Double {
+        if let progress = queueVM.sendProgress, progress.total > 0 {
+            return Double(progress.current) / Double(progress.total)
+        }
+        if let progress = rssVM.batchProgress, progress.total > 0 {
+            return Double(progress.current) / Double(progress.total)
+        }
+        return 0
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Upload progress bar — thin line across full width (matches DeviceConnectionAccessory)
-            if deviceVM.isUploading {
+            // Progress bar — thin line across full width (matches DeviceConnectionAccessory)
+            if isUploading {
                 ProgressView(value: deviceVM.uploadProgress, total: 1.0)
+                    .tint(.accentColor)
+                    .scaleEffect(y: 0.5)
+            } else if isBatchActive {
+                ProgressView(value: batchFraction, total: 1.0)
                     .tint(.accentColor)
                     .scaleEffect(y: 0.5)
             }
@@ -689,7 +721,7 @@ struct WallpaperQuickControls: View {
 
                 Spacer()
 
-                if deviceVM.isUploading {
+                if isUploading {
                     // Show upload progress instead of Advanced button
                     HStack(spacing: 6) {
                         ProgressView()
@@ -697,6 +729,17 @@ struct WallpaperQuickControls: View {
                         Text("\(Int(deviceVM.uploadProgress * 100))%")
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
+                    }
+                } else if isBatchActive {
+                    // Show batch progress (queue send or RSS batch)
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.small)
+                        if let progress = queueVM.sendProgress ?? rssVM.batchProgress {
+                            Text("\(progress.current)/\(progress.total)")
+                                .font(.caption.weight(.semibold).monospacedDigit())
+                                .foregroundStyle(Color.accentColor)
+                        }
                     }
                 } else {
                     // Advanced settings button

@@ -9,6 +9,7 @@ struct ConvertView: View {
     @Bindable var convertVM: ConvertViewModel
     var deviceVM: DeviceViewModel
     var queueVM: QueueViewModel
+    @Bindable var rssVM: RSSFeedViewModel
     var settings: DeviceSettings
     @Binding var selectedTab: AppTab
 
@@ -21,12 +22,21 @@ struct ConvertView: View {
     @Query(sort: \QueueItem.queuedAt) private var queueItems: [QueueItem]
 
     @State private var showShareSheet = false
+    @State private var showLargeQueueWarning = false
     @State private var shareEPUBData: Data?
     @State private var shareFilename: String?
     @FocusState private var isURLFieldFocused: Bool
 
     private var recentArticles: [Article] {
         Array(completedArticles.prefix(3))
+    }
+
+    /// Formatted total size of all queued items (e.g. "1.2 MB").
+    private var queueTotalSizeFormatted: String {
+        let total = queueItems.reduce(Int64(0)) { $0 + $1.fileSize }
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: total)
     }
 
     var body: some View {
@@ -38,6 +48,9 @@ struct ConvertView: View {
 
                     // Action Buttons
                     actionButtons
+
+                    // RSS Feeds Card
+                    rssFeedCard
 
                     // Status / Error Display
                     statusDisplay
@@ -55,6 +68,14 @@ struct ConvertView: View {
             }
             .navigationTitle(loc(.tabConvert))
             .settingsToolbar(deviceVM: deviceVM, settings: settings)
+            .sheet(isPresented: $rssVM.showFeedSheet) {
+                RSSFeedSheet(
+                    rssVM: rssVM,
+                    deviceVM: deviceVM,
+                    queueVM: queueVM,
+                    settings: settings
+                )
+            }
             .sheet(isPresented: $showShareSheet) {
                 if let shareEPUBData, let shareFilename {
                     let tempURL = FileManager.default.temporaryDirectory
@@ -130,12 +151,17 @@ struct ConvertView: View {
         }
     }
 
-    // MARK: - Action Buttons
+    // MARK: - Action Button
+
+    /// Whether the button is in a brief post-success state (Sent / Queued).
+    private var isSuccessPhase: Bool {
+        !convertVM.isProcessing
+        && (convertVM.currentPhase == .sent || convertVM.currentPhase == .savedLocally)
+    }
 
     private var actionButtons: some View {
-        VStack(spacing: 12) {
-            // Primary: Convert & Send
-            Button {
+        Button {
+            if !convertVM.isProcessing && !isSuccessPhase {
                 isURLFieldFocused = false
                 Task {
                     await convertVM.convertAndSend(
@@ -145,54 +171,109 @@ struct ConvertView: View {
                         settings: settings
                     )
                 }
-            } label: {
-                HStack {
-                    if convertVM.isProcessing {
-                        if convertVM.currentPhase == .sending && deviceVM.uploadProgress > 0 {
-                            // Determinate progress during upload
-                            ProgressView(value: deviceVM.uploadProgress)
-                                .progressViewStyle(.circular)
-                                .tint(.white)
-                            Text(loc(.sendingPercent, Int(deviceVM.uploadProgress * 100)))
-                        } else {
+            }
+        } label: {
+            HStack {
+                if convertVM.isProcessing {
+                    if convertVM.currentPhase == .sending && deviceVM.uploadProgress > 0 {
+                        // Determinate progress during upload
+                        ProgressView(value: deviceVM.uploadProgress)
+                            .progressViewStyle(.circular)
+                            .tint(.white)
+                        Text(loc(.sendingPercent, Int(deviceVM.uploadProgress * 100)))
+                    } else {
+                        ProgressView()
+                            .tint(.white)
+                        Text(convertVM.phaseLabel)
+                    }
+                } else if isSuccessPhase {
+                    // Brief success confirmation (visible for ~1.5s before auto-reset)
+                    Image(systemName: "checkmark.circle.fill")
+                    Text(convertVM.phaseLabel)
+                } else {
+                    Image(systemName: deviceVM.isConnected
+                          ? "paperplane.fill" : "doc.text")
+                    Text(deviceVM.isConnected
+                         ? loc(.convertAndSend) : loc(.convertToEPUB))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .animation(.easeInOut(duration: 0.2), value: convertVM.currentPhase)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(isSuccessPhase ? AppColor.success : nil)
+        .buttonBorderShape(.roundedRectangle(radius: 16))
+        .disabled(
+            convertVM.urlString
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || convertVM.isProcessing
+            || isSuccessPhase
+        )
+    }
+
+    // MARK: - RSS Feed Card
+
+    private var rssFeedCard: some View {
+        Button {
+            rssVM.showFeedSheet = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "dot.radiowaves.up.and.down")
+                    .font(.title3)
+                    .foregroundStyle(AppColor.accent)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text(loc(.rssFeeds))
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.primary)
+
+                        Spacer()
+
+                        if rssVM.newArticleCount > 0 {
+                            Text("\(rssVM.newArticleCount) \(loc(.rssNew))")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(.gray, in: Capsule())
+                        }
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    if rssVM.isRefreshing {
+                        HStack(spacing: 4) {
                             ProgressView()
-                                .tint(.white)
-                            Text(convertVM.phaseLabel)
+                                .controlSize(.mini)
+                            Text(loc(.rssRefreshing))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     } else {
-                        Image(systemName: deviceVM.isConnected
-                              ? "paperplane.fill" : "doc.text")
-                        Text(deviceVM.isConnected
-                             ? loc(.convertAndSend) : loc(.convertToEPUB))
+                        let feeds = rssVM.fetchFeeds(modelContext: modelContext)
+                        if feeds.isEmpty {
+                            Text(loc(.rssTapToSetup))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(feeds.map(\.title).joined(separator: " \u{00B7} "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: 16))
-            .disabled(
-                convertVM.urlString
-                    .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                || convertVM.isProcessing
-            )
-
-            // Secondary: Save to Files
-            if convertVM.lastEPUBData != nil {
-                Button {
-                    showShareSheet = true
-                } label: {
-                    HStack {
-                        Image(systemName: "square.and.arrow.up")
-                        Text(loc(.saveToFiles))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.roundedRectangle(radius: 16))
-            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .glassEffect(.regular, in: .rect(cornerRadius: 16))
         }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Status Display
@@ -369,10 +450,21 @@ struct ConvertView: View {
         VStack(spacing: 0) {
             // Section header
             HStack {
-                Text(loc(.sendQueue))
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
+                HStack(spacing: 4) {
+                    Text(loc(.sendQueue))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+
+                    if !queueItems.isEmpty {
+                        Text("·")
+                            .font(.footnote)
+                            .foregroundStyle(.quaternary)
+                        Text(loc(.queueTotalSize, queueTotalSizeFormatted))
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
 
                 Spacer()
 
@@ -387,12 +479,16 @@ struct ConvertView: View {
                         }
                     } else if deviceVM.isConnected {
                         Button {
-                            Task {
-                                await queueVM.sendAll(
-                                    deviceVM: deviceVM,
-                                    settings: settings,
-                                    modelContext: modelContext
-                                )
+                            if queueItems.count > QueueViewModel.largeQueueThreshold {
+                                showLargeQueueWarning = true
+                            } else {
+                                Task {
+                                    await queueVM.sendAll(
+                                        deviceVM: deviceVM,
+                                        settings: settings,
+                                        modelContext: modelContext
+                                    )
+                                }
                             }
                         } label: {
                             HStack(spacing: 4) {
@@ -401,7 +497,7 @@ struct ConvertView: View {
                             }
                             .font(.caption.weight(.medium))
                         }
-                        .disabled(queueVM.isSending)
+                        .disabled(queueVM.isSending || queueVM.isSendingSingle)
                     }
                 }
             }
@@ -414,6 +510,23 @@ struct ConvertView: View {
             } else {
                 queueList
             }
+        }
+        .alert(loc(.largeQueueWarningTitle), isPresented: $showLargeQueueWarning) {
+            Button(loc(.sendAnyway)) {
+                Task {
+                    await queueVM.sendAll(
+                        deviceVM: deviceVM,
+                        settings: settings,
+                        modelContext: modelContext
+                    )
+                }
+            }
+            Button(loc(.cancel), role: .cancel) {}
+        } message: {
+            Text(loc(.largeQueueWarningMessage,
+                      queueItems.count,
+                      QueueViewModel.formatTransferTime(for: queueItems))
+                 + loc(.estimateImprovesNotice))
         }
     }
 
@@ -455,10 +568,19 @@ struct ConvertView: View {
     }
 
     private func queueRow(_ item: QueueItem) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "doc.text.fill")
-                .foregroundStyle(AppColor.accent)
-                .frame(width: 20)
+        let isPending = queueVM.pendingSendIDs.contains(item.id)
+
+        return HStack(spacing: 10) {
+            // Leading icon: spinner when this item is pending/sending, doc icon otherwise
+            if isPending {
+                ProgressView()
+                    .controlSize(.mini)
+                    .frame(width: 20)
+            } else {
+                Image(systemName: "doc.text.fill")
+                    .foregroundStyle(AppColor.accent)
+                    .frame(width: 20)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
@@ -476,17 +598,36 @@ struct ConvertView: View {
 
             Spacer(minLength: 0)
 
-            // Swipe-to-delete alternative: small delete button
-            Button(role: .destructive) {
-                withAnimation {
-                    queueVM.remove(item, modelContext: modelContext)
+            // Send button (visible when connected and not in batch send)
+            if deviceVM.isConnected && !queueVM.isSending && !isPending {
+                Button {
+                    queueVM.enqueueSend(
+                        item,
+                        deviceVM: deviceVM,
+                        settings: settings,
+                        modelContext: modelContext
+                    )
+                } label: {
+                    Image(systemName: "paperplane.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(AppColor.accent)
                 }
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+
+            // Remove button (hidden when item is pending send)
+            if !isPending {
+                Button(role: .destructive) {
+                    withAnimation {
+                        queueVM.remove(item, modelContext: modelContext)
+                    }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(.vertical, 8)
     }

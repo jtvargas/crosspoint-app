@@ -209,8 +209,8 @@ final class WallpaperViewModel {
             lastBMPData = bmpData
             lastBMPFilename = filename
 
-            // Upload to device if connected
-            if deviceVM.isConnected {
+            // Upload to device if connected and not busy deleting
+            if deviceVM.isConnected && !deviceVM.isBatchDeleting {
                 statusMessage = loc(.phaseSending)
                 try await deviceVM.upload(
                     data: bmpData,

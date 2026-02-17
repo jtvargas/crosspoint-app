@@ -57,6 +57,12 @@ final class ConvertViewModel {
             return
         }
 
+        // Duplicate prevention: block if this URL is already queued
+        if QueueViewModel.isURLQueued(url.absoluteString, modelContext: modelContext) {
+            lastError = loc(.urlAlreadyQueued)
+            return
+        }
+
         isProcessing = true
         lastError = nil
         lastEPUBData = nil
@@ -64,6 +70,11 @@ final class ConvertViewModel {
 
         let article = Article(url: url.absoluteString, sourceDomain: url.host ?? "unknown")
         modelContext.insert(article)
+
+        DebugLogger.log(
+            "Conversion started: \(url.absoluteString)",
+            level: .info, category: .conversion
+        )
 
         do {
             // Phase 1: Fetch
@@ -98,8 +109,8 @@ final class ConvertViewModel {
             lastEPUBData = epubData
             lastFilename = filename
 
-            // Phase 4: Send to device (if connected)
-            if deviceVM.isConnected {
+            // Phase 4: Send to device (if connected and not busy deleting)
+            if deviceVM.isConnected && !deviceVM.isBatchDeleting {
                 currentPhase = .sending
                 article.status = .sending
                 let folder = settings?.convertFolder ?? "content"
@@ -108,6 +119,11 @@ final class ConvertViewModel {
                 currentPhase = .sent
                 article.status = .sent
                 statusMessage = loc(.sentArticleToX4, content.title.truncated(to: 40))
+
+                DebugLogger.log(
+                    "Conversion complete + sent: '\(content.title)' (\(filename))",
+                    level: .info, category: .conversion
+                )
 
                 if ReviewPromptManager.shouldPromptAfterSuccess() {
                     shouldRequestReview = true
@@ -128,6 +144,11 @@ final class ConvertViewModel {
                 )
                 statusMessage = loc(.queuedArticle, content.title.truncated(to: 40))
 
+                DebugLogger.log(
+                    "Conversion complete + queued: '\(content.title)' (\(filename))",
+                    level: .info, category: .conversion
+                )
+
                 // Auto-reset after delay so the user sees the queued message
                 try? await Task.sleep(for: .seconds(1.5))
                 reset()
@@ -139,6 +160,11 @@ final class ConvertViewModel {
             article.errorMessage = error.localizedDescription
             lastError = error.localizedDescription
             statusMessage = ""
+
+            DebugLogger.log(
+                "Conversion failed for \(url.absoluteString): \(error.localizedDescription)",
+                level: .error, category: .conversion
+            )
         }
 
         isProcessing = false
