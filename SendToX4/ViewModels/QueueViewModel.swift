@@ -48,7 +48,8 @@ final class QueueViewModel {
         filename: String,
         article: Article,
         modelContext: ModelContext,
-        destinationFolder: String? = nil
+        destinationFolder: String? = nil,
+        rssArticleID: UUID? = nil
     ) throws -> QueueItem {
         try ensureQueueDirectory()
 
@@ -66,7 +67,8 @@ final class QueueViewModel {
             fileSize: Int64(epubData.count),
             sourceURL: article.url,
             sourceDomain: article.sourceDomain,
-            destinationFolder: destinationFolder
+            destinationFolder: destinationFolder,
+            rssArticleID: rssArticleID
         )
         item.id = itemID
         modelContext.insert(item)
@@ -176,6 +178,11 @@ final class QueueViewModel {
                     // Update linked Article status to .sent
                     updateArticleStatus(articleID: item.articleID, to: .sent, modelContext: modelContext)
 
+                    // Update linked RSSArticle status to .sent (if this was an RSS-originated item)
+                    if let rssID = item.rssArticleID {
+                        updateRSSArticleStatus(rssArticleID: rssID, to: .sent, modelContext: modelContext)
+                    }
+
                     // Delete file from disk
                     try? FileManager.default.removeItem(at: item.fileURL)
 
@@ -282,6 +289,26 @@ final class QueueViewModel {
         )
         if let article = try? modelContext.fetch(descriptor).first {
             article.status = status
+        }
+    }
+
+    /// Find and update the RSSArticle linked to a queue item.
+    /// This ensures RSS articles transition from `.queued` to `.sent`
+    /// after the queue sender successfully uploads them to the device.
+    private func updateRSSArticleStatus(
+        rssArticleID: UUID,
+        to status: RSSArticleStatus,
+        modelContext: ModelContext
+    ) {
+        let descriptor = FetchDescriptor<RSSArticle>(
+            predicate: #Predicate<RSSArticle> { $0.id == rssArticleID }
+        )
+        if let rssArticle = try? modelContext.fetch(descriptor).first {
+            rssArticle.status = status
+            DebugLogger.log(
+                "Updated RSS article status to .\(status.rawValue): \(rssArticle.title)",
+                level: .info, category: .rss
+            )
         }
     }
 }

@@ -1,7 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// Main RSS feed sheet — browse articles, select, and batch send/queue.
+/// Main RSS feed sheet — two-level navigation:
+/// 1. Feed grid (2×2 cards) as the landing page.
+/// 2. Article list for a selected feed (or all feeds combined).
 struct RSSFeedSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -10,31 +12,17 @@ struct RSSFeedSheet: View {
     var queueVM: QueueViewModel
     var settings: DeviceSettings
 
-    @State private var showConfig = false
-
     private var feeds: [RSSFeed] {
         rssVM.fetchFeeds(modelContext: modelContext)
     }
 
-    private var articles: [RSSArticle] {
-        rssVM.fetchFilteredArticles(modelContext: modelContext)
-    }
-
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            Group {
                 if feeds.isEmpty {
                     emptyState
                 } else {
-                    VStack(spacing: 0) {
-                        feedSelector
-                        articleList
-                    }
-                }
-
-                // Batch action bar (sticky bottom)
-                if !rssVM.selectedArticleIDs.isEmpty || rssVM.isBatchProcessing {
-                    batchActionBar
+                    feedGrid
                 }
             }
             .navigationTitle(loc(.rssFeeds))
@@ -102,63 +90,215 @@ struct RSSFeedSheet: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Feed Selector
+    // MARK: - Feed Grid
 
-    private var feedSelector: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                feedPill(title: loc(.filterAll), feedID: nil, count: totalNewCount)
+    private var feedGrid: some View {
+        ScrollView {
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)],
+                spacing: 12
+            ) {
+                // "All Feeds" card (first position)
+                allFeedsCard
 
+                // Per-feed cards
                 ForEach(feeds) { feed in
-                    feedPill(
-                        title: feed.title,
-                        feedID: feed.id,
-                        count: newCount(for: feed.id)
-                    )
+                    feedCard(for: feed)
                 }
+
+                // "+ Add Feed" card (last position)
+                addFeedCard
             }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
+            .padding()
         }
     }
 
-    private func feedPill(title: String, feedID: UUID?, count: Int) -> some View {
-        let isSelected = rssVM.selectedFeedID == feedID
-        return Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                rssVM.selectedFeedID = feedID
-                rssVM.deselectAll()
-            }
+    // MARK: - All Feeds Card
+
+    private var allFeedsCard: some View {
+        NavigationLink {
+            RSSArticleListView(
+                rssVM: rssVM,
+                deviceVM: deviceVM,
+                queueVM: queueVM,
+                settings: settings,
+                feedTitle: loc(.rssAllFeeds),
+                feedID: nil
+            )
         } label: {
-            HStack(spacing: 4) {
-                Text(title)
-                    .font(.caption.weight(.medium))
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "rectangle.stack.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppColor.accent)
+                    Spacer()
+                    if totalNewCount > 0 {
+                        Text("\(totalNewCount)")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(AppColor.accent, in: Capsule())
+                    }
+                }
+
+                Spacer()
+
+                Text(loc(.rssAllFeeds))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.caption2.weight(.bold))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(
-                            isSelected ? Color.white.opacity(0.3) : AppColor.accent.opacity(0.2),
-                            in: Capsule()
-                        )
-                }
+                Text(loc(.rssFeedCount, feeds.count))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                isSelected ? AppColor.accent : Color.clear,
-                in: Capsule()
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .aspectRatio(1.0, contentMode: .fill)
+            .contentShape(Rectangle())
+            .glassEffect(.regular, in: .rect(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Feed Card
+
+    private func feedCard(for feed: RSSFeed) -> some View {
+        let count = newCount(for: feed.id)
+
+        return NavigationLink {
+            RSSArticleListView(
+                rssVM: rssVM,
+                deviceVM: deviceVM,
+                queueVM: queueVM,
+                settings: settings,
+                feedTitle: feed.title,
+                feedID: feed.id
             )
-            .foregroundStyle(isSelected ? .white : .primary)
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "dot.radiowaves.up.and.down")
+                        .font(.title3)
+                        .foregroundStyle(feed.isEnabled ? AppColor.accent : .secondary)
+                    Spacer()
+                    if count > 0 {
+                        Text("\(count)")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(AppColor.accent, in: Capsule())
+                    }
+                }
+
+                Spacer()
+
+                Text(feed.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Text(feed.domain)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .aspectRatio(1.0, contentMode: .fill)
+            .contentShape(Rectangle())
+            .glassEffect(.regular, in: .rect(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Add Feed Card
+
+    private var addFeedCard: some View {
+        NavigationLink {
+            RSSFeedConfigView(rssVM: rssVM)
+        } label: {
+            VStack(spacing: 8) {
+                Image(systemName: "plus")
+                    .font(.title2.weight(.medium))
+                    .foregroundStyle(.secondary)
+
+                Text(loc(.rssAddNewFeed))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .aspectRatio(1.0, contentMode: .fill)
+            .contentShape(Rectangle())
             .overlay(
-                Capsule()
-                    .stroke(isSelected ? Color.clear : Color.secondary.opacity(0.3), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                    .foregroundStyle(Color.secondary.opacity(0.3))
             )
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Helpers
+
+    private var totalNewCount: Int {
+        let newStatus = RSSArticleStatus.new.rawValue
+        let descriptor = FetchDescriptor<RSSArticle>(
+            predicate: #Predicate<RSSArticle> { $0.statusRaw == newStatus }
+        )
+        return (try? modelContext.fetchCount(descriptor)) ?? 0
+    }
+
+    private func newCount(for feedID: UUID) -> Int {
+        let newStatus = RSSArticleStatus.new.rawValue
+        let descriptor = FetchDescriptor<RSSArticle>(
+            predicate: #Predicate<RSSArticle> { $0.feedID == feedID && $0.statusRaw == newStatus }
+        )
+        return (try? modelContext.fetchCount(descriptor)) ?? 0
+    }
+}
+
+// MARK: - Article List View (Level 2)
+
+/// Displays articles for a single feed or all feeds combined.
+/// Pushed onto the NavigationStack from the feed grid.
+private struct RSSArticleListView: View {
+    @Environment(\.modelContext) private var modelContext
+    var rssVM: RSSFeedViewModel
+    var deviceVM: DeviceViewModel
+    var queueVM: QueueViewModel
+    var settings: DeviceSettings
+
+    /// Display title for the navigation bar.
+    let feedTitle: String
+
+    /// Feed to filter by. `nil` means show all feeds.
+    let feedID: UUID?
+
+    private var articles: [RSSArticle] {
+        rssVM.fetchFilteredArticles(modelContext: modelContext)
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            articleList
+
+            // Batch action bar (sticky bottom)
+            if !rssVM.selectedArticleIDs.isEmpty || rssVM.isBatchProcessing {
+                batchActionBar
+            }
+        }
+        .navigationTitle(feedTitle)
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .onAppear {
+            rssVM.selectedFeedID = feedID
+            rssVM.deselectAll()
+        }
     }
 
     // MARK: - Article List
@@ -415,23 +555,5 @@ struct RSSFeedSheet: View {
         }
         .padding(.bottom, 8)
         .background(.bar)
-    }
-
-    // MARK: - Helpers
-
-    private var totalNewCount: Int {
-        let newStatus = RSSArticleStatus.new.rawValue
-        let descriptor = FetchDescriptor<RSSArticle>(
-            predicate: #Predicate<RSSArticle> { $0.statusRaw == newStatus }
-        )
-        return (try? modelContext.fetchCount(descriptor)) ?? 0
-    }
-
-    private func newCount(for feedID: UUID) -> Int {
-        let newStatus = RSSArticleStatus.new.rawValue
-        let descriptor = FetchDescriptor<RSSArticle>(
-            predicate: #Predicate<RSSArticle> { $0.feedID == feedID && $0.statusRaw == newStatus }
-        )
-        return (try? modelContext.fetchCount(descriptor)) ?? 0
     }
 }

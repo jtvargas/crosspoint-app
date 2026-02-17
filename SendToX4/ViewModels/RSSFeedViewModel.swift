@@ -300,7 +300,8 @@ final class RSSFeedViewModel {
                         filename: filename,
                         article: article,
                         modelContext: modelContext,
-                        destinationFolder: destFolder
+                        destinationFolder: destFolder,
+                        rssArticleID: rssArticle.id
                     )
                     article.status = .savedLocally
                     rssArticle.status = .queued

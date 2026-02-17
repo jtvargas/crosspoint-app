@@ -24,6 +24,11 @@ final class QueueItem {
     /// by source on the device.
     var destinationFolder: String?
 
+    /// Optional link back to the originating `RSSArticle` record.
+    /// When non-nil, the queue sender updates the RSS article's status to `.sent`
+    /// after a successful send — fixing the stale "Queued" badge in the RSS feed sheet.
+    var rssArticleID: UUID?
+
     init(
         articleID: UUID,
         title: String,
@@ -32,7 +37,8 @@ final class QueueItem {
         fileSize: Int64,
         sourceURL: String,
         sourceDomain: String,
-        destinationFolder: String? = nil
+        destinationFolder: String? = nil,
+        rssArticleID: UUID? = nil
     ) {
         self.id = UUID()
         self.articleID = articleID
@@ -44,6 +50,7 @@ final class QueueItem {
         self.sourceDomain = sourceDomain
         self.queuedAt = Date()
         self.destinationFolder = destinationFolder
+        self.rssArticleID = rssArticleID
     }
 
     /// Formatted file size for display (e.g., "1.2 MB").

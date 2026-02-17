@@ -346,6 +346,14 @@ enum L10n {
         case debugLogsEmpty
         case debugLogsEmptyDescription
         case debugLogsEntryCount
+        case clearDebugLogs
+        case clearDebugLogsTitle
+        case clearDebugLogsMessage
+        case storageAndLogsDescription
+        case reportBugTitle
+        case reportBugMessage
+        case copyLogsAndReport
+        case reportWithoutLogs
         case debugFilterAll
         case debugFilterErrors
         case debugFilterQueue
@@ -360,6 +368,9 @@ enum L10n {
         case rssRefreshing
         case rssTapToSetup
         case rssManageFeeds
+        case rssAllFeeds
+        case rssFeedCount
+        case rssAddNewFeed
         case rssEnterFeedURL
         case rssValidating
         case rssAddFeed
@@ -739,6 +750,14 @@ enum L10n {
         .debugLogsEmpty: "No Log Entries",
         .debugLogsEmptyDescription: "Debug events will appear here as you use the app.",
         .debugLogsEntryCount: "%d entries",
+        .clearDebugLogs: "Clear Debug Logs",
+        .clearDebugLogsTitle: "Clear Debug Logs?",
+        .clearDebugLogsMessage: "All debug log entries will be permanently deleted.",
+        .storageAndLogsDescription: "Database includes conversion history and file activity logs. Web Cache stores fetched web pages for faster re-conversion. Debug logs help when sharing bug reports.",
+        .reportBugTitle: "Report a Bug",
+        .reportBugMessage: "Would you like to copy debug logs to the clipboard? Including logs helps diagnose issues faster.",
+        .copyLogsAndReport: "Copy Logs & Report",
+        .reportWithoutLogs: "Report Without Logs",
         .debugFilterAll: "All",
         .debugFilterErrors: "Errors",
         .debugFilterQueue: "Queue",
@@ -753,6 +772,9 @@ enum L10n {
         .rssRefreshing: "Refreshing feeds...",
         .rssTapToSetup: "Tap to set up your RSS feeds",
         .rssManageFeeds: "Manage Feeds",
+        .rssAllFeeds: "All Feeds",
+        .rssFeedCount: "%d feeds",
+        .rssAddNewFeed: "Add Feed",
         .rssEnterFeedURL: "Enter website or feed URL",
         .rssValidating: "Validating...",
         .rssAddFeed: "Add Feed",
@@ -1125,6 +1147,14 @@ enum L10n {
         .debugLogsEmpty: "暂无日志",
         .debugLogsEmptyDescription: "使用应用时调试事件将在此显示。",
         .debugLogsEntryCount: "%d 条记录",
+        .clearDebugLogs: "清除调试日志",
+        .clearDebugLogsTitle: "清除调试日志？",
+        .clearDebugLogsMessage: "所有调试日志将被永久删除。",
+        .storageAndLogsDescription: "数据库包括转换历史和文件活动日志。网页缓存存储已获取的网页以加快重新转换速度。调试日志有助于报告错误时共享。",
+        .reportBugTitle: "报告错误",
+        .reportBugMessage: "是否将调试日志复制到剪贴板？附带日志有助于更快地诊断问题。",
+        .copyLogsAndReport: "复制日志并报告",
+        .reportWithoutLogs: "不附带日志报告",
         .debugFilterAll: "全部",
         .debugFilterErrors: "错误",
         .debugFilterQueue: "队列",
@@ -1139,6 +1169,9 @@ enum L10n {
         .rssRefreshing: "正在刷新订阅...",
         .rssTapToSetup: "点击设置您的RSS订阅",
         .rssManageFeeds: "管理订阅",
+        .rssAllFeeds: "全部订阅",
+        .rssFeedCount: "%d 个订阅",
+        .rssAddNewFeed: "添加订阅",
         .rssEnterFeedURL: "输入网站或订阅链接",
         .rssValidating: "验证中...",
         .rssAddFeed: "添加订阅",
