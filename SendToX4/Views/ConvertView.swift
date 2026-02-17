@@ -31,6 +31,14 @@ struct ConvertView: View {
         Array(completedArticles.prefix(3))
     }
 
+    /// Formatted total size of all queued items (e.g. "1.2 MB").
+    private var queueTotalSizeFormatted: String {
+        let total = queueItems.reduce(Int64(0)) { $0 + $1.fileSize }
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: total)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -446,10 +454,21 @@ struct ConvertView: View {
         VStack(spacing: 0) {
             // Section header
             HStack {
-                Text(loc(.sendQueue))
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
+                HStack(spacing: 4) {
+                    Text(loc(.sendQueue))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+
+                    if !queueItems.isEmpty {
+                        Text("·")
+                            .font(.footnote)
+                            .foregroundStyle(.quaternary)
+                        Text(loc(.queueTotalSize, queueTotalSizeFormatted))
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
 
                 Spacer()
 
@@ -482,7 +501,7 @@ struct ConvertView: View {
                             }
                             .font(.caption.weight(.medium))
                         }
-                        .disabled(queueVM.isSending)
+                        .disabled(queueVM.isSending || queueVM.isSendingSingle)
                     }
                 }
             }
@@ -553,10 +572,19 @@ struct ConvertView: View {
     }
 
     private func queueRow(_ item: QueueItem) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "doc.text.fill")
-                .foregroundStyle(AppColor.accent)
-                .frame(width: 20)
+        let isPending = queueVM.pendingSendIDs.contains(item.id)
+
+        return HStack(spacing: 10) {
+            // Leading icon: spinner when this item is pending/sending, doc icon otherwise
+            if isPending {
+                ProgressView()
+                    .controlSize(.mini)
+                    .frame(width: 20)
+            } else {
+                Image(systemName: "doc.text.fill")
+                    .foregroundStyle(AppColor.accent)
+                    .frame(width: 20)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
@@ -574,17 +602,36 @@ struct ConvertView: View {
 
             Spacer(minLength: 0)
 
-            // Swipe-to-delete alternative: small delete button
-            Button(role: .destructive) {
-                withAnimation {
-                    queueVM.remove(item, modelContext: modelContext)
+            // Send button (visible when connected and not in batch send)
+            if deviceVM.isConnected && !queueVM.isSending && !isPending {
+                Button {
+                    queueVM.enqueueSend(
+                        item,
+                        deviceVM: deviceVM,
+                        settings: settings,
+                        modelContext: modelContext
+                    )
+                } label: {
+                    Image(systemName: "paperplane.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(AppColor.accent)
                 }
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.subheadline)
-                    .foregroundStyle(.tertiary)
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+
+            // Remove button (hidden when item is pending send)
+            if !isPending {
+                Button(role: .destructive) {
+                    withAnimation {
+                        queueVM.remove(item, modelContext: modelContext)
+                    }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(.vertical, 8)
     }

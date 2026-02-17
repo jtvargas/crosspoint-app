@@ -71,6 +71,28 @@ final class FileManagerViewModel {
     /// Whether we're at the root directory.
     var isAtRoot: Bool { currentPath == "/" }
 
+    /// Number of folders in the current directory.
+    var folderCount: Int { files.filter(\.isDirectory).count }
+
+    /// Number of files (non-directories) in the current directory.
+    var fileCount: Int { files.filter { !$0.isDirectory }.count }
+
+    /// Total size of all files (not folders) in the current directory.
+    var totalFileSize: Int64 { files.filter { !$0.isDirectory }.reduce(0) { $0 + $1.size } }
+
+    /// Formatted total file size (e.g. "81.94 KB"). Empty string if no files.
+    var formattedTotalFileSize: String {
+        let size = totalFileSize
+        guard size > 0 else { return "" }
+        if size < 1024 {
+            return "\(size) B"
+        } else if size < 1024 * 1024 {
+            return String(format: "%.2f KB", Double(size) / 1024.0)
+        } else {
+            return String(format: "%.2f MB", Double(size) / (1024.0 * 1024.0))
+        }
+    }
+
     // MARK: - Private
 
     private var service: (any DeviceService)?

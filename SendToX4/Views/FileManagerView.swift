@@ -257,8 +257,19 @@ struct FileManagerView: View {
                         }
                     }
                 } header: {
-                    HStack {
+                    HStack(spacing: 4) {
                         Text(loc(.itemCount, fileVM.files.count))
+                        if !fileVM.files.isEmpty {
+                            Text("·")
+                                .foregroundStyle(.quaternary)
+                            if fileVM.fileCount > 0 {
+                                Text(loc(.fileListSummary, fileVM.folderCount, fileVM.fileCount, fileVM.formattedTotalFileSize))
+                                    .foregroundStyle(.tertiary)
+                            } else {
+                                Text(loc(.fileListSummaryNoFiles, fileVM.folderCount, fileVM.fileCount))
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
                         Spacer()
                         if fileVM.isLoading {
                             ProgressView()

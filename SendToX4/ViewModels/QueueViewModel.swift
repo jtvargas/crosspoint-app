@@ -20,6 +20,15 @@ final class QueueViewModel {
     /// Error message from the last failed operation.
     var errorMessage: String?
 
+    // MARK: - Individual Send State
+
+    /// Ordered IDs of items the user has tapped to send individually.
+    /// Items are processed sequentially in FIFO order.
+    var pendingSendIDs: [UUID] = []
+
+    /// Whether the individual-send loop is actively running.
+    var isSendingSingle = false
+
     // MARK: - Queue Directory
 
     /// URL of the persistent queue directory inside Application Support.
@@ -136,6 +145,10 @@ final class QueueViewModel {
     ) async {
         let descriptor = FetchDescriptor<QueueItem>(sortBy: [SortDescriptor(\.queuedAt)])
         guard let items = try? modelContext.fetch(descriptor), !items.isEmpty else { return }
+        guard !isSendingSingle else {
+            DebugLogger.log("Queue sendAll blocked: individual sends in progress", level: .warning, category: .queue)
+            return
+        }
         guard !deviceVM.isBatchDeleting else {
             DebugLogger.log("Queue send blocked: batch delete in progress", level: .warning, category: .queue)
             return
@@ -350,6 +363,112 @@ final class QueueViewModel {
         } else {
             return loc(.estimatedTimeSec, est.seconds)
         }
+    }
+
+    // MARK: - Send Single Item
+
+    /// Enqueue an individual item for sending. If the send loop isn't running,
+    /// it starts automatically. If it is already running, the item is appended
+    /// and will be sent after the current item finishes.
+    func enqueueSend(
+        _ item: QueueItem,
+        deviceVM: DeviceViewModel,
+        settings: DeviceSettings,
+        modelContext: ModelContext
+    ) {
+        guard !pendingSendIDs.contains(item.id) else { return }
+        pendingSendIDs.append(item.id)
+
+        // Start the send loop if it isn't running
+        guard !isSendingSingle else { return }
+        Task {
+            await processSendQueue(deviceVM: deviceVM, settings: settings, modelContext: modelContext)
+        }
+    }
+
+    /// Sequential loop that processes `pendingSendIDs` one at a time.
+    /// New items can be appended while the loop is running.
+    private func processSendQueue(
+        deviceVM: DeviceViewModel,
+        settings: DeviceSettings,
+        modelContext: ModelContext
+    ) async {
+        guard !isSendingSingle else { return }
+        isSendingSingle = true
+
+        while !pendingSendIDs.isEmpty {
+            let itemID = pendingSendIDs[0]
+
+            // Fetch the QueueItem from SwiftData (it may have been removed)
+            let descriptor = FetchDescriptor<QueueItem>(
+                predicate: #Predicate<QueueItem> { $0.id == itemID }
+            )
+            guard let item = try? modelContext.fetch(descriptor).first else {
+                pendingSendIDs.removeFirst()
+                continue
+            }
+
+            let folder = item.destinationFolder ?? settings.convertFolder
+            var sent = false
+
+            do {
+                let data = try Data(contentsOf: item.fileURL)
+
+                DebugLogger.log(
+                    "Single send: \(item.filename) (\(data.count) bytes) -> /\(folder)/",
+                    level: .info, category: .queue
+                )
+
+                try await deviceVM.upload(
+                    data: data,
+                    filename: item.filename,
+                    toFolder: folder
+                )
+
+                sent = true
+
+                // Update linked Article status
+                updateArticleStatus(articleID: item.articleID, to: .sent, modelContext: modelContext)
+
+                // Update linked RSSArticle status
+                if let rssID = item.rssArticleID {
+                    updateRSSArticleStatus(rssArticleID: rssID, to: .sent, modelContext: modelContext)
+                }
+
+                // Delete file + record
+                try? FileManager.default.removeItem(at: item.fileURL)
+                modelContext.delete(item)
+
+                // Log activity
+                let event = ActivityEvent(
+                    category: .queue,
+                    action: .queueSend,
+                    status: .success,
+                    detail: loc(.sentSingleItem, item.filename)
+                )
+                modelContext.insert(event)
+
+                DebugLogger.log(
+                    "Single send complete: \(item.filename)",
+                    level: .info, category: .queue
+                )
+            } catch {
+                DebugLogger.log(
+                    "Single send failed: \(item.filename) — \(error.localizedDescription)",
+                    level: .error, category: .queue
+                )
+                errorMessage = loc(.failedToSendSingleItem, item.filename, error.localizedDescription)
+            }
+
+            pendingSendIDs.removeFirst()
+
+            // Adaptive cooldown between items (only if more items pending)
+            if sent && !pendingSendIDs.isEmpty {
+                try? await Task.sleep(for: Self.cooldown(forFileSize: item.fileSize))
+            }
+        }
+
+        isSendingSingle = false
     }
 
     // MARK: - Remove Single Item

@@ -35,6 +35,7 @@ enum L10n {
         case untitled
         case sendQueue
         case sendAll
+        case queueTotalSize
         case noItemsQueued
         case queueEmptyDescription
         case largeQueueWarningTitle
@@ -97,6 +98,8 @@ enum L10n {
         case stopDelete
         case deleteStopped
         case fileManagerDeviceNote
+        case fileListSummary
+        case fileListSummaryNoFiles
 
         // MARK: File Manager Row
         case renameComingSoon
@@ -278,6 +281,8 @@ enum L10n {
         case sentItem
         case sentMultipleEPUBs
         case failedToSendItem
+        case sentSingleItem
+        case failedToSendSingleItem
 
         // MARK: Global Batch Progress
         case batchSendingProgress
@@ -463,6 +468,7 @@ enum L10n {
         .untitled: "Untitled",
         .sendQueue: "Send Queue",
         .sendAll: "Send All",
+        .queueTotalSize: "%@ total",
         .noItemsQueued: "No Items Queued",
         .queueEmptyDescription: "EPUBs converted while offline will appear here for sending later.",
         .largeQueueWarningTitle: "Large Queue",
@@ -525,6 +531,8 @@ enum L10n {
         .stopDelete: "Stop",
         .deleteStopped: "Stopped — %d of %d item(s) deleted",
         .fileManagerDeviceNote: "The X4 e-reader has limited WiFi performance. Uploads and bulk operations like deleting folders may take longer or occasionally fail — this is a device limitation, not an app issue. The app retries automatically.",
+        .fileListSummary: "%d folder(s), %d file(s), %@",
+        .fileListSummaryNoFiles: "%d folder(s), %d file(s)",
 
         // File Manager Row
         .renameComingSoon: "Rename (Coming Soon)",
@@ -706,6 +714,8 @@ enum L10n {
         .sentItem: "Sent %@",
         .sentMultipleEPUBs: "Sent %d EPUBs: %@",
         .failedToSendItem: "Failed to send %@: %@",
+        .sentSingleItem: "Sent %@",
+        .failedToSendSingleItem: "Failed to send %@: %@",
 
         // Global Batch Progress
         .batchSendingProgress: "Sending %d/%d...",
@@ -884,6 +894,7 @@ enum L10n {
         .untitled: "无标题",
         .sendQueue: "发送队列",
         .sendAll: "全部发送",
+        .queueTotalSize: "共 %@",
         .noItemsQueued: "队列为空",
         .queueEmptyDescription: "离线转换的EPUB将在此处显示，等待稍后发送。",
         .largeQueueWarningTitle: "队列较大",
@@ -946,6 +957,8 @@ enum L10n {
         .stopDelete: "停止",
         .deleteStopped: "已停止 — 已删除 %d/%d 个项目",
         .fileManagerDeviceNote: "X4电子阅读器的WiFi性能有限。上传和批量操作（如删除文件夹）可能需要较长时间或偶尔失败——这是设备限制，非应用问题。应用会自动重试。",
+        .fileListSummary: "%d 个文件夹, %d 个文件, %@",
+        .fileListSummaryNoFiles: "%d 个文件夹, %d 个文件",
 
         // File Manager Row
         .renameComingSoon: "重命名（即将推出）",
@@ -1127,6 +1140,8 @@ enum L10n {
         .sentItem: "已发送 %@",
         .sentMultipleEPUBs: "已发送 %d 本EPUB：%@",
         .failedToSendItem: "发送 %@ 失败：%@",
+        .sentSingleItem: "已发送 %@",
+        .failedToSendSingleItem: "发送 %@ 失败：%@",
 
         // Global Batch Progress
         .batchSendingProgress: "正在发送 %d/%d...",
