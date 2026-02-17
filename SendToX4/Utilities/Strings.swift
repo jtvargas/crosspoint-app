@@ -250,6 +250,10 @@ enum L10n {
         case phaseSavedLocally
         case phaseFailed
 
+        // MARK: Queue Duplicate Prevention
+        case urlAlreadyQueued
+        case intentAlreadyQueued
+
         // MARK: ConvertViewModel Messages
         case enterValidURL
         case uploadAlreadyInProgress
@@ -683,6 +687,10 @@ enum L10n {
         .phaseSavedLocally: "Saved locally",
         .phaseFailed: "Failed",
 
+        // Queue Duplicate Prevention
+        .urlAlreadyQueued: "This URL is already in the send queue.",
+        .intentAlreadyQueued: "This URL is already in the queue. It will be sent when your X4 connects.",
+
         // ConvertViewModel Messages
         .enterValidURL: "Please enter a valid URL.",
         .uploadAlreadyInProgress: "An upload is already in progress.",
@@ -1108,6 +1116,10 @@ enum L10n {
         .phaseSent: "已发送！",
         .phaseSavedLocally: "已本地保存",
         .phaseFailed: "失败",
+
+        // Queue Duplicate Prevention
+        .urlAlreadyQueued: "此链接已在发送队列中。",
+        .intentAlreadyQueued: "此链接已在队列中。X4连接时将自动发送。",
 
         // ConvertViewModel Messages
         .enterValidURL: "请输入有效的URL。",

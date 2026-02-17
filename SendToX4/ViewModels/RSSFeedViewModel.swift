@@ -237,6 +237,15 @@ final class RSSFeedViewModel {
         for (index, rssArticle) in articlesToProcess.enumerated() {
             batchProgress = (index + 1, articlesToProcess.count)
 
+            // Duplicate prevention: skip if this URL is already in the send queue
+            if QueueViewModel.isURLQueued(rssArticle.articleURL, modelContext: modelContext) {
+                DebugLogger.log(
+                    "RSS article \(index + 1)/\(articlesToProcess.count) skipped (already queued): \(rssArticle.title)",
+                    level: .info, category: .rss
+                )
+                continue
+            }
+
             guard let articleURL = URL(string: rssArticle.articleURL) else {
                 rssArticle.status = .failed
                 rssArticle.errorMessage = loc(.rssInvalidURL)

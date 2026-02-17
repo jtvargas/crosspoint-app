@@ -57,6 +57,12 @@ final class ConvertViewModel {
             return
         }
 
+        // Duplicate prevention: block if this URL is already queued
+        if QueueViewModel.isURLQueued(url.absoluteString, modelContext: modelContext) {
+            lastError = loc(.urlAlreadyQueued)
+            return
+        }
+
         isProcessing = true
         lastError = nil
         lastEPUBData = nil

@@ -29,6 +29,47 @@ final class QueueViewModel {
     /// Whether the individual-send loop is actively running.
     var isSendingSingle = false
 
+    // MARK: - Duplicate Detection
+
+    /// Check whether a URL is already in the send queue.
+    ///
+    /// Compares normalized URLs to catch trivial variations (trailing slash,
+    /// http vs https, www vs non-www, URL fragments).
+    static func isURLQueued(_ urlString: String, modelContext: ModelContext) -> Bool {
+        let normalized = normalizeURL(urlString)
+        let descriptor = FetchDescriptor<QueueItem>()
+        guard let items = try? modelContext.fetch(descriptor) else { return false }
+        return items.contains { normalizeURL($0.sourceURL) == normalized }
+    }
+
+    /// Normalize a URL for duplicate comparison:
+    /// - Lowercase scheme and host
+    /// - Strip `www.` prefix
+    /// - Strip fragment (`#...`)
+    /// - Strip trailing `/` from path
+    /// - Normalize `http://` to `https://`
+    private static func normalizeURL(_ urlString: String) -> String {
+        guard var components = URLComponents(string: urlString) else {
+            return urlString.lowercased()
+        }
+        // Normalize scheme
+        components.scheme = (components.scheme?.lowercased() == "http") ? "https" : components.scheme?.lowercased()
+        // Normalize host: lowercase + strip www.
+        if var host = components.host?.lowercased() {
+            if host.hasPrefix("www.") {
+                host = String(host.dropFirst(4))
+            }
+            components.host = host
+        }
+        // Strip fragment
+        components.fragment = nil
+        // Strip trailing slash from path
+        if components.path.hasSuffix("/") && components.path != "/" {
+            components.path = String(components.path.dropLast())
+        }
+        return components.string?.lowercased() ?? urlString.lowercased()
+    }
+
     // MARK: - Queue Directory
 
     /// URL of the persistent queue directory inside Application Support.

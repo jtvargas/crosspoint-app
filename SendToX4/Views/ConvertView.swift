@@ -151,12 +151,17 @@ struct ConvertView: View {
         }
     }
 
-    // MARK: - Action Buttons
+    // MARK: - Action Button
+
+    /// Whether the button is in a brief post-success state (Sent / Queued).
+    private var isSuccessPhase: Bool {
+        !convertVM.isProcessing
+        && (convertVM.currentPhase == .sent || convertVM.currentPhase == .savedLocally)
+    }
 
     private var actionButtons: some View {
-        VStack(spacing: 12) {
-            // Primary: Convert & Send
-            Button {
+        Button {
+            if !convertVM.isProcessing && !isSuccessPhase {
                 isURLFieldFocused = false
                 Task {
                     await convertVM.convertAndSend(
@@ -166,54 +171,45 @@ struct ConvertView: View {
                         settings: settings
                     )
                 }
-            } label: {
-                HStack {
-                    if convertVM.isProcessing {
-                        if convertVM.currentPhase == .sending && deviceVM.uploadProgress > 0 {
-                            // Determinate progress during upload
-                            ProgressView(value: deviceVM.uploadProgress)
-                                .progressViewStyle(.circular)
-                                .tint(.white)
-                            Text(loc(.sendingPercent, Int(deviceVM.uploadProgress * 100)))
-                        } else {
-                            ProgressView()
-                                .tint(.white)
-                            Text(convertVM.phaseLabel)
-                        }
+            }
+        } label: {
+            HStack {
+                if convertVM.isProcessing {
+                    if convertVM.currentPhase == .sending && deviceVM.uploadProgress > 0 {
+                        // Determinate progress during upload
+                        ProgressView(value: deviceVM.uploadProgress)
+                            .progressViewStyle(.circular)
+                            .tint(.white)
+                        Text(loc(.sendingPercent, Int(deviceVM.uploadProgress * 100)))
                     } else {
-                        Image(systemName: deviceVM.isConnected
-                              ? "paperplane.fill" : "doc.text")
-                        Text(deviceVM.isConnected
-                             ? loc(.convertAndSend) : loc(.convertToEPUB))
+                        ProgressView()
+                            .tint(.white)
+                        Text(convertVM.phaseLabel)
                     }
+                } else if isSuccessPhase {
+                    // Brief success confirmation (visible for ~1.5s before auto-reset)
+                    Image(systemName: "checkmark.circle.fill")
+                    Text(convertVM.phaseLabel)
+                } else {
+                    Image(systemName: deviceVM.isConnected
+                          ? "paperplane.fill" : "doc.text")
+                    Text(deviceVM.isConnected
+                         ? loc(.convertAndSend) : loc(.convertToEPUB))
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: 16))
-            .disabled(
-                convertVM.urlString
-                    .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                || convertVM.isProcessing
-            )
-
-            // Secondary: Save to Files
-            if convertVM.lastEPUBData != nil {
-                Button {
-                    showShareSheet = true
-                } label: {
-                    HStack {
-                        Image(systemName: "square.and.arrow.up")
-                        Text(loc(.saveToFiles))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.roundedRectangle(radius: 16))
-            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .animation(.easeInOut(duration: 0.2), value: convertVM.currentPhase)
         }
+        .buttonStyle(.borderedProminent)
+        .tint(isSuccessPhase ? AppColor.success : nil)
+        .buttonBorderShape(.roundedRectangle(radius: 16))
+        .disabled(
+            convertVM.urlString
+                .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || convertVM.isProcessing
+            || isSuccessPhase
+        )
     }
 
     // MARK: - RSS Feed Card
@@ -241,7 +237,7 @@ struct ConvertView: View {
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 2)
-                                .background(AppColor.accent, in: Capsule())
+                                .background(.gray, in: Capsule())
                         }
 
                         Image(systemName: "chevron.right")

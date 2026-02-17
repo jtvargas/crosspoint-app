@@ -12,6 +12,7 @@ enum ConvertURLIntentError: Error, CustomLocalizedStringResourceConvertible {
     case extractionFailed
     case epubBuildFailed(String)
     case queueWriteFailed(String)
+    case alreadyQueued
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
@@ -27,6 +28,8 @@ enum ConvertURLIntentError: Error, CustomLocalizedStringResourceConvertible {
             return "Failed to create the EPUB file: \(detail)"
         case .queueWriteFailed(let detail):
             return "Could not save the EPUB to the queue: \(detail)"
+        case .alreadyQueued:
+            return "This URL is already in the queue. It will be sent when your X4 connects."
         }
     }
 }
@@ -92,6 +95,11 @@ struct ConvertURLIntent: AppIntent {
 
         // 3. Create a SwiftData context (same default store the app uses)
         let modelContext = try Self.makeModelContext()
+
+        // 3b. Duplicate prevention: block if this URL is already queued
+        if QueueViewModel.isURLQueued(resolvedURL.absoluteString, modelContext: modelContext) {
+            throw ConvertURLIntentError.alreadyQueued
+        }
 
         // 4. Create Article record for history tracking
         let article = Article(
