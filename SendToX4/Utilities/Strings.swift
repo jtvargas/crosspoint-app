@@ -92,6 +92,7 @@ enum L10n {
         case deletingProgress
         case deletingItem
         case deletedFolderRecursive
+        case deletedFolderRecursivePartial
         case failedToDeleteFolderRecursive
 
         // MARK: File Manager Row
@@ -515,6 +516,7 @@ enum L10n {
         .deletingProgress: "Deleting %d/%d...",
         .deletingItem: "Deleting %@...",
         .deletedFolderRecursive: "Deleted folder '%@' and %d item(s) from %@",
+        .deletedFolderRecursivePartial: "Deleted folder '%@' (%d item(s)) from %@ — %d item(s) could not be deleted",
         .failedToDeleteFolderRecursive: "Failed to fully delete folder '%@' from %@: %d of %d item(s) deleted",
 
         // File Manager Row
@@ -931,6 +933,7 @@ enum L10n {
         .deletingProgress: "正在删除 %d/%d...",
         .deletingItem: "正在删除 %@...",
         .deletedFolderRecursive: "已从 %@ 删除文件夹「%@」及 %d 个项目",
+        .deletedFolderRecursivePartial: "已从 %@ 删除文件夹「%@」（%d 个项目）— %d 个项目无法删除",
         .failedToDeleteFolderRecursive: "从 %@ 删除文件夹「%@」未完全成功：已删除 %d/%d 个项目",
 
         // File Manager Row
