@@ -308,6 +308,12 @@ struct SettingsSheet: View {
                 }
             }
 
+            if TransferStatsTracker.hasHistory {
+                Button(loc(.resetTransferStats), role: .destructive) {
+                    TransferStatsTracker.reset()
+                }
+            }
+
             Button(loc(.clearDebugLogs), role: .destructive) {
                 showClearLogsConfirm = true
             }
@@ -424,6 +430,8 @@ struct SettingsSheet: View {
         }
         // Delete all QueueItem records
         try? modelContext.delete(model: QueueItem.self)
+        // Reset transfer stats so estimates start fresh
+        TransferStatsTracker.reset()
         refreshStorageSizes()
     }
 

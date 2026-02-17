@@ -8,6 +8,7 @@ enum ActivityCategory: String, Codable, CaseIterable {
     case fileManager
     case wallpaper
     case queue
+    case rss
 }
 
 /// Specific action performed within a category.
@@ -20,6 +21,7 @@ enum ActivityAction: String, Codable {
     case deleteFolder
     case wallpaperUpload
     case queueSend
+    case rssConversion
 }
 
 /// Outcome of the activity.
@@ -89,6 +91,7 @@ final class ActivityEvent {
         case .deleteFolder:    return "trash.fill"
         case .wallpaperUpload: return "photo.artframe"
         case .queueSend:       return "paperplane.circle.fill"
+        case .rssConversion:   return "antenna.radiowaves.left.and.right"
         }
     }
 
@@ -102,6 +105,7 @@ final class ActivityEvent {
         case .deleteFolder:    return loc(.activityFolderDeleted)
         case .wallpaperUpload: return loc(.activityWallpaperSent)
         case .queueSend:       return loc(.activityQueueSent)
+        case .rssConversion:   return loc(.activityRSSConversion)
         }
     }
 
@@ -111,6 +115,7 @@ final class ActivityEvent {
         case .fileManager: return loc(.categoryFileManager)
         case .wallpaper:   return loc(.categoryWallpaper)
         case .queue:       return loc(.filterQueue)
+        case .rss:         return loc(.categoryRSS)
         }
     }
 }

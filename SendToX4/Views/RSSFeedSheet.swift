@@ -395,6 +395,7 @@ private struct RSSArticleListView: View {
 
     private func articleRow(_ article: RSSArticle) -> some View {
         let isProcessed = article.status == .sent || article.status == .queued
+        let isFailed = article.status == .failed
         let isSelected = rssVM.selectedArticleIDs.contains(article.id)
 
         return Button {
@@ -444,11 +445,19 @@ private struct RSSArticleListView: View {
                             .padding(.vertical, 2)
                             .background(Color.secondary.opacity(0.1), in: Capsule())
 
-                        if isProcessed {
+                        if isProcessed || isFailed {
                             statusBadge(for: article.status)
                         }
                     }
                     .padding(.top, 2)
+
+                    // Error message for failed articles
+                    if isFailed, let errorMsg = article.errorMessage {
+                        Text(errorMsg)
+                            .font(.caption2)
+                            .foregroundStyle(AppColor.error)
+                            .lineLimit(2)
+                    }
                 }
             }
             .padding(.vertical, 4)

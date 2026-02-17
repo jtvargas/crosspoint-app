@@ -21,6 +21,23 @@ final class FileManagerViewModel {
     /// Error message to display to user.
     var errorMessage: String?
 
+    // MARK: - Recursive Delete State
+
+    /// Whether a recursive folder deletion is in progress.
+    var isDeleting = false
+
+    /// Progress during recursive delete: (current 1-based index, total count).
+    var deleteProgress: (current: Int, total: Int)?
+
+    /// Name of the item currently being deleted.
+    var currentDeleteItem: String?
+
+    /// Number of items counted inside a folder (set after counting, before confirmation).
+    var folderContentCount: Int?
+
+    /// Whether we're currently counting folder contents.
+    var isCountingContents = false
+
     /// Device status info (nil if not fetched or unsupported).
     var deviceStatus: DeviceStatus?
 
@@ -200,6 +217,8 @@ final class FileManagerViewModel {
     }
 
     /// Delete a file or folder.
+    /// For folders, attempts a simple delete first; if it fails with `.folderNotEmpty`,
+    /// the caller should use `deleteItemRecursive` instead.
     func deleteItem(_ file: DeviceFile, modelContext: ModelContext) async -> Bool {
         guard let service else {
             errorMessage = loc(.notConnectedToDevice)
@@ -231,6 +250,168 @@ final class FileManagerViewModel {
             errorMessage = error.localizedDescription
             return false
         }
+    }
+
+    // MARK: - Recursive Folder Deletion
+
+    /// Count all items (files + folders) inside a folder recursively.
+    /// Sets `folderContentCount` and `isCountingContents` for UI binding.
+    func countFolderContents(_ folder: DeviceFile) async -> Int {
+        guard let service, folder.isDirectory else { return 0 }
+
+        isCountingContents = true
+        defer { isCountingContents = false }
+
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
+
+        let count = await recursiveCount(path: folder.path, service: service)
+        folderContentCount = count
+        return count
+    }
+
+    /// Recursively count all items under a path using the device service.
+    private func recursiveCount(path: String, service: any DeviceService) async -> Int {
+        guard let items = try? await service.listFiles(directory: path) else { return 0 }
+
+        var count = items.count
+        for item in items where item.isDirectory {
+            count += await recursiveCount(path: item.path, service: service)
+        }
+        return count
+    }
+
+    /// Delete a folder and all its contents recursively with progress feedback.
+    ///
+    /// Strategy: depth-first traversal — delete files in each directory first,
+    /// then recurse into subdirectories, then delete the now-empty directory.
+    /// This is efficient because it minimizes API calls (one listFiles per directory)
+    /// and deletes leaves before branches.
+    func deleteItemRecursive(_ folder: DeviceFile, totalCount: Int, modelContext: ModelContext) async -> Bool {
+        guard let service, folder.isDirectory else {
+            errorMessage = loc(.notConnectedToDevice)
+            return false
+        }
+
+        isDeleting = true
+        deleteProgress = (0, totalCount + 1) // +1 for the folder itself
+        currentDeleteItem = nil
+        errorMessage = nil
+
+        deviceVM?.beginOperation()
+
+        var deletedCount = 0
+
+        let success = await recursiveDelete(
+            path: folder.path,
+            service: service,
+            totalCount: totalCount + 1,
+            deletedCount: &deletedCount
+        )
+
+        // Now delete the top-level folder itself (should be empty now)
+        if success {
+            do {
+                deletedCount += 1
+                deleteProgress = (deletedCount, totalCount + 1)
+                currentDeleteItem = folder.name
+                try await service.deleteFolder(path: folder.path)
+            } catch {
+                // Folder delete failed — partial cleanup happened
+                let detail = loc(.failedToDeleteFolderRecursive, currentPath, folder.name, deletedCount - 1, totalCount)
+                logActivity(.deleteFolder, detail: detail, status: .failed, error: error, modelContext: modelContext)
+                errorMessage = error.localizedDescription
+                cleanupDeleteState()
+                deviceVM?.endOperation()
+                await loadDirectory()
+                return false
+            }
+        }
+
+        deviceVM?.endOperation()
+
+        if success {
+            let detail = loc(.deletedFolderRecursive, folder.name, totalCount, currentPath)
+            logActivity(.deleteFolder, detail: detail, modelContext: modelContext)
+            if ReviewPromptManager.shouldPromptAfterSuccess() {
+                shouldRequestReview = true
+            }
+        } else {
+            let detail = loc(.failedToDeleteFolderRecursive, currentPath, folder.name, deletedCount, totalCount)
+            logActivity(.deleteFolder, detail: detail, status: .failed, modelContext: modelContext)
+        }
+
+        cleanupDeleteState()
+        await loadDirectory()
+        return success
+    }
+
+    /// Depth-first recursive delete of all contents under a path.
+    /// Returns `true` if all items were deleted successfully.
+    private func recursiveDelete(
+        path: String,
+        service: any DeviceService,
+        totalCount: Int,
+        deletedCount: inout Int
+    ) async -> Bool {
+        guard let items = try? await service.listFiles(directory: path) else { return false }
+
+        // Separate files and directories
+        let files = items.filter { !$0.isDirectory }
+        let directories = items.filter { $0.isDirectory }
+
+        // Delete all files first (leaves)
+        for file in files {
+            deletedCount += 1
+            deleteProgress = (deletedCount, totalCount)
+            currentDeleteItem = file.name
+
+            do {
+                try await service.deleteFile(path: file.path)
+            } catch {
+                errorMessage = error.localizedDescription
+                return false
+            }
+
+            // Brief cooldown to avoid overwhelming the ESP32
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+
+        // Recurse into subdirectories (depth-first)
+        for dir in directories {
+            let childSuccess = await recursiveDelete(
+                path: dir.path,
+                service: service,
+                totalCount: totalCount,
+                deletedCount: &deletedCount
+            )
+
+            guard childSuccess else { return false }
+
+            // Delete the now-empty subdirectory
+            deletedCount += 1
+            deleteProgress = (deletedCount, totalCount)
+            currentDeleteItem = dir.name
+
+            do {
+                try await service.deleteFolder(path: dir.path)
+            } catch {
+                errorMessage = error.localizedDescription
+                return false
+            }
+
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+
+        return true
+    }
+
+    /// Reset all recursive delete state.
+    private func cleanupDeleteState() {
+        isDeleting = false
+        deleteProgress = nil
+        currentDeleteItem = nil
+        folderContentCount = nil
     }
 
     /// Move a file to a destination folder.

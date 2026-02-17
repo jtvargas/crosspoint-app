@@ -22,6 +22,7 @@ struct ConvertView: View {
     @Query(sort: \QueueItem.queuedAt) private var queueItems: [QueueItem]
 
     @State private var showShareSheet = false
+    @State private var showLargeQueueWarning = false
     @State private var shareEPUBData: Data?
     @State private var shareFilename: String?
     @FocusState private var isURLFieldFocused: Bool
@@ -463,12 +464,16 @@ struct ConvertView: View {
                         }
                     } else if deviceVM.isConnected {
                         Button {
-                            Task {
-                                await queueVM.sendAll(
-                                    deviceVM: deviceVM,
-                                    settings: settings,
-                                    modelContext: modelContext
-                                )
+                            if queueItems.count > QueueViewModel.largeQueueThreshold {
+                                showLargeQueueWarning = true
+                            } else {
+                                Task {
+                                    await queueVM.sendAll(
+                                        deviceVM: deviceVM,
+                                        settings: settings,
+                                        modelContext: modelContext
+                                    )
+                                }
                             }
                         } label: {
                             HStack(spacing: 4) {
@@ -490,6 +495,23 @@ struct ConvertView: View {
             } else {
                 queueList
             }
+        }
+        .alert(loc(.largeQueueWarningTitle), isPresented: $showLargeQueueWarning) {
+            Button(loc(.sendAnyway)) {
+                Task {
+                    await queueVM.sendAll(
+                        deviceVM: deviceVM,
+                        settings: settings,
+                        modelContext: modelContext
+                    )
+                }
+            }
+            Button(loc(.cancel), role: .cancel) {}
+        } message: {
+            Text(loc(.largeQueueWarningMessage,
+                      queueItems.count,
+                      QueueViewModel.formatTransferTime(for: queueItems))
+                 + loc(.estimateImprovesNotice))
         }
     }
 

@@ -37,6 +37,11 @@ enum L10n {
         case sendAll
         case noItemsQueued
         case queueEmptyDescription
+        case largeQueueWarningTitle
+        case largeQueueWarningMessage
+        case estimatedTimeMinSec
+        case estimatedTimeSec
+        case sendAnyway
 
         // MARK: History View
         case noActivityYet
@@ -55,12 +60,14 @@ enum L10n {
         case noConversionHistory
         case noFileActivity
         case noQueueActivity
+        case noRSSActivity
 
         // MARK: History Filters
         case filterAll
         case filterConversions
         case filterFileActivity
         case filterQueue
+        case filterRSS
         case filterNoItems
 
         // MARK: File Manager View
@@ -80,6 +87,12 @@ enum L10n {
         case deleteItemTitle
         case deleteFolderMustBeEmpty
         case deleteFilePermanent
+        case deleteFolderWithContents
+        case deleteFolderCountingContents
+        case deletingProgress
+        case deletingItem
+        case deletedFolderRecursive
+        case failedToDeleteFolderRecursive
 
         // MARK: File Manager Row
         case renameComingSoon
@@ -136,6 +149,9 @@ enum L10n {
         case clearHistoryData
         case clearWebCache
         case clearQueue
+        case resetTransferStats
+        case transferStatsReset
+        case estimateImprovesNotice
         case storageDescription
         case clearHistoryDataTitle
         case clearHistory
@@ -285,6 +301,8 @@ enum L10n {
         case activityQueueSent
         case categoryFileManager
         case categoryWallpaper
+        case categoryRSS
+        case activityRSSConversion
 
         // MARK: BMPColorDepth Labels
         case depth24bit
@@ -395,6 +413,7 @@ enum L10n {
         case rssFailedArticles
         case rssInvalidFeedURL
         case rssFeedAlreadyExists
+        case rssInvalidURL
 
         // MARK: AppLanguage Display Names
         case languageSystemDefault
@@ -441,6 +460,11 @@ enum L10n {
         .sendAll: "Send All",
         .noItemsQueued: "No Items Queued",
         .queueEmptyDescription: "EPUBs converted while offline will appear here for sending later.",
+        .largeQueueWarningTitle: "Large Queue",
+        .largeQueueWarningMessage: "Sending %d articles may take approximately %@. Articles are transferred one at a time due to device hardware limitations.\n\nThe optimal range is 5–10 articles. Please wait for the transfer to complete.",
+        .estimatedTimeMinSec: "%d min %d sec",
+        .estimatedTimeSec: "%d sec",
+        .sendAnyway: "Send Anyway",
 
         // History View
         .noActivityYet: "No Activity Yet",
@@ -459,12 +483,14 @@ enum L10n {
         .noConversionHistory: "No conversion history. Convert a web page to EPUB to see it here.",
         .noFileActivity: "No file activity. Upload, move, or delete files to see activity here.",
         .noQueueActivity: "No queue activity. Queued EPUBs sent to the device will appear here.",
+        .noRSSActivity: "No RSS activity. RSS feed conversions will appear here.",
 
         // History Filters
         .filterAll: "All",
         .filterConversions: "Conversions",
         .filterFileActivity: "File Activity",
         .filterQueue: "Queue",
+        .filterRSS: "RSS",
         .filterNoItems: "No %@",
 
         // File Manager View
@@ -482,8 +508,14 @@ enum L10n {
         .failedToReadFile: "Failed to read file: %@",
         .fileSelectionFailed: "File selection failed: %@",
         .deleteItemTitle: "Delete \"%@\"?",
-        .deleteFolderMustBeEmpty: "This folder must be empty to delete. This action cannot be undone.",
+        .deleteFolderMustBeEmpty: "This folder and all its contents will be permanently deleted. This action cannot be undone.",
         .deleteFilePermanent: "This file will be permanently deleted from the device.",
+        .deleteFolderWithContents: "This folder contains %d item(s). All contents will be permanently deleted. This action cannot be undone.",
+        .deleteFolderCountingContents: "Counting folder contents...",
+        .deletingProgress: "Deleting %d/%d...",
+        .deletingItem: "Deleting %@...",
+        .deletedFolderRecursive: "Deleted folder '%@' and %d item(s) from %@",
+        .failedToDeleteFolderRecursive: "Failed to fully delete folder '%@' from %@: %d of %d item(s) deleted",
 
         // File Manager Row
         .renameComingSoon: "Rename (Coming Soon)",
@@ -540,6 +572,9 @@ enum L10n {
         .clearHistoryData: "Clear History Data",
         .clearWebCache: "Clear Web Cache",
         .clearQueue: "Clear Queue",
+        .resetTransferStats: "Reset Transfer Stats",
+        .transferStatsReset: "Transfer statistics have been reset.",
+        .estimateImprovesNotice: "\n\nEstimated times improve with each transfer.",
         .storageDescription: "Database includes conversion history and file activity logs. Web Cache stores fetched web pages for faster re-conversion.",
         .clearHistoryDataTitle: "Clear History Data?",
         .clearHistory: "Clear History",
@@ -689,6 +724,8 @@ enum L10n {
         .activityQueueSent: "Queue Sent to Device",
         .categoryFileManager: "File Manager",
         .categoryWallpaper: "Wallpaper",
+        .categoryRSS: "RSS Feed",
+        .activityRSSConversion: "RSS Conversion",
 
         // BMPColorDepth Labels
         .depth24bit: "24-bit",
@@ -799,6 +836,7 @@ enum L10n {
         .rssFailedArticles: "%d article(s) failed to convert",
         .rssInvalidFeedURL: "Please enter a valid URL.",
         .rssFeedAlreadyExists: "Feed already exists: %@",
+        .rssInvalidURL: "Invalid article URL",
 
         // AppLanguage Display Names
         .languageSystemDefault: "System Default",
@@ -838,6 +876,11 @@ enum L10n {
         .sendAll: "全部发送",
         .noItemsQueued: "队列为空",
         .queueEmptyDescription: "离线转换的EPUB将在此处显示，等待稍后发送。",
+        .largeQueueWarningTitle: "队列较大",
+        .largeQueueWarningMessage: "发送 %d 篇文章大约需要 %@。由于设备硬件限制，文章将逐一传输。\n\n最佳队列数量为 5–10 篇。请等待传输完成。",
+        .estimatedTimeMinSec: "%d 分 %d 秒",
+        .estimatedTimeSec: "%d 秒",
+        .sendAnyway: "仍然发送",
 
         // History View
         .noActivityYet: "暂无活动",
@@ -856,12 +899,14 @@ enum L10n {
         .noConversionHistory: "暂无转换记录。转换网页为EPUB即可在此查看。",
         .noFileActivity: "暂无文件活动。上传、移动或删除文件即可在此查看。",
         .noQueueActivity: "暂无队列活动。发送到设备的排队EPUB将在此显示。",
+        .noRSSActivity: "暂无RSS活动。RSS订阅转换将在此显示。",
 
         // History Filters
         .filterAll: "全部",
         .filterConversions: "转换",
         .filterFileActivity: "文件活动",
         .filterQueue: "队列",
+        .filterRSS: "RSS",
         .filterNoItems: "暂无%@",
 
         // File Manager View
@@ -879,8 +924,14 @@ enum L10n {
         .failedToReadFile: "读取文件失败：%@",
         .fileSelectionFailed: "文件选择失败：%@",
         .deleteItemTitle: "删除「%@」？",
-        .deleteFolderMustBeEmpty: "此文件夹必须为空才能删除。此操作无法撤销。",
+        .deleteFolderMustBeEmpty: "此文件夹及其所有内容将被永久删除。此操作无法撤销。",
         .deleteFilePermanent: "此文件将从设备中永久删除。",
+        .deleteFolderWithContents: "此文件夹包含 %d 个项目。所有内容将被永久删除。此操作无法撤销。",
+        .deleteFolderCountingContents: "正在统计文件夹内容...",
+        .deletingProgress: "正在删除 %d/%d...",
+        .deletingItem: "正在删除 %@...",
+        .deletedFolderRecursive: "已从 %@ 删除文件夹「%@」及 %d 个项目",
+        .failedToDeleteFolderRecursive: "从 %@ 删除文件夹「%@」未完全成功：已删除 %d/%d 个项目",
 
         // File Manager Row
         .renameComingSoon: "重命名（即将推出）",
@@ -937,6 +988,9 @@ enum L10n {
         .clearHistoryData: "清除历史数据",
         .clearWebCache: "清除网页缓存",
         .clearQueue: "清除队列",
+        .resetTransferStats: "重置传输统计",
+        .transferStatsReset: "传输统计已重置。",
+        .estimateImprovesNotice: "\n\n每次传输后，预估时间将更加准确。",
         .storageDescription: "数据库包括转换历史和文件活动日志。网页缓存存储已获取的网页以加快重新转换速度。",
         .clearHistoryDataTitle: "清除历史数据？",
         .clearHistory: "清除历史",
@@ -1086,6 +1140,8 @@ enum L10n {
         .activityQueueSent: "队列已发送到设备",
         .categoryFileManager: "文件管理",
         .categoryWallpaper: "壁纸",
+        .categoryRSS: "RSS订阅",
+        .activityRSSConversion: "RSS转换",
 
         // BMPColorDepth Labels
         .depth24bit: "24位",
@@ -1196,6 +1252,7 @@ enum L10n {
         .rssFailedArticles: "%d 篇文章转换失败",
         .rssInvalidFeedURL: "请输入有效的URL。",
         .rssFeedAlreadyExists: "订阅已存在：%@",
+        .rssInvalidURL: "无效的文章链接",
 
         // AppLanguage Display Names
         .languageSystemDefault: "跟随系统",

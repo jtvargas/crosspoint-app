@@ -74,7 +74,14 @@ struct MainView: View {
             }
             Button(loc(.later), role: .cancel) {}
         } message: {
-            Text(loc(.sendQueuedFilesMessage, queueItems.count))
+            if queueItems.count > QueueViewModel.largeQueueThreshold {
+                Text(loc(.largeQueueWarningMessage,
+                          queueItems.count,
+                          QueueViewModel.formatTransferTime(for: queueItems))
+                     + loc(.estimateImprovesNotice))
+            } else {
+                Text(loc(.sendQueuedFilesMessage, queueItems.count))
+            }
         }
         #else
         tabContent
@@ -125,7 +132,14 @@ struct MainView: View {
                 }
                 Button(loc(.later), role: .cancel) {}
             } message: {
-                Text(loc(.sendQueuedFilesMessage, queueItems.count))
+                if queueItems.count > QueueViewModel.largeQueueThreshold {
+                    Text(loc(.largeQueueWarningMessage,
+                              queueItems.count,
+                              QueueViewModel.formatTransferTime(for: queueItems))
+                         + loc(.estimateImprovesNotice))
+                } else {
+                    Text(loc(.sendQueuedFilesMessage, queueItems.count))
+                }
             }
         #endif
     }

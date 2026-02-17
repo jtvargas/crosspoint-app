@@ -172,7 +172,7 @@ nonisolated extension DeviceService {
     /// as needed. Supports nested paths like `"feed/techcrunch.com"` by splitting
     /// into segments and creating each level: `/feed/` then `/feed/techcrunch.com/`.
     ///
-    /// Each segment is created with retry logic (2 retries, 1s delay) to handle
+    /// Each segment is created with retry logic (2 retries, 0.5s delay) to handle
     /// transient network failures common with ESP32 WiFi.
     func ensureFolder(_ name: String) async throws {
         let segments = name
@@ -200,7 +200,7 @@ nonisolated extension DeviceService {
                 } catch {
                     if attempt < 2 {
                         // Wait before retry — give the ESP32 time to recover
-                        try? await Task.sleep(for: .seconds(1))
+                        try? await Task.sleep(for: .milliseconds(500))
                     } else {
                         // All retries exhausted — propagate the error
                         throw error

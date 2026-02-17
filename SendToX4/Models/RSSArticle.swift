@@ -28,6 +28,7 @@ final class RSSArticle {
     var publishedAt: Date?
     var domain: String
     var statusRaw: String
+    var errorMessage: String?
     var fetchedAt: Date
 
     var status: RSSArticleStatus {

@@ -239,13 +239,39 @@ final class RSSFeedViewModel {
 
             guard let articleURL = URL(string: rssArticle.articleURL) else {
                 rssArticle.status = .failed
+                rssArticle.errorMessage = loc(.rssInvalidURL)
                 failCount += 1
+
+                // Create a failed Article record for history tracking
+                let failedArticle = Article(
+                    url: rssArticle.articleURL,
+                    title: rssArticle.title,
+                    author: rssArticle.author,
+                    sourceDomain: rssArticle.domain
+                )
+                failedArticle.status = .failed
+                failedArticle.errorMessage = loc(.rssInvalidURL)
+                modelContext.insert(failedArticle)
+
+                // Log per-failure ActivityEvent
+                let event = ActivityEvent(
+                    category: .rss,
+                    action: .rssConversion,
+                    status: .failed,
+                    detail: rssArticle.title,
+                    errorMessage: loc(.rssInvalidURL)
+                )
+                modelContext.insert(event)
+
                 DebugLogger.log(
                     "RSS article \(index + 1)/\(articlesToProcess.count): invalid URL '\(rssArticle.articleURL)'",
                     level: .error, category: .rss
                 )
                 continue
             }
+
+            // Track article outside do block so catch can reference it
+            var article: Article?
 
             do {
                 // Fetch HTML
@@ -268,13 +294,14 @@ final class RSSFeedViewModel {
                 )
 
                 // Create an Article record for history tracking
-                let article = Article(
+                let newArticle = Article(
                     url: rssArticle.articleURL,
                     title: content.title,
                     author: content.author,
                     sourceDomain: rssArticle.domain
                 )
-                modelContext.insert(article)
+                modelContext.insert(newArticle)
+                article = newArticle
 
                 // Destination folder: /feed/<domain>/
                 let destFolder = "feed/\(rssArticle.domain)"
@@ -286,7 +313,7 @@ final class RSSFeedViewModel {
                         filename: filename,
                         toFolder: destFolder
                     )
-                    article.status = .sent
+                    newArticle.status = .sent
                     rssArticle.status = .sent
                     sentCount += 1
                     DebugLogger.log(
@@ -298,12 +325,12 @@ final class RSSFeedViewModel {
                     try QueueViewModel.enqueueEPUB(
                         epubData: epubData,
                         filename: filename,
-                        article: article,
+                        article: newArticle,
                         modelContext: modelContext,
                         destinationFolder: destFolder,
                         rssArticleID: rssArticle.id
                     )
-                    article.status = .savedLocally
+                    newArticle.status = .savedLocally
                     rssArticle.status = .queued
                     queuedCount += 1
                     DebugLogger.log(
@@ -314,7 +341,35 @@ final class RSSFeedViewModel {
 
             } catch {
                 rssArticle.status = .failed
+                rssArticle.errorMessage = error.localizedDescription
                 failCount += 1
+
+                // Update or create Article record with failed status
+                if let existingArticle = article {
+                    existingArticle.status = .failed
+                    existingArticle.errorMessage = error.localizedDescription
+                } else {
+                    let failedArticle = Article(
+                        url: rssArticle.articleURL,
+                        title: rssArticle.title,
+                        author: rssArticle.author,
+                        sourceDomain: rssArticle.domain
+                    )
+                    failedArticle.status = .failed
+                    failedArticle.errorMessage = error.localizedDescription
+                    modelContext.insert(failedArticle)
+                }
+
+                // Log per-failure ActivityEvent
+                let event = ActivityEvent(
+                    category: .rss,
+                    action: .rssConversion,
+                    status: .failed,
+                    detail: rssArticle.title,
+                    errorMessage: error.localizedDescription
+                )
+                modelContext.insert(event)
+
                 DebugLogger.log(
                     "RSS article \(index + 1)/\(articlesToProcess.count) failed: \(rssArticle.title) — \(error.localizedDescription)",
                     level: .error, category: .rss

@@ -9,6 +9,7 @@ private enum HistoryFilter: String, CaseIterable {
     case conversions = "Conversions"
     case fileActivity = "File Activity"
     case queueActivity = "Queue"
+    case rss = "RSS"
 
     var displayName: String {
         switch self {
@@ -16,6 +17,7 @@ private enum HistoryFilter: String, CaseIterable {
         case .conversions:   return loc(.filterConversions)
         case .fileActivity:  return loc(.filterFileActivity)
         case .queueActivity: return loc(.filterQueue)
+        case .rss:           return loc(.filterRSS)
         }
     }
 }
@@ -74,9 +76,11 @@ struct HistoryView: View {
         case .conversions:
             items += articles.map { .conversion($0) }
         case .fileActivity:
-            items += activities.filter { $0.category != .queue }.map { .activity($0) }
+            items += activities.filter { $0.category != .queue && $0.category != .rss }.map { .activity($0) }
         case .queueActivity:
             items += activities.filter { $0.category == .queue }.map { .activity($0) }
+        case .rss:
+            items += activities.filter { $0.category == .rss }.map { .activity($0) }
         }
 
         return items.sorted { $0.date > $1.date }
@@ -440,6 +444,8 @@ struct HistoryView: View {
                 Text(loc(.noFileActivity))
             case .queueActivity:
                 Text(loc(.noQueueActivity))
+            case .rss:
+                Text(loc(.noRSSActivity))
             }
         }
     }

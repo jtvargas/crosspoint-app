@@ -153,12 +153,33 @@ final class DeviceViewModel {
         pingTask = nil
     }
 
+    // MARK: - Folder Management
+
+    /// Ensure a folder path exists on the device.
+    /// Used by batch operations to pre-create folders once before sending multiple files.
+    func ensureFolder(_ path: String) async throws {
+        guard let service = activeService else {
+            throw DeviceError.unreachable
+        }
+        try await service.ensureFolder(path)
+    }
+
+    // MARK: - Upload
+
     /// Upload a file to the device with progress reporting.
     /// Sets global `isUploading` / `uploadFilename` so any tab can show progress.
     ///
-    /// The `ensureFolder` call has its own internal retry logic (3 attempts with 1s delay).
+    /// The `ensureFolder` call has its own internal retry logic (3 attempts with 0.5s delay).
     /// The upload itself has retry logic in the firmware service (2 retries for connection-lost).
-    func upload(data: Data, filename: String, toFolder folder: String) async throws {
+    ///
+    /// - Parameter skipEnsureFolder: When `true`, skips the per-upload folder existence check.
+    ///   Use this when the caller has already pre-ensured the destination folder for a batch.
+    func upload(
+        data: Data,
+        filename: String,
+        toFolder folder: String,
+        skipEnsureFolder: Bool = false
+    ) async throws {
         guard let service = activeService else {
             DebugLogger.log("Upload aborted: device not connected", level: .error, category: .device)
             throw DeviceError.unreachable
@@ -173,9 +194,11 @@ final class DeviceViewModel {
             uploadFilename = nil
         }
 
-        DebugLogger.log("Ensuring folder: /\(folder)/", level: .info, category: .device)
-        try await service.ensureFolder(folder)
-        DebugLogger.log("Folder ready: /\(folder)/", level: .info, category: .device)
+        if !skipEnsureFolder {
+            DebugLogger.log("Ensuring folder: /\(folder)/", level: .info, category: .device)
+            try await service.ensureFolder(folder)
+            DebugLogger.log("Folder ready: /\(folder)/", level: .info, category: .device)
+        }
 
         DebugLogger.log("Uploading \(filename) (\(data.count) bytes) to /\(folder)/", level: .info, category: .device)
         try await service.uploadFile(data: data, filename: filename, toFolder: folder) { [weak self] progress in

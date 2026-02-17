@@ -98,9 +98,6 @@ final class QueueViewModel {
 
     // MARK: - Send All
 
-    /// Cooldown between sequential sends (seconds). Gives the ESP32 time to recover.
-    private static let itemCooldown: Duration = .seconds(2)
-
     /// Maximum retry attempts per item before marking as failed.
     private static let maxItemRetries = 1
 
@@ -109,6 +106,26 @@ final class QueueViewModel {
 
     /// Number of consecutive failures before aborting the batch (device probably gone).
     private static let circuitBreakerThreshold = 3
+
+    /// Adaptive cooldown between sequential sends based on file size.
+    /// Small files need minimal ESP32 recovery time; larger files need more.
+    private static func cooldown(forFileSize bytes: Int64) -> Duration {
+        switch bytes {
+        case ..<50_000:    return .milliseconds(300)   // < 50 KB — tiny EPUB
+        case ..<200_000:   return .milliseconds(800)   // < 200 KB — typical article
+        default:           return .milliseconds(1_500)  // >= 200 KB — long/image-heavy
+        }
+    }
+
+    /// Returns the cooldown in seconds for a given file size.
+    /// Mirrors the `cooldown(forFileSize:)` Duration function for use in estimation.
+    private static func cooldownSeconds(forFileSize bytes: Int64) -> Double {
+        switch bytes {
+        case ..<50_000:    return 0.3
+        case ..<200_000:   return 0.8
+        default:           return 1.5
+        }
+    }
 
     /// Send all queued items to the device sequentially with retry, cooldown,
     /// and circuit-breaker logic.
@@ -134,6 +151,29 @@ final class QueueViewModel {
             level: .info, category: .queue
         )
 
+        // Pre-ensure all unique destination folders once before sending.
+        // This eliminates redundant listFiles network calls per item (the single
+        // biggest bottleneck for batch sends to the same folder).
+        let uniqueFolders = Set(items.map { $0.destinationFolder ?? defaultFolder })
+        var ensuredFolders = Set<String>()
+
+        for folder in uniqueFolders {
+            do {
+                DebugLogger.log(
+                    "Pre-ensuring folder: /\(folder)/",
+                    level: .info, category: .queue
+                )
+                try await deviceVM.ensureFolder(folder)
+                ensuredFolders.insert(folder)
+            } catch {
+                DebugLogger.log(
+                    "Failed to pre-ensure folder /\(folder)/: \(error.localizedDescription)",
+                    level: .warning, category: .queue
+                )
+                // Not fatal — individual uploads will retry ensureFolder if needed
+            }
+        }
+
         for (index, item) in items.enumerated() {
             // Circuit breaker: abort if too many consecutive failures
             if consecutiveFailures >= Self.circuitBreakerThreshold {
@@ -150,6 +190,7 @@ final class QueueViewModel {
             currentFilename = item.filename
 
             let folder = item.destinationFolder ?? defaultFolder
+            let skipEnsure = ensuredFolders.contains(folder)
             var itemSent = false
 
             // Attempt with retry
@@ -166,11 +207,24 @@ final class QueueViewModel {
                     let data = try Data(contentsOf: item.fileURL)
 
                     DebugLogger.log(
-                        "Sending item \(index + 1)/\(items.count): \(item.filename) -> /\(folder)/",
+                        "Sending item \(index + 1)/\(items.count): \(item.filename) (\(data.count) bytes) -> /\(folder)/",
                         level: .info, category: .queue
                     )
 
-                    try await deviceVM.upload(data: data, filename: item.filename, toFolder: folder)
+                    // Time the upload for adaptive estimation (overhead + data transfer, no cooldown)
+                    let uploadStart = ContinuousClock.now
+                    try await deviceVM.upload(
+                        data: data,
+                        filename: item.filename,
+                        toFolder: folder,
+                        skipEnsureFolder: skipEnsure
+                    )
+                    let uploadDuration = uploadStart.duration(to: .now)
+                    let durationSeconds = Double(uploadDuration.components.seconds)
+                                        + Double(uploadDuration.components.attoseconds) / 1e18
+
+                    // Record transfer performance for improving future estimates
+                    TransferStatsTracker.recordTransfer(bytes: item.fileSize, duration: durationSeconds)
 
                     sentFilenames.append(item.filename)
                     consecutiveFailures = 0 // Reset on success
@@ -211,9 +265,10 @@ final class QueueViewModel {
                 }
             }
 
-            // Cooldown between items (skip after the last item)
+            // Adaptive cooldown between items (skip after the last item).
+            // Scales by file size: small EPUBs need minimal ESP32 recovery.
             if index < items.count - 1 && itemSent {
-                try? await Task.sleep(for: Self.itemCooldown)
+                try? await Task.sleep(for: Self.cooldown(forFileSize: item.fileSize))
             }
         }
 
@@ -244,6 +299,53 @@ final class QueueViewModel {
         isSending = false
         sendProgress = nil
         currentFilename = nil
+    }
+
+    // MARK: - Transfer Time Estimation
+
+    /// Threshold above which the large-queue warning is shown.
+    static let largeQueueThreshold = 10
+
+    /// Estimate total transfer time for a batch of queue items.
+    ///
+    /// Decomposes per-item time into three components:
+    /// 1. **Overhead** — fixed cost per upload (HTTP setup, ESP32 processing).
+    ///    Learned from real transfers via EMA, falls back to 1.5s.
+    /// 2. **Data transfer** — `fileSize / rate`. Rate is learned via EMA,
+    ///    falls back to 150 KB/s.
+    /// 3. **Cooldown** — adaptive pause between items based on file size
+    ///    (0.3s / 0.8s / 1.5s).
+    ///
+    /// A small constant is added for the one-time folder pre-ensure at batch start.
+    static func estimateTransferTime(for items: [QueueItem]) -> (minutes: Int, seconds: Int, totalSeconds: Int) {
+        let rate = TransferStatsTracker.effectiveTransferRate
+        let overhead = TransferStatsTracker.effectiveOverhead
+
+        // One-time cost: pre-ensure destination folders at batch start
+        var total: Double = 1.0
+
+        for (index, item) in items.enumerated() {
+            // Per-item: overhead + data transfer
+            total += overhead + (Double(item.fileSize) / rate)
+
+            // Adaptive cooldown (not after the last item)
+            if index < items.count - 1 {
+                total += cooldownSeconds(forFileSize: item.fileSize)
+            }
+        }
+
+        let totalInt = Int(total.rounded(.up))
+        return (minutes: totalInt / 60, seconds: totalInt % 60, totalSeconds: totalInt)
+    }
+
+    /// Format the estimated transfer time as a human-readable string (e.g. "3 min 20 sec").
+    static func formatTransferTime(for items: [QueueItem]) -> String {
+        let est = estimateTransferTime(for: items)
+        if est.minutes > 0 {
+            return loc(.estimatedTimeMinSec, est.minutes, est.seconds)
+        } else {
+            return loc(.estimatedTimeSec, est.seconds)
+        }
     }
 
     // MARK: - Remove Single Item

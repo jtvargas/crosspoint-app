@@ -16,6 +16,7 @@ struct FileManagerView: View {
     @State private var showCreateFolder = false
     @State private var showFileImporter = false
     @State private var itemToDelete: DeviceFile?
+    @State private var showDeleteConfirmation = false
     @State private var itemToMove: DeviceFile?
     @State private var itemToRename: DeviceFile?
 
@@ -102,25 +103,36 @@ struct FileManagerView: View {
             }
             .alert(
                 loc(.deleteItemTitle, itemToDelete?.name ?? ""),
-                isPresented: Binding(
-                    get: { itemToDelete != nil },
-                    set: { if !$0 { itemToDelete = nil } }
-                )
+                isPresented: $showDeleteConfirmation
             ) {
                 Button(loc(.delete), role: .destructive) {
                     if let item = itemToDelete {
-                        Task { _ = await fileVM.deleteItem(item, modelContext: modelContext) }
+                        let contentCount = fileVM.folderContentCount ?? 0
+                        Task {
+                            if item.isDirectory && contentCount > 0 {
+                                _ = await fileVM.deleteItemRecursive(item, totalCount: contentCount, modelContext: modelContext)
+                            } else {
+                                _ = await fileVM.deleteItem(item, modelContext: modelContext)
+                            }
+                        }
                     }
                     itemToDelete = nil
                 }
                 Button(loc(.cancel), role: .cancel) {
                     itemToDelete = nil
+                    fileVM.folderContentCount = nil
                 }
             } message: {
                 if let item = itemToDelete {
-                    Text(item.isDirectory
-                         ? loc(.deleteFolderMustBeEmpty)
-                         : loc(.deleteFilePermanent))
+                    if item.isDirectory {
+                        if let count = fileVM.folderContentCount, count > 0 {
+                            Text(loc(.deleteFolderWithContents, count))
+                        } else {
+                            Text(loc(.deleteFolderMustBeEmpty))
+                        }
+                    } else {
+                        Text(loc(.deleteFilePermanent))
+                    }
                 }
             }
             .fileImporter(
@@ -145,6 +157,12 @@ struct FileManagerView: View {
             .overlay {
                 if deviceVM.isUploading {
                     uploadOverlay
+                }
+            }
+            // MARK: - Delete Progress Overlay
+            .overlay {
+                if fileVM.isDeleting {
+                    deleteOverlay
                 }
             }
         }
@@ -221,7 +239,7 @@ struct FileManagerView: View {
                                 FileManagerRow(
                                     file: file,
                                     supportsMoveRename: fileVM.supportsMoveRename,
-                                    onDelete: { itemToDelete = file },
+                                    onDelete: { prepareDelete(file) },
                                     onMove: nil,
                                     onRename: nil
                                 )
@@ -231,7 +249,7 @@ struct FileManagerView: View {
                             FileManagerRow(
                                 file: file,
                                 supportsMoveRename: fileVM.supportsMoveRename,
-                                onDelete: { itemToDelete = file },
+                                onDelete: { prepareDelete(file) },
                                 onMove: fileVM.supportsMoveRename ? { itemToMove = file } : nil,
                                 onRename: nil // Rename disabled — coming soon
                             )
@@ -373,6 +391,65 @@ struct FileManagerView: View {
             .padding(24)
             .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 16))
             .padding(40)
+        }
+    }
+
+    // MARK: - Delete Progress Overlay
+
+    private var deleteOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                if let progress = fileVM.deleteProgress {
+                    ProgressView(value: Double(progress.current), total: Double(progress.total)) {
+                        Text(loc(.deletingProgress, progress.current, progress.total))
+                            .font(.headline)
+                    } currentValueLabel: {
+                        if let name = fileVM.currentDeleteItem {
+                            Text(loc(.deletingItem, name))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .progressViewStyle(.linear)
+
+                    Text("\(Int(Double(progress.current) / Double(max(progress.total, 1)) * 100))%")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                } else {
+                    ProgressView()
+                        .controlSize(.large)
+                    Text(loc(.deleteFolderCountingContents))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(24)
+            .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .padding(40)
+        }
+    }
+
+    // MARK: - Prepare Delete
+
+    /// Prepares a delete operation: for folders, counts contents first, then shows confirmation.
+    /// For files, shows confirmation immediately.
+    private func prepareDelete(_ file: DeviceFile) {
+        itemToDelete = file
+        fileVM.folderContentCount = nil
+
+        if file.isDirectory {
+            // Count contents first, then show confirmation
+            Task {
+                let count = await fileVM.countFolderContents(file)
+                fileVM.folderContentCount = count
+                showDeleteConfirmation = true
+            }
+        } else {
+            showDeleteConfirmation = true
         }
     }
 
