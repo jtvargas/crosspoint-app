@@ -38,6 +38,10 @@ final class FileManagerViewModel {
     /// Whether we're currently counting folder contents.
     var isCountingContents = false
 
+    /// Set to `true` to request cancellation of the current recursive delete.
+    /// The loop checks this between items and stops gracefully.
+    var deleteCancelled = false
+
     /// Device status info (nil if not fetched or unsupported).
     var deviceStatus: DeviceStatus?
 
@@ -291,6 +295,13 @@ final class FileManagerViewModel {
         return count
     }
 
+    /// Request cancellation of the current recursive delete.
+    /// The loop will stop after the in-flight operation completes.
+    func cancelDelete() {
+        deleteCancelled = true
+        DebugLogger.log("Recursive delete cancellation requested by user", level: .info, category: .device)
+    }
+
     /// Delete a folder and all its contents recursively with progress feedback.
     ///
     /// Strategy: depth-first traversal — delete files in each directory first,
@@ -298,7 +309,7 @@ final class FileManagerViewModel {
     /// Each operation has retry logic (2 retries, 1s delay) and a circuit breaker
     /// (3 consecutive failures = abort) to handle ESP32 WiFi instability.
     /// Individual item failures are logged and skipped — the delete continues
-    /// with remaining items unless the circuit breaker trips.
+    /// with remaining items unless the circuit breaker trips or the user cancels.
     func deleteItemRecursive(_ folder: DeviceFile, totalCount: Int, modelContext: ModelContext) async -> Bool {
         guard let service, folder.isDirectory else {
             errorMessage = loc(.notConnectedToDevice)
@@ -308,11 +319,13 @@ final class FileManagerViewModel {
         let totalWithFolder = totalCount + 1 // +1 for the folder itself
 
         isDeleting = true
+        deleteCancelled = false
         deleteProgress = (0, totalWithFolder)
         currentDeleteItem = nil
         errorMessage = nil
 
         deviceVM?.beginOperation()
+        deviceVM?.isBatchDeleting = true
 
         var deletedCount = 0
         var consecutiveFailures = 0
@@ -332,67 +345,80 @@ final class FileManagerViewModel {
             skippedItems: &skippedItems
         )
 
-        // Attempt to delete the top-level folder itself
+        let wasCancelled = deleteCancelled
+
+        // Attempt to delete the top-level folder itself (only if not cancelled)
         var folderDeleted = false
-        if contentsCleared || skippedItems.isEmpty {
-            // All contents removed (or folder was already empty) — safe to delete
-            deletedCount += 1
-            deleteProgress = (deletedCount, totalWithFolder)
-            currentDeleteItem = folder.name
-            folderDeleted = await deleteWithRetry(service: service, isDirectory: true, path: folder.path)
-            if !folderDeleted {
-                DebugLogger.log(
-                    "Failed to delete top-level folder: \(folder.path)",
-                    level: .error, category: .device
-                )
+        if !wasCancelled {
+            if contentsCleared || skippedItems.isEmpty {
+                // All contents removed (or folder was already empty) — safe to delete
+                deletedCount += 1
+                deleteProgress = (deletedCount, totalWithFolder)
+                currentDeleteItem = folder.name
+                folderDeleted = await deleteWithRetry(service: service, isDirectory: true, path: folder.path)
+                if !folderDeleted {
+                    DebugLogger.log(
+                        "Failed to delete top-level folder: \(folder.path)",
+                        level: .error, category: .device
+                    )
+                }
+            } else if !skippedItems.isEmpty {
+                // Some items failed — try deleting the folder anyway
+                deletedCount += 1
+                deleteProgress = (deletedCount, totalWithFolder)
+                currentDeleteItem = folder.name
+                folderDeleted = await deleteWithRetry(service: service, isDirectory: true, path: folder.path)
             }
-        } else if !skippedItems.isEmpty {
-            // Some items failed — try deleting the folder anyway (it may work if
-            // the skipped items were files the device already removed)
-            deletedCount += 1
-            deleteProgress = (deletedCount, totalWithFolder)
-            currentDeleteItem = folder.name
-            folderDeleted = await deleteWithRetry(service: service, isDirectory: true, path: folder.path)
         }
 
+        deviceVM?.isBatchDeleting = false
         deviceVM?.endOperation()
 
         // Log results
-        let failedCount = skippedItems.count + (folderDeleted ? 0 : 1)
-        let successCount = deletedCount - failedCount
-
-        if failedCount == 0 {
-            // Complete success
-            let detail = loc(.deletedFolderRecursive, folder.name, totalCount, currentPath)
+        if wasCancelled {
+            let detail = loc(.deleteStopped, deletedCount, totalWithFolder)
             logActivity(.deleteFolder, detail: detail, modelContext: modelContext)
             DebugLogger.log(
-                "Recursive delete complete: \(folder.name) — \(successCount) items deleted",
+                "Recursive delete stopped by user: \(folder.name) — \(deletedCount) of \(totalWithFolder) items deleted",
                 level: .info, category: .device
             )
-            if ReviewPromptManager.shouldPromptAfterSuccess() {
-                shouldRequestReview = true
-            }
-        } else if contentsCleared || folderDeleted {
-            // Partial success — some items failed but the folder was deleted
-            let detail = loc(.deletedFolderRecursivePartial, folder.name, successCount, currentPath, failedCount)
-            logActivity(.deleteFolder, detail: detail, status: .failed, modelContext: modelContext)
-            DebugLogger.log(
-                "Recursive delete partial: \(folder.name) — \(successCount) deleted, \(failedCount) failed",
-                level: .warning, category: .device
-            )
         } else {
-            // Total failure — circuit breaker tripped or couldn't clear contents
-            let detail = loc(.failedToDeleteFolderRecursive, currentPath, folder.name, successCount, totalCount)
-            logActivity(.deleteFolder, detail: detail, status: .failed, modelContext: modelContext)
-            DebugLogger.log(
-                "Recursive delete failed: \(folder.name) — aborted after \(successCount) of \(totalCount) items",
-                level: .error, category: .device
-            )
+            let failedCount = skippedItems.count + (folderDeleted ? 0 : 1)
+            let successCount = deletedCount - failedCount
+
+            if failedCount == 0 {
+                // Complete success
+                let detail = loc(.deletedFolderRecursive, folder.name, totalCount, currentPath)
+                logActivity(.deleteFolder, detail: detail, modelContext: modelContext)
+                DebugLogger.log(
+                    "Recursive delete complete: \(folder.name) — \(successCount) items deleted",
+                    level: .info, category: .device
+                )
+                if ReviewPromptManager.shouldPromptAfterSuccess() {
+                    shouldRequestReview = true
+                }
+            } else if contentsCleared || folderDeleted {
+                // Partial success — some items failed but the folder was deleted
+                let detail = loc(.deletedFolderRecursivePartial, folder.name, successCount, currentPath, failedCount)
+                logActivity(.deleteFolder, detail: detail, status: .failed, modelContext: modelContext)
+                DebugLogger.log(
+                    "Recursive delete partial: \(folder.name) — \(successCount) deleted, \(failedCount) failed",
+                    level: .warning, category: .device
+                )
+            } else {
+                // Total failure — circuit breaker tripped or couldn't clear contents
+                let detail = loc(.failedToDeleteFolderRecursive, currentPath, folder.name, deletedCount, totalCount)
+                logActivity(.deleteFolder, detail: detail, status: .failed, modelContext: modelContext)
+                DebugLogger.log(
+                    "Recursive delete failed: \(folder.name) — aborted after \(deletedCount) of \(totalCount) items",
+                    level: .error, category: .device
+                )
+            }
         }
 
         cleanupDeleteState()
         await loadDirectory()
-        return failedCount == 0
+        return !wasCancelled && skippedItems.isEmpty && folderDeleted
     }
 
     /// Depth-first recursive delete of all contents under a path.
@@ -425,6 +451,9 @@ final class FileManagerViewModel {
 
         // Delete all files first (leaves)
         for file in files {
+            // User cancellation
+            if deleteCancelled { return false }
+
             // Circuit breaker: abort if too many consecutive failures
             if consecutiveFailures >= Self.deleteCircuitBreakerThreshold {
                 DebugLogger.log(
@@ -458,6 +487,9 @@ final class FileManagerViewModel {
 
         // Recurse into subdirectories (depth-first)
         for dir in directories {
+            // User cancellation
+            if deleteCancelled { return false }
+
             // Circuit breaker check before recursing
             if consecutiveFailures >= Self.deleteCircuitBreakerThreshold {
                 DebugLogger.log(
@@ -562,6 +594,7 @@ final class FileManagerViewModel {
     /// Reset all recursive delete state.
     private func cleanupDeleteState() {
         isDeleting = false
+        deleteCancelled = false
         deleteProgress = nil
         currentDeleteItem = nil
         folderContentCount = nil

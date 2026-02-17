@@ -103,8 +103,8 @@ final class ConvertViewModel {
             lastEPUBData = epubData
             lastFilename = filename
 
-            // Phase 4: Send to device (if connected)
-            if deviceVM.isConnected {
+            // Phase 4: Send to device (if connected and not busy deleting)
+            if deviceVM.isConnected && !deviceVM.isBatchDeleting {
                 currentPhase = .sending
                 article.status = .sending
                 let folder = settings?.convertFolder ?? "content"

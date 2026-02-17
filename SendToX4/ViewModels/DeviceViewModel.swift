@@ -25,6 +25,10 @@ final class DeviceViewModel {
     /// The filename of the file currently being uploaded (for display in progress UI).
     var uploadFilename: String?
 
+    /// Whether a recursive folder deletion is in progress on the device.
+    /// While `true`, uploads are blocked to avoid overwhelming the ESP32.
+    var isBatchDeleting = false
+
     // MARK: - Busy Tracking
 
     /// Count of active non-upload device operations (list, delete, move, etc.).
@@ -180,6 +184,11 @@ final class DeviceViewModel {
         toFolder folder: String,
         skipEnsureFolder: Bool = false
     ) async throws {
+        guard !isBatchDeleting else {
+            DebugLogger.log("Upload blocked: batch delete in progress (\(filename))", level: .warning, category: .device)
+            throw DeviceError.batchDeleteInProgress
+        }
+
         guard let service = activeService else {
             DebugLogger.log("Upload aborted: device not connected", level: .error, category: .device)
             throw DeviceError.unreachable

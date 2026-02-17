@@ -94,6 +94,9 @@ enum L10n {
         case deletedFolderRecursive
         case deletedFolderRecursivePartial
         case failedToDeleteFolderRecursive
+        case stopDelete
+        case deleteStopped
+        case fileManagerDeviceNote
 
         // MARK: File Manager Row
         case renameComingSoon
@@ -322,6 +325,7 @@ enum L10n {
         case errorDeleteFailed
         case errorMoveFailed
         case errorRenameFailed
+        case errorBatchDeleteInProgress
         case errorFolderNotEmpty
         case errorNameAlreadyExists
         case errorItemProtected
@@ -518,6 +522,9 @@ enum L10n {
         .deletedFolderRecursive: "Deleted folder '%@' and %d item(s) from %@",
         .deletedFolderRecursivePartial: "Deleted folder '%@' (%d item(s)) from %@ — %d item(s) could not be deleted",
         .failedToDeleteFolderRecursive: "Failed to fully delete folder '%@' from %@: %d of %d item(s) deleted",
+        .stopDelete: "Stop",
+        .deleteStopped: "Stopped — %d of %d item(s) deleted",
+        .fileManagerDeviceNote: "The X4 e-reader has limited WiFi performance. Uploads and bulk operations like deleting folders may take longer or occasionally fail — this is a device limitation, not an app issue. The app retries automatically.",
 
         // File Manager Row
         .renameComingSoon: "Rename (Coming Soon)",
@@ -746,6 +753,7 @@ enum L10n {
         .errorDeleteFailed: "Delete failed: %@",
         .errorMoveFailed: "Move failed: %@",
         .errorRenameFailed: "Rename failed: %@",
+        .errorBatchDeleteInProgress: "A folder deletion is in progress. Please wait for it to complete before sending files.",
         .errorFolderNotEmpty: "Folder is not empty. Delete its contents first.",
         .errorNameAlreadyExists: "An item with that name already exists.",
         .errorItemProtected: "This item is protected and cannot be modified.",
@@ -935,6 +943,9 @@ enum L10n {
         .deletedFolderRecursive: "已从 %@ 删除文件夹「%@」及 %d 个项目",
         .deletedFolderRecursivePartial: "已从 %@ 删除文件夹「%@」（%d 个项目）— %d 个项目无法删除",
         .failedToDeleteFolderRecursive: "从 %@ 删除文件夹「%@」未完全成功：已删除 %d/%d 个项目",
+        .stopDelete: "停止",
+        .deleteStopped: "已停止 — 已删除 %d/%d 个项目",
+        .fileManagerDeviceNote: "X4电子阅读器的WiFi性能有限。上传和批量操作（如删除文件夹）可能需要较长时间或偶尔失败——这是设备限制，非应用问题。应用会自动重试。",
 
         // File Manager Row
         .renameComingSoon: "重命名（即将推出）",
@@ -1163,6 +1174,7 @@ enum L10n {
         .errorDeleteFailed: "删除失败：%@",
         .errorMoveFailed: "移动失败：%@",
         .errorRenameFailed: "重命名失败：%@",
+        .errorBatchDeleteInProgress: "正在删除文件夹。请等待删除完成后再发送文件。",
         .errorFolderNotEmpty: "文件夹不为空。请先删除其内容。",
         .errorNameAlreadyExists: "同名项目已存在。",
         .errorItemProtected: "此项目受保护，无法修改。",

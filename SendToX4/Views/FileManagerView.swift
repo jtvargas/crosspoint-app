@@ -19,6 +19,7 @@ struct FileManagerView: View {
     @State private var showDeleteConfirmation = false
     @State private var itemToMove: DeviceFile?
     @State private var itemToRename: DeviceFile?
+    @State private var infoDismissed = false
 
     var body: some View {
         NavigationStack {
@@ -266,6 +267,16 @@ struct FileManagerView: View {
                     }
                 }
             }
+
+            // Device info note
+            if !infoDismissed {
+                Section {
+                    deviceInfoNote
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                }
+            }
         }
         #if os(iOS)
         .listStyle(.insetGrouped)
@@ -419,6 +430,17 @@ struct FileManagerView: View {
                     Text("\(Int(Double(progress.current) / Double(max(progress.total, 1)) * 100))%")
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
+
+                    Button {
+                        fileVM.cancelDelete()
+                    } label: {
+                        Text(loc(.stopDelete))
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(AppColor.error)
+                    .disabled(fileVM.deleteCancelled)
                 } else {
                     ProgressView()
                         .controlSize(.large)
@@ -431,6 +453,33 @@ struct FileManagerView: View {
             .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 16))
             .padding(40)
         }
+    }
+
+    // MARK: - Device Info Note
+
+    private var deviceInfoNote: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "info.circle")
+                .foregroundStyle(AppColor.accent)
+                .font(.subheadline)
+                .padding(.top, 1)
+            Text(loc(.fileManagerDeviceNote))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            Button {
+                withAnimation { infoDismissed = true }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.tertiary)
+                    .font(.subheadline)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .glassEffect(.regular, in: .rect(cornerRadius: 12))
+        .padding(.horizontal, 4)
+        .padding(.vertical, 8)
     }
 
     // MARK: - Prepare Delete

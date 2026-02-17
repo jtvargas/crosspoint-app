@@ -55,7 +55,7 @@ struct MainView: View {
             await rssVM.refreshAllFeeds(modelContext: modelContext)
         }
         .onChange(of: deviceVM.isConnected) { _, isConnected in
-            if isConnected && !queueItems.isEmpty {
+            if isConnected && !queueItems.isEmpty && !deviceVM.isBatchDeleting {
                 showQueuePrompt = true
             }
         }
@@ -113,7 +113,7 @@ struct MainView: View {
                 await rssVM.refreshAllFeeds(modelContext: modelContext)
             }
             .onChange(of: deviceVM.isConnected) { _, isConnected in
-                if isConnected && !queueItems.isEmpty {
+                if isConnected && !queueItems.isEmpty && !deviceVM.isBatchDeleting {
                     showQueuePrompt = true
                 }
             }

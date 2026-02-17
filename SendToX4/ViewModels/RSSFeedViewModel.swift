@@ -306,7 +306,7 @@ final class RSSFeedViewModel {
                 // Destination folder: /feed/<domain>/
                 let destFolder = "feed/\(rssArticle.domain)"
 
-                if deviceVM.isConnected {
+                if deviceVM.isConnected && !deviceVM.isBatchDeleting {
                     // Send directly
                     try await deviceVM.upload(
                         data: epubData,

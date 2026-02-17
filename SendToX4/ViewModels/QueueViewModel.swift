@@ -136,6 +136,10 @@ final class QueueViewModel {
     ) async {
         let descriptor = FetchDescriptor<QueueItem>(sortBy: [SortDescriptor(\.queuedAt)])
         guard let items = try? modelContext.fetch(descriptor), !items.isEmpty else { return }
+        guard !deviceVM.isBatchDeleting else {
+            DebugLogger.log("Queue send blocked: batch delete in progress", level: .warning, category: .queue)
+            return
+        }
 
         isSending = true
         errorMessage = nil

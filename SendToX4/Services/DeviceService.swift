@@ -73,6 +73,7 @@ nonisolated enum DeviceError: LocalizedError {
     case deleteFailed(String)
     case moveFailed(String)
     case renameFailed(String)
+    case batchDeleteInProgress
     case folderNotEmpty
     case itemAlreadyExists
     case protectedItem
@@ -101,6 +102,8 @@ nonisolated enum DeviceError: LocalizedError {
             return loc(.errorMoveFailed, message)
         case .renameFailed(let message):
             return loc(.errorRenameFailed, message)
+        case .batchDeleteInProgress:
+            return loc(.errorBatchDeleteInProgress)
         case .folderNotEmpty:
             return loc(.errorFolderNotEmpty)
         case .itemAlreadyExists:
