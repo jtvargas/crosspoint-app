@@ -25,15 +25,29 @@ final class DeviceViewModel {
     /// The filename of the file currently being uploaded (for display in progress UI).
     var uploadFilename: String?
 
+    // MARK: - Busy Tracking
+
+    /// Count of active non-upload device operations (list, delete, move, etc.).
+    /// Uploads are tracked separately via `isUploading`.
+    private var activeOperationCount = 0
+
+    /// Whether any device operation is currently in progress.
+    /// The health ping suspends itself while this is `true`.
+    var isBusy: Bool { isUploading || activeOperationCount > 0 }
+
     // MARK: - Internal State
 
     private(set) var activeService: (any DeviceService)?
     private var discoveryResult: DiscoveryResult = .notFound
 
+    /// Background task that periodically checks device reachability.
+    private var pingTask: Task<Void, Never>?
+
     // MARK: - Actions
 
     /// Search for the X4 device using auto-detection or configured settings.
     func search(settings: DeviceSettings?) async {
+        stopHealthPing()
         isSearching = true
         errorMessage = nil
 
@@ -54,7 +68,9 @@ final class DeviceViewModel {
         connectedHost = result.service?.baseURL.host
         isSearching = false
 
-        if !isConnected {
+        if isConnected {
+            startHealthPing()
+        } else {
             errorMessage = loc(.x4NotFoundMessage)
         }
     }
@@ -68,12 +84,73 @@ final class DeviceViewModel {
     /// Blocked while a file upload is in progress to prevent data corruption.
     func disconnect() {
         guard !isUploading else { return }
+        stopHealthPing()
         activeService = nil
         isConnected = false
         firmwareLabel = loc(.notConnected)
         connectedHost = nil
         errorMessage = nil
         uploadProgress = 0
+    }
+
+    // MARK: - Operation Tracking
+
+    /// Mark the start of a device operation (list, delete, move, etc.).
+    /// The health ping suspends while any operations are active.
+    func beginOperation() {
+        activeOperationCount += 1
+    }
+
+    /// Mark the end of a device operation.
+    func endOperation() {
+        activeOperationCount = max(0, activeOperationCount - 1)
+    }
+
+    // MARK: - Health Ping
+
+    /// How often to ping the device for reachability (in seconds).
+    private static let pingInterval: Duration = .seconds(12)
+
+    /// Start a background health-ping loop that periodically verifies the device
+    /// is still reachable. The ping is skipped whenever the device is busy with
+    /// an active operation (upload, file listing, delete, etc.) to avoid saturating
+    /// the ESP32's limited resources.
+    ///
+    /// On ping failure the device is automatically marked as disconnected.
+    private func startHealthPing() {
+        stopHealthPing()
+        pingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                // Sleep first — the device was just verified during search()
+                try? await Task.sleep(for: DeviceViewModel.pingInterval)
+                guard !Task.isCancelled else { break }
+                guard let self else { break }
+
+                // Skip this cycle if the device is busy with a real operation
+                guard self.isConnected, !self.isBusy else { continue }
+
+                guard let service = self.activeService else { break }
+
+                let reachable = await service.checkReachability()
+
+                guard !Task.isCancelled else { break }
+
+                if !reachable {
+                    DebugLogger.log("Health ping failed — device unreachable", level: .warning, category: .device)
+                    self.isConnected = false
+                    self.activeService = nil
+                    self.connectedHost = nil
+                    self.firmwareLabel = loc(.notConnected)
+                    break // Stop the loop — device is gone
+                }
+            }
+        }
+    }
+
+    /// Cancel the background health-ping loop.
+    private func stopHealthPing() {
+        pingTask?.cancel()
+        pingTask = nil
     }
 
     /// Upload a file to the device with progress reporting.

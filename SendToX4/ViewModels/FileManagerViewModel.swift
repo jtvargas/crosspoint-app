@@ -54,12 +54,17 @@ final class FileManagerViewModel {
 
     private var service: (any DeviceService)?
 
+    /// Weak reference to the device view model for operation tracking.
+    /// The health ping suspends while any operation is in progress.
+    private weak var deviceVM: DeviceViewModel?
+
     // MARK: - Service Binding
 
-    /// Update the service reference (called when device connects/disconnects).
-    func bind(to service: (any DeviceService)?) {
+    /// Update the service reference and device view model (called when device connects/disconnects).
+    func bind(to service: (any DeviceService)?, deviceVM: DeviceViewModel?) {
         let changed = (self.service?.baseURL.absoluteString != service?.baseURL.absoluteString)
         self.service = service
+        self.deviceVM = deviceVM
         if changed {
             // Reset state when service changes
             currentPath = "/"
@@ -82,6 +87,9 @@ final class FileManagerViewModel {
         let targetPath = path ?? currentPath
         isLoading = true
         errorMessage = nil
+
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
 
         do {
             let result = try await service.listFiles(directory: targetPath)
@@ -123,6 +131,8 @@ final class FileManagerViewModel {
     /// Fetch device status (silently fails for unsupported firmware).
     func refreshStatus() async {
         guard let service else { return }
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
         do {
             deviceStatus = try await service.fetchStatus()
         } catch {
@@ -151,6 +161,9 @@ final class FileManagerViewModel {
             errorMessage = validationError
             return false
         }
+
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
 
         do {
             try await service.createFolder(name: name, parent: currentPath)
@@ -195,6 +208,9 @@ final class FileManagerViewModel {
 
         let action: ActivityAction = file.isDirectory ? .deleteFolder : .deleteFile
 
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
+
         do {
             if file.isDirectory {
                 try await service.deleteFolder(path: file.path)
@@ -224,6 +240,9 @@ final class FileManagerViewModel {
             return false
         }
 
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
+
         do {
             try await service.moveFile(path: file.path, destination: destination)
             logActivity(.moveFile, detail: loc(.movedFileTo, file.name, destination), modelContext: modelContext)
@@ -243,6 +262,9 @@ final class FileManagerViewModel {
             errorMessage = loc(.notConnectedToDevice)
             return false
         }
+
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
 
         do {
             try await service.renameFile(path: file.path, newName: newName)
@@ -279,6 +301,8 @@ final class FileManagerViewModel {
     /// Fetch all folders from a given path (for the move destination picker).
     func fetchFolders(at path: String) async -> [DeviceFile] {
         guard let service else { return [] }
+        deviceVM?.beginOperation()
+        defer { deviceVM?.endOperation() }
         do {
             let items = try await service.listFiles(directory: path)
             return items

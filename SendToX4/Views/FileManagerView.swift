@@ -149,16 +149,16 @@ struct FileManagerView: View {
             }
         }
         .onChange(of: deviceVM.isConnected) {
-            fileVM.bind(to: deviceVM.activeService)
+            fileVM.bind(to: deviceVM.activeService, deviceVM: deviceVM)
             if deviceVM.isConnected {
                 Task { await fileVM.refresh() }
             }
         }
         .onChange(of: deviceVM.activeService?.baseURL) {
-            fileVM.bind(to: deviceVM.activeService)
+            fileVM.bind(to: deviceVM.activeService, deviceVM: deviceVM)
         }
         .task {
-            fileVM.bind(to: deviceVM.activeService)
+            fileVM.bind(to: deviceVM.activeService, deviceVM: deviceVM)
             if deviceVM.isConnected {
                 await fileVM.refresh()
             }
