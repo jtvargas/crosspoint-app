@@ -45,21 +45,25 @@ final class ConvertViewModel {
         modelContext: ModelContext,
         deviceVM: DeviceViewModel,
         queueVM: QueueViewModel,
-        settings: DeviceSettings?
+        settings: DeviceSettings?,
+        toast: ToastManager? = nil
     ) async {
         guard let url = validatedURL else {
             lastError = loc(.enterValidURL)
+            toast?.showError(loc(.enterValidURL))
             return
         }
 
         guard !deviceVM.isUploading else {
             lastError = loc(.uploadAlreadyInProgress)
+            toast?.showError(loc(.uploadAlreadyInProgress))
             return
         }
 
         // Duplicate prevention: block if this URL is already queued
         if QueueViewModel.isURLQueued(url.absoluteString, modelContext: modelContext) {
             lastError = loc(.urlAlreadyQueued)
+            toast?.showError(loc(.urlAlreadyQueued))
             return
         }
 
@@ -119,6 +123,7 @@ final class ConvertViewModel {
                 currentPhase = .sent
                 article.status = .sent
                 statusMessage = loc(.sentArticleToX4, content.title.truncated(to: 40))
+                toast?.showSuccess(loc(.phaseSent), subtitle: content.title.truncated(to: 50))
 
                 DebugLogger.log(
                     "Conversion complete + sent: '\(content.title)' (\(filename))",
@@ -129,7 +134,7 @@ final class ConvertViewModel {
                     shouldRequestReview = true
                 }
 
-                // Auto-reset after delay so the user sees the success message
+                // Auto-reset after delay so the button reverts to idle
                 try? await Task.sleep(for: .seconds(1.5))
                 reset()
             } else {
@@ -143,13 +148,14 @@ final class ConvertViewModel {
                     modelContext: modelContext
                 )
                 statusMessage = loc(.queuedArticle, content.title.truncated(to: 40))
+                toast?.showQueued(loc(.phaseSavedLocally), subtitle: content.title.truncated(to: 50))
 
                 DebugLogger.log(
                     "Conversion complete + queued: '\(content.title)' (\(filename))",
                     level: .info, category: .conversion
                 )
 
-                // Auto-reset after delay so the user sees the queued message
+                // Auto-reset after delay so the button reverts to idle
                 try? await Task.sleep(for: .seconds(1.5))
                 reset()
             }
@@ -160,6 +166,7 @@ final class ConvertViewModel {
             article.errorMessage = error.localizedDescription
             lastError = error.localizedDescription
             statusMessage = ""
+            toast?.showError(loc(.phaseFailed), subtitle: error.localizedDescription)
 
             DebugLogger.log(
                 "Conversion failed for \(url.absoluteString): \(error.localizedDescription)",
@@ -235,7 +242,8 @@ final class ConvertViewModel {
         article: Article,
         deviceVM: DeviceViewModel,
         settings: DeviceSettings?,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        toast: ToastManager? = nil
     ) async {
         guard deviceVM.isConnected else {
             lastError = loc(.x4NotConnected)
@@ -283,6 +291,7 @@ final class ConvertViewModel {
             currentPhase = .sent
             article.status = .sent
             statusMessage = loc(.resentArticleToX4, content.title.truncated(to: 40))
+            toast?.showSuccess(loc(.phaseSent), subtitle: content.title.truncated(to: 50))
 
             if ReviewPromptManager.shouldPromptAfterSuccess() {
                 shouldRequestReview = true

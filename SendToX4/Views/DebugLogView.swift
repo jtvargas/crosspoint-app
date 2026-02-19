@@ -39,6 +39,7 @@ private enum LogFilter: String, CaseIterable {
 
 /// Displays persistent debug logs with category filtering, copy, share, and clear actions.
 struct DebugLogView: View {
+    var toast: ToastManager?
     @State private var selectedFilter: LogFilter = .all
     @State private var showClearConfirm = false
     @State private var showShareSheet = false
@@ -214,6 +215,7 @@ struct DebugLogView: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
         #endif
+        toast?.showCopied(loc(.toastLogsCopied))
     }
 
     private func copyEntryToClipboard(_ entry: DebugLogger.Entry) {
@@ -224,6 +226,7 @@ struct DebugLogView: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
         #endif
+        toast?.showCopied(loc(.toastEntryCopied))
     }
 }
 

@@ -182,7 +182,8 @@ final class QueueViewModel {
     func sendAll(
         deviceVM: DeviceViewModel,
         settings: DeviceSettings,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        toast: ToastManager? = nil
     ) async {
         let descriptor = FetchDescriptor<QueueItem>(sortBy: [SortDescriptor(\.queuedAt)])
         guard let items = try? modelContext.fetch(descriptor), !items.isEmpty else { return }
@@ -354,6 +355,15 @@ final class QueueViewModel {
             level: failCount == 0 ? .info : .warning, category: .queue
         )
 
+        // Fire toast summary
+        if sentFilenames.count > 0 && failCount == 0 {
+            toast?.showSuccess(loc(.toastQueueSentAll, sentFilenames.count))
+        } else if sentFilenames.count > 0 && failCount > 0 {
+            toast?.showError(loc(.toastQueueSentPartial, sentFilenames.count, failCount))
+        } else if failCount > 0 {
+            toast?.showError(loc(.toastQueueSendFailed))
+        }
+
         isSending = false
         sendProgress = nil
         currentFilename = nil
@@ -415,7 +425,8 @@ final class QueueViewModel {
         _ item: QueueItem,
         deviceVM: DeviceViewModel,
         settings: DeviceSettings,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        toast: ToastManager? = nil
     ) {
         guard !pendingSendIDs.contains(item.id) else { return }
         pendingSendIDs.append(item.id)
@@ -423,7 +434,7 @@ final class QueueViewModel {
         // Start the send loop if it isn't running
         guard !isSendingSingle else { return }
         Task {
-            await processSendQueue(deviceVM: deviceVM, settings: settings, modelContext: modelContext)
+            await processSendQueue(deviceVM: deviceVM, settings: settings, modelContext: modelContext, toast: toast)
         }
     }
 
@@ -432,7 +443,8 @@ final class QueueViewModel {
     private func processSendQueue(
         deviceVM: DeviceViewModel,
         settings: DeviceSettings,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        toast: ToastManager? = nil
     ) async {
         guard !isSendingSingle else { return }
         isSendingSingle = true
@@ -493,12 +505,15 @@ final class QueueViewModel {
                     "Single send complete: \(item.filename)",
                     level: .info, category: .queue
                 )
+
+                toast?.showSuccess(loc(.toastQueueSentSingle), subtitle: item.title)
             } catch {
                 DebugLogger.log(
                     "Single send failed: \(item.filename) — \(error.localizedDescription)",
                     level: .error, category: .queue
                 )
                 errorMessage = loc(.failedToSendSingleItem, item.filename, error.localizedDescription)
+                toast?.showError(loc(.toastQueueSendFailed), subtitle: item.title)
             }
 
             pendingSendIDs.removeFirst()

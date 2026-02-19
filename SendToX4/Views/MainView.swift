@@ -1,3 +1,4 @@
+import AlertToast
 import SwiftUI
 import SwiftData
 
@@ -22,6 +23,7 @@ struct MainView: View {
     @State private var historyVM = HistoryViewModel()
     @State private var wallpaperVM = WallpaperViewModel()
     @State private var rssVM = RSSFeedViewModel()
+    @State private var toast = ToastManager()
     @State private var selectedTab: AppTab = .convert
     @State private var showAdvancedWallpaperSettings = false
     @State private var showQueuePrompt = false
@@ -68,7 +70,8 @@ struct MainView: View {
                     await queueVM.sendAll(
                         deviceVM: deviceVM,
                         settings: settings,
-                        modelContext: modelContext
+                        modelContext: modelContext,
+                        toast: toast
                     )
                 }
             }
@@ -82,6 +85,12 @@ struct MainView: View {
             } else {
                 Text(loc(.sendQueuedFilesMessage, queueItems.count))
             }
+        }
+        .toast(isPresenting: $toast.showHUD, duration: 2.5, tapToDismiss: true) {
+            toast.hudToast
+        }
+        .toast(isPresenting: $toast.showCenter, duration: 1.5, tapToDismiss: true) {
+            toast.centerToast
         }
         #else
         tabContent
@@ -126,7 +135,8 @@ struct MainView: View {
                         await queueVM.sendAll(
                             deviceVM: deviceVM,
                             settings: settings,
-                            modelContext: modelContext
+                            modelContext: modelContext,
+                            toast: toast
                         )
                     }
                 }
@@ -141,6 +151,12 @@ struct MainView: View {
                     Text(loc(.sendQueuedFilesMessage, queueItems.count))
                 }
             }
+            .toast(isPresenting: $toast.showHUD, duration: 2.5, tapToDismiss: true) {
+                toast.hudToast
+            }
+            .toast(isPresenting: $toast.showCenter, duration: 1.5, tapToDismiss: true) {
+                toast.centerToast
+            }
         #endif
     }
 
@@ -153,6 +169,7 @@ struct MainView: View {
                     queueVM: queueVM,
                     rssVM: rssVM,
                     settings: settings,
+                    toast: toast,
                     selectedTab: $selectedTab
                 )
             }
@@ -161,14 +178,16 @@ struct MainView: View {
                 WallpaperXView(
                     wallpaperVM: wallpaperVM,
                     deviceVM: deviceVM,
-                    settings: settings
+                    settings: settings,
+                    toast: toast
                 )
             }
 
             Tab(loc(.tabFiles), systemImage: "folder", value: .files) {
                 FileManagerView(
                     deviceVM: deviceVM,
-                    settings: settings
+                    settings: settings,
+                    toast: toast
                 )
             }
 
@@ -177,7 +196,8 @@ struct MainView: View {
                     historyVM: historyVM,
                     convertVM: convertVM,
                     deviceVM: deviceVM,
-                    settings: settings
+                    settings: settings,
+                    toast: toast
                 )
             }
             .badge(historyVM.unseenCount(articles: articles, activities: activities))

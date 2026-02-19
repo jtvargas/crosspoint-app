@@ -5,6 +5,7 @@ import SwiftUI
 struct SettingsToolbarModifier: ViewModifier {
     var deviceVM: DeviceViewModel
     var settings: DeviceSettings
+    var toast: ToastManager?
 
     @State private var showSettings = false
 
@@ -20,14 +21,14 @@ struct SettingsToolbarModifier: ViewModifier {
                 }
             }
             .sheet(isPresented: $showSettings) {
-                SettingsSheet(deviceVM: deviceVM, settings: settings)
+                SettingsSheet(deviceVM: deviceVM, settings: settings, toast: toast)
             }
     }
 }
 
 extension View {
     /// Adds a top-leading Settings gear button that opens the SettingsSheet.
-    func settingsToolbar(deviceVM: DeviceViewModel, settings: DeviceSettings) -> some View {
-        modifier(SettingsToolbarModifier(deviceVM: deviceVM, settings: settings))
+    func settingsToolbar(deviceVM: DeviceViewModel, settings: DeviceSettings, toast: ToastManager? = nil) -> some View {
+        modifier(SettingsToolbarModifier(deviceVM: deviceVM, settings: settings, toast: toast))
     }
 }
