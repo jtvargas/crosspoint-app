@@ -11,6 +11,7 @@ struct RSSFeedSheet: View {
     var deviceVM: DeviceViewModel
     var queueVM: QueueViewModel
     var settings: DeviceSettings
+    var toast: ToastManager
 
     private var feeds: [RSSFeed] {
         rssVM.fetchFeeds(modelContext: modelContext)
@@ -122,6 +123,7 @@ struct RSSFeedSheet: View {
                 deviceVM: deviceVM,
                 queueVM: queueVM,
                 settings: settings,
+                toast: toast,
                 feedTitle: loc(.rssAllFeeds),
                 feedID: nil
             )
@@ -174,6 +176,7 @@ struct RSSFeedSheet: View {
                 deviceVM: deviceVM,
                 queueVM: queueVM,
                 settings: settings,
+                toast: toast,
                 feedTitle: feed.title,
                 feedID: feed.id
             )
@@ -271,6 +274,7 @@ private struct RSSArticleListView: View {
     var deviceVM: DeviceViewModel
     var queueVM: QueueViewModel
     var settings: DeviceSettings
+    var toast: ToastManager
 
     /// Display title for the navigation bar.
     let feedTitle: String
@@ -345,31 +349,6 @@ private struct RSSArticleListView: View {
                 }
             }
 
-            // Success message
-            if let success = rssVM.successMessage {
-                Section {
-                    HStack {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(AppColor.success)
-                        Text(success)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            // Error message
-            if let error = rssVM.errorMessage, rssVM.isBatchProcessing == false {
-                Section {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(AppColor.error)
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
         }
         #if os(iOS)
         .listStyle(.insetGrouped)
@@ -542,7 +521,8 @@ private struct RSSArticleListView: View {
                                 deviceVM: deviceVM,
                                 queueVM: queueVM,
                                 settings: settings,
-                                modelContext: modelContext
+                                modelContext: modelContext,
+                                toast: toast
                             )
                         }
                     } label: {

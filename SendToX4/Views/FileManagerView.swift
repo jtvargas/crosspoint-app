@@ -9,6 +9,7 @@ struct FileManagerView: View {
     @Environment(\.requestReview) private var requestReview
     var deviceVM: DeviceViewModel
     var settings: DeviceSettings
+    var toast: ToastManager
     @State private var fileVM = FileManagerViewModel()
 
     // MARK: - Sheet / Dialog State
@@ -36,7 +37,7 @@ struct FileManagerView: View {
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
-            .settingsToolbar(deviceVM: deviceVM, settings: settings)
+            .settingsToolbar(deviceVM: deviceVM, settings: settings, toast: toast)
             .toolbar {
                 // Back / Up button (leading, only when not at root)
                 ToolbarItem(placement: .navigation) {
@@ -148,10 +149,11 @@ struct FileManagerView: View {
             ) { result in
                 handleFileImport(result)
             }
-            // MARK: - Error Banner
-            .overlay(alignment: .bottom) {
-                if let error = fileVM.errorMessage {
-                    errorBanner(error)
+            // MARK: - Error Toast
+            .onChange(of: fileVM.errorMessage) { _, newError in
+                if let error = newError {
+                    toast.showError(error)
+                    fileVM.errorMessage = nil
                 }
             }
             // MARK: - Upload Progress Overlay
@@ -358,31 +360,6 @@ struct FileManagerView: View {
             Text(loc(.loadingFiles))
                 .foregroundStyle(.secondary)
         }
-    }
-
-    // MARK: - Error Banner
-
-    private func errorBanner(_ message: String) -> some View {
-        HStack {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(AppColor.warning)
-            Text(message)
-                .font(.caption)
-                .lineLimit(2)
-            Spacer()
-            Button {
-                withAnimation { fileVM.errorMessage = nil }
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .padding()
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-        .animation(.easeInOut, value: fileVM.errorMessage)
     }
 
     // MARK: - Upload Progress Overlay

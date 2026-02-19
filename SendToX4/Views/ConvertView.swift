@@ -11,6 +11,7 @@ struct ConvertView: View {
     var queueVM: QueueViewModel
     @Bindable var rssVM: RSSFeedViewModel
     var settings: DeviceSettings
+    var toast: ToastManager
     @Binding var selectedTab: AppTab
 
     @Query(
@@ -52,9 +53,6 @@ struct ConvertView: View {
                     // RSS Feeds Card
                     rssFeedCard
 
-                    // Status / Error Display
-                    statusDisplay
-
                     // Send Queue
                     queueSection
 
@@ -67,13 +65,14 @@ struct ConvertView: View {
                 .padding(.top, 8)
             }
             .navigationTitle(loc(.tabConvert))
-            .settingsToolbar(deviceVM: deviceVM, settings: settings)
+            .settingsToolbar(deviceVM: deviceVM, settings: settings, toast: toast)
             .sheet(isPresented: $rssVM.showFeedSheet) {
                 RSSFeedSheet(
                     rssVM: rssVM,
                     deviceVM: deviceVM,
                     queueVM: queueVM,
-                    settings: settings
+                    settings: settings,
+                    toast: toast
                 )
             }
             .sheet(isPresented: $showShareSheet) {
@@ -123,7 +122,8 @@ struct ConvertView: View {
                                     modelContext: modelContext,
                                     deviceVM: deviceVM,
                                     queueVM: queueVM,
-                                    settings: settings
+                                    settings: settings,
+                                    toast: toast
                                 )
                             }
                         }
@@ -168,7 +168,8 @@ struct ConvertView: View {
                         modelContext: modelContext,
                         deviceVM: deviceVM,
                         queueVM: queueVM,
-                        settings: settings
+                        settings: settings,
+                        toast: toast
                     )
                 }
             }
@@ -276,37 +277,6 @@ struct ConvertView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Status Display
-
-    @ViewBuilder
-    private var statusDisplay: some View {
-        if let error = convertVM.lastError {
-            HStack {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(AppColor.error)
-                Text(error)
-                    .foregroundStyle(.secondary)
-                    .font(.footnote)
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(.regular, in: .rect(cornerRadius: 12))
-        } else if !convertVM.statusMessage.isEmpty {
-            HStack {
-                Image(systemName: convertVM.currentPhase == .sent
-                      ? "checkmark.circle.fill" : "info.circle.fill")
-                    .foregroundStyle(convertVM.currentPhase == .sent
-                                    ? AppColor.success : AppColor.accent)
-                Text(convertVM.statusMessage)
-                    .foregroundStyle(.secondary)
-                    .font(.footnote)
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(.regular, in: .rect(cornerRadius: 12))
-        }
-    }
-
     // MARK: - Recent Conversions
 
     @ViewBuilder
@@ -391,7 +361,8 @@ struct ConvertView: View {
                             article: target,
                             deviceVM: deviceVM,
                             settings: settings,
-                            modelContext: modelContext
+                            modelContext: modelContext,
+                            toast: toast
                         )
                     }
                 } label: {
@@ -417,6 +388,7 @@ struct ConvertView: View {
 
             Button {
                 ClipboardHelper.copy(article.url)
+                toast.showCopied(loc(.toastURLCopied))
             } label: {
                 Label(loc(.copyURL), systemImage: "doc.on.doc")
             }
@@ -486,7 +458,8 @@ struct ConvertView: View {
                                     await queueVM.sendAll(
                                         deviceVM: deviceVM,
                                         settings: settings,
-                                        modelContext: modelContext
+                                        modelContext: modelContext,
+                                        toast: toast
                                     )
                                 }
                             }
@@ -517,7 +490,8 @@ struct ConvertView: View {
                     await queueVM.sendAll(
                         deviceVM: deviceVM,
                         settings: settings,
-                        modelContext: modelContext
+                        modelContext: modelContext,
+                        toast: toast
                     )
                 }
             }
@@ -605,7 +579,8 @@ struct ConvertView: View {
                         item,
                         deviceVM: deviceVM,
                         settings: settings,
-                        modelContext: modelContext
+                        modelContext: modelContext,
+                        toast: toast
                     )
                 } label: {
                     Image(systemName: "paperplane.fill")

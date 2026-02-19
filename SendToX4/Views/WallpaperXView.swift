@@ -18,6 +18,7 @@ struct WallpaperXView: View {
     @Bindable var wallpaperVM: WallpaperViewModel
     var deviceVM: DeviceViewModel
     var settings: DeviceSettings
+    var toast: ToastManager
 
     @State private var showDevicePopover = false
     @State private var showAppSettings = false
@@ -62,7 +63,7 @@ struct WallpaperXView: View {
             }
         }
         .sheet(isPresented: $showAppSettings) {
-            SettingsSheet(deviceVM: deviceVM, settings: settings)
+            SettingsSheet(deviceVM: deviceVM, settings: settings, toast: toast)
         }
     }
     #endif
@@ -80,7 +81,6 @@ struct WallpaperXView: View {
                     settingsControls
                         .padding(20)
                         .glassEffect(.regular, in: .rect(cornerRadius: 12))
-                    statusDisplay
                 }
 
                 Spacer(minLength: 40)
@@ -89,7 +89,7 @@ struct WallpaperXView: View {
             .padding(.top, 8)
         }
         .navigationTitle(loc(.tabWallpaperX))
-        .settingsToolbar(deviceVM: deviceVM, settings: settings)
+        .settingsToolbar(deviceVM: deviceVM, settings: settings, toast: toast)
         .toolbar { toolbarActions }
         .fileImporter(
             isPresented: $wallpaperVM.showFileImporter,
@@ -417,7 +417,8 @@ struct WallpaperXView: View {
                     await wallpaperVM.convertAndSend(
                         deviceVM: deviceVM,
                         settings: settings,
-                        modelContext: modelContext
+                        modelContext: modelContext,
+                        toast: toast
                     )
                 }
             } label: {
@@ -520,7 +521,8 @@ struct WallpaperXView: View {
                     await wallpaperVM.convertAndSend(
                         deviceVM: deviceVM,
                         settings: settings,
-                        modelContext: modelContext
+                        modelContext: modelContext,
+                        toast: toast
                     )
                 }
             } label: {
@@ -546,35 +548,7 @@ struct WallpaperXView: View {
 
     @ViewBuilder
     private var statusBar: some View {
-        if let error = wallpaperVM.errorMessage {
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(AppColor.error)
-                    .font(.caption)
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } else if let status = wallpaperVM.statusMessage,
-            !wallpaperVM.isProcessing
-        {
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(AppColor.success)
-                    .font(.caption)
-                Text(status)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } else if wallpaperVM.isProcessing {
+        if wallpaperVM.isProcessing {
             HStack(spacing: 6) {
                 ProgressView()
                     .controlSize(.mini)
@@ -585,37 +559,6 @@ struct WallpaperXView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    // MARK: - Status Display (macOS)
-
-    @ViewBuilder
-    private var statusDisplay: some View {
-        if let error = wallpaperVM.errorMessage {
-            HStack {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(AppColor.error)
-                Text(error)
-                    .foregroundStyle(.secondary)
-                    .font(.footnote)
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(.regular, in: .rect(cornerRadius: 12))
-        } else if let status = wallpaperVM.statusMessage,
-            !wallpaperVM.isProcessing
-        {
-            HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(AppColor.success)
-                Text(status)
-                    .foregroundStyle(.secondary)
-                    .font(.footnote)
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(.regular, in: .rect(cornerRadius: 12))
         }
     }
 

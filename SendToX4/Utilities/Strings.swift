@@ -250,6 +250,22 @@ enum L10n {
         case phaseSavedLocally
         case phaseFailed
 
+        // MARK: Toast Messages
+        case toastCopied
+        case toastURLCopied
+        case toastLogsCopied
+        case toastEntryCopied
+        case toastQueueSentAll
+        case toastQueueSentPartial
+        case toastQueueSentSingle
+        case toastQueueSendFailed
+        case toastImageSent
+        case toastImageConverted
+        case toastRSSSent
+        case toastRSSQueued
+        case toastRSSMixed
+        case toastRSSFailed
+
         // MARK: Queue Duplicate Prevention
         case urlAlreadyQueued
         case intentAlreadyQueued
@@ -687,6 +703,22 @@ enum L10n {
         .phaseSavedLocally: "Saved locally",
         .phaseFailed: "Failed",
 
+        // Toast Messages
+        .toastCopied: "Copied",
+        .toastURLCopied: "URL Copied",
+        .toastLogsCopied: "Logs Copied",
+        .toastEntryCopied: "Entry Copied",
+        .toastQueueSentAll: "%d EPUBs sent",
+        .toastQueueSentPartial: "%d sent, %d failed",
+        .toastQueueSentSingle: "Sent to X4",
+        .toastQueueSendFailed: "Send failed",
+        .toastImageSent: "Sent to X4",
+        .toastImageConverted: "Image converted",
+        .toastRSSSent: "%d articles sent",
+        .toastRSSQueued: "%d articles queued",
+        .toastRSSMixed: "%d sent, %d queued",
+        .toastRSSFailed: "%d articles failed",
+
         // Queue Duplicate Prevention
         .urlAlreadyQueued: "This URL is already in the send queue.",
         .intentAlreadyQueued: "This URL is already in the queue. It will be sent when your X4 connects.",
@@ -1116,6 +1148,22 @@ enum L10n {
         .phaseSent: "已发送！",
         .phaseSavedLocally: "已本地保存",
         .phaseFailed: "失败",
+
+        // Toast Messages
+        .toastCopied: "已复制",
+        .toastURLCopied: "链接已复制",
+        .toastLogsCopied: "日志已复制",
+        .toastEntryCopied: "条目已复制",
+        .toastQueueSentAll: "已发送%d个EPUB",
+        .toastQueueSentPartial: "%d已发送，%d失败",
+        .toastQueueSentSingle: "已发送到X4",
+        .toastQueueSendFailed: "发送失败",
+        .toastImageSent: "已发送到X4",
+        .toastImageConverted: "图片已转换",
+        .toastRSSSent: "已发送%d篇文章",
+        .toastRSSQueued: "已排队%d篇文章",
+        .toastRSSMixed: "%d已发送，%d已排队",
+        .toastRSSFailed: "%d篇文章失败",
 
         // Queue Duplicate Prevention
         .urlAlreadyQueued: "此链接已在发送队列中。",

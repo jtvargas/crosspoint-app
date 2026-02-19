@@ -7,6 +7,7 @@ struct SettingsSheet: View {
     @Environment(\.modelContext) private var modelContext
     var deviceVM: DeviceViewModel
     @Bindable var settings: DeviceSettings
+    var toast: ToastManager?
 
     @Query(sort: \QueueItem.queuedAt) private var queueItems: [QueueItem]
 
@@ -283,7 +284,7 @@ struct SettingsSheet: View {
             }
 
             NavigationLink {
-                DebugLogView()
+                DebugLogView(toast: toast)
             } label: {
                 HStack {
                     Label(loc(.debugLogs), systemImage: "doc.text")

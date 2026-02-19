@@ -208,7 +208,8 @@ final class RSSFeedViewModel {
         deviceVM: DeviceViewModel,
         queueVM: QueueViewModel,
         settings: DeviceSettings,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        toast: ToastManager? = nil
     ) async {
         let selectedIDs = selectedArticleIDs
         guard !selectedIDs.isEmpty else { return }
@@ -389,14 +390,20 @@ final class RSSFeedViewModel {
         // Summary message
         if sentCount > 0 && queuedCount == 0 {
             successMessage = loc(.rssSentArticles, sentCount)
+            toast?.showSuccess(loc(.toastRSSSent, sentCount))
         } else if queuedCount > 0 && sentCount == 0 {
             successMessage = loc(.rssQueuedArticles, queuedCount)
+            toast?.showQueued(loc(.toastRSSQueued, queuedCount))
         } else if sentCount > 0 && queuedCount > 0 {
             successMessage = loc(.rssSentAndQueued, sentCount, queuedCount)
+            toast?.showSuccess(loc(.toastRSSMixed, sentCount, queuedCount))
         }
 
         if failCount > 0 {
             errorMessage = loc(.rssFailedArticles, failCount)
+            if sentCount == 0 && queuedCount == 0 {
+                toast?.showError(loc(.toastRSSFailed, failCount))
+            }
         }
 
         // Log activity event for batch

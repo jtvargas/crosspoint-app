@@ -175,7 +175,8 @@ final class WallpaperViewModel {
     func convertAndSend(
         deviceVM: DeviceViewModel,
         settings deviceSettings: DeviceSettings,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        toast: ToastManager? = nil
     ) async {
         guard let source = sourceImage else {
             errorMessage = loc(.noImageLoaded)
@@ -228,6 +229,7 @@ final class WallpaperViewModel {
                 modelContext.insert(event)
 
                 statusMessage = loc(.sentImageToFolder, filename, deviceSettings.wallpaperFolder)
+                toast?.showSuccess(loc(.toastImageSent), subtitle: filename)
 
                 if ReviewPromptManager.shouldPromptAfterSuccess() {
                     shouldRequestReview = true
@@ -238,9 +240,11 @@ final class WallpaperViewModel {
                 clearImage()
             } else {
                 statusMessage = loc(.convertedImageSaveOrConnect, filename)
+                toast?.showQueued(loc(.toastImageConverted), subtitle: filename)
             }
         } catch {
             errorMessage = error.localizedDescription
+            toast?.showError(loc(.phaseFailed), subtitle: error.localizedDescription)
 
             // Log failed activity if it was a device upload failure
             if deviceVM.isConnected {

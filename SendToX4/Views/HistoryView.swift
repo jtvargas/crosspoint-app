@@ -56,6 +56,7 @@ struct HistoryView: View {
     var convertVM: ConvertViewModel
     var deviceVM: DeviceViewModel
     var settings: DeviceSettings
+    var toast: ToastManager
 
     @State private var showShareSheet = false
     @State private var shareEPUBData: Data?
@@ -102,7 +103,7 @@ struct HistoryView: View {
                 }
             }
             .navigationTitle(loc(.tabHistory))
-            .settingsToolbar(deviceVM: deviceVM, settings: settings)
+            .settingsToolbar(deviceVM: deviceVM, settings: settings, toast: toast)
             .toolbar {
                 // Filter menu
                 if !isEmpty {
@@ -167,7 +168,8 @@ struct HistoryView: View {
                                             article: article,
                                             deviceVM: deviceVM,
                                             settings: settings,
-                                            modelContext: modelContext
+                                            modelContext: modelContext,
+                                            toast: toast
                                         )
                                     }
                                 } label: {
@@ -277,7 +279,8 @@ struct HistoryView: View {
                             article: target,
                             deviceVM: deviceVM,
                             settings: settings,
-                            modelContext: modelContext
+                            modelContext: modelContext,
+                            toast: toast
                         )
                     }
                 } label: {
@@ -287,6 +290,7 @@ struct HistoryView: View {
 
             Button {
                 ClipboardHelper.copy(article.url)
+                toast.showCopied(loc(.toastURLCopied))
             } label: {
                 Label(loc(.copyURL), systemImage: "doc.on.doc")
             }
