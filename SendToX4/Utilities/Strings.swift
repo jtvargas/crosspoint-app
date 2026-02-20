@@ -239,6 +239,14 @@ enum L10n {
         case refresh
         case scanning
         case processing
+        case zoom
+        case resetZoom
+        case zoomHint
+        case zoomActive
+        case pinchToZoom
+        case experimental
+        case pinchToZoomToggle
+        case pinchToZoomToggleFooter
 
         // MARK: ConvertViewModel Phase Labels
         case phaseReady
@@ -408,6 +416,7 @@ enum L10n {
         case debugFilterDevice
         case debugFilterConversion
         case debugFilterRSS
+        case debugFilterWallpaper
         case queueCircuitBreaker
 
         // MARK: RSS Feed
@@ -692,6 +701,14 @@ enum L10n {
         .refresh: "Refresh",
         .scanning: "Scanning...",
         .processing: "Processing...",
+        .zoom: "Zoom",
+        .resetZoom: "Reset",
+        .zoomHint: "Pinch to zoom, drag to pan, double-tap to reset. Zoom affects the final output.",
+        .zoomActive: "Zoomed",
+        .pinchToZoom: "Pinch to zoom",
+        .experimental: "Experimental",
+        .pinchToZoomToggle: "Pinch to Zoom",
+        .pinchToZoomToggleFooter: "Enable pinch-to-zoom and drag-to-pan gestures on the WallpaperX image preview. This feature is experimental.",
 
         // ConvertViewModel Phase Labels
         .phaseReady: "Ready",
@@ -861,6 +878,7 @@ enum L10n {
         .debugFilterDevice: "Device",
         .debugFilterConversion: "Conversion",
         .debugFilterRSS: "RSS",
+        .debugFilterWallpaper: "Wallpaper",
         .queueCircuitBreaker: "Aborted after %d consecutive failures. Device may be unreachable.",
 
         // RSS Feed
@@ -1138,6 +1156,14 @@ enum L10n {
         .refresh: "刷新",
         .scanning: "扫描中...",
         .processing: "处理中...",
+        .zoom: "缩放",
+        .resetZoom: "重置",
+        .zoomHint: "双指缩放，拖动平移，双击重置。缩放会影响最终输出。",
+        .zoomActive: "已缩放",
+        .pinchToZoom: "双指缩放",
+        .experimental: "实验性功能",
+        .pinchToZoomToggle: "双指缩放",
+        .pinchToZoomToggleFooter: "在 WallpaperX 图片预览中启用双指缩放和拖动平移手势。此功能为实验性功能。",
 
         // ConvertViewModel Phase Labels
         .phaseReady: "就绪",
@@ -1307,6 +1333,7 @@ enum L10n {
         .debugFilterDevice: "设备",
         .debugFilterConversion: "转换",
         .debugFilterRSS: "RSS",
+        .debugFilterWallpaper: "壁纸",
         .queueCircuitBreaker: "连续 %d 次失败后已中止。设备可能无法连接。",
 
         // RSS Feed

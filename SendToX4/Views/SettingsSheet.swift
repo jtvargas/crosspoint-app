@@ -20,6 +20,7 @@ struct SettingsSheet: View {
     @State private var tempSize: Int64 = 0
     @State private var queueSize: Int64 = 0
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = true
+    @AppStorage("pinchToZoomEnabled") private var pinchToZoomEnabled = false
     @State private var showClearHistoryConfirm = false
     @State private var showClearCacheConfirm = false
     @State private var showClearQueueConfirm = false
@@ -37,6 +38,7 @@ struct SettingsSheet: View {
                 feedbackSection
                 siriShortcutSection
                 storageSection
+                experimentalSection
                 aboutSection
             }
             .navigationTitle(loc(.settings))
@@ -322,6 +324,18 @@ struct SettingsSheet: View {
             Text(loc(.storage))
         } footer: {
             Text(loc(.storageAndLogsDescription))
+        }
+    }
+
+    // MARK: - Experimental
+
+    private var experimentalSection: some View {
+        Section {
+            Toggle(loc(.pinchToZoomToggle), isOn: $pinchToZoomEnabled)
+        } header: {
+            Text(loc(.experimental))
+        } footer: {
+            Text(loc(.pinchToZoomToggleFooter))
         }
     }
 

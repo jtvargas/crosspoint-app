@@ -39,8 +39,17 @@ final class WallpaperViewModel {
 
     /// User-configurable conversion settings.
     var settings = WallpaperSettings() {
-        didSet { schedulePreviewUpdate() }
+        didSet {
+            if !isGestureActive { schedulePreviewUpdate() }
+        }
     }
+
+    /// When `true`, settings mutations are suppressed from triggering preview
+    /// regeneration.  The View sets this during continuous gestures (pinch/drag)
+    /// so that only GPU-composited transforms provide visual feedback.  On
+    /// gesture end, the View sets this back to `false` and calls
+    /// `updatePreview()` once.
+    var isGestureActive = false
 
     /// Target device specification.
     var device = DeviceSpecification.x4
@@ -73,11 +82,13 @@ final class WallpaperViewModel {
 
         do {
             guard let data = try await item.loadTransferable(type: Data.self) else {
+                DebugLogger.log("Failed to load image from Photos: nil data", level: .error, category: .wallpaper)
                 errorMessage = loc(.couldNotLoadImage)
                 return
             }
             loadImageFromData(data, filename: "photo")
         } catch {
+            DebugLogger.log("Failed to load image from Photos: \(error.localizedDescription)", level: .error, category: .wallpaper)
             errorMessage = loc(.failedToLoadImage, error.localizedDescription)
         }
     }
@@ -88,6 +99,7 @@ final class WallpaperViewModel {
         statusMessage = nil
 
         guard url.startAccessingSecurityScopedResource() else {
+            DebugLogger.log("Cannot access security-scoped file: \(url.lastPathComponent)", level: .error, category: .wallpaper)
             errorMessage = loc(.cannotAccessFile)
             return
         }
@@ -98,6 +110,7 @@ final class WallpaperViewModel {
             let stem = url.deletingPathExtension().lastPathComponent
             loadImageFromData(data, filename: stem)
         } catch {
+            DebugLogger.log("Failed to read image file: \(error.localizedDescription)", level: .error, category: .wallpaper)
             errorMessage = loc(.failedToReadFile, error.localizedDescription)
         }
     }
@@ -107,6 +120,7 @@ final class WallpaperViewModel {
         #if canImport(UIKit)
         guard let uiImage = UIImage(data: data),
               let cgImage = uiImage.cgImage else {
+            DebugLogger.log("Unsupported image format (\(data.count) bytes)", level: .error, category: .wallpaper)
             errorMessage = loc(.unsupportedImageFormat)
             return
         }
@@ -117,6 +131,7 @@ final class WallpaperViewModel {
                 context: nil,
                 hints: nil
               ) else {
+            DebugLogger.log("Unsupported image format (\(data.count) bytes)", level: .error, category: .wallpaper)
             errorMessage = loc(.unsupportedImageFormat)
             return
         }
@@ -127,6 +142,11 @@ final class WallpaperViewModel {
         lastBMPData = nil
         lastBMPFilename = nil
         statusMessage = nil
+
+        DebugLogger.log(
+            "Loaded image: \(filename) (\(cgImage.width)x\(cgImage.height))",
+            level: .info, category: .wallpaper
+        )
 
         // Reset settings for new image
         settings = WallpaperSettings()
@@ -163,6 +183,12 @@ final class WallpaperViewModel {
                 settings: currentSettings,
                 device: currentDevice
             )
+            if result == nil {
+                DebugLogger.log(
+                    "Preview generation returned nil (zoom: \(String(format: "%.1f", currentSettings.zoomScale))x, mode: \(currentSettings.fitMode.rawValue))",
+                    level: .warning, category: .wallpaper
+                )
+            }
             await MainActor.run {
                 self.processedPreview = result
             }
@@ -199,6 +225,10 @@ final class WallpaperViewModel {
                 settings: settings,
                 device: device
             ) else {
+                DebugLogger.log(
+                    "Image processing failed for \(sourceFilename ?? "unknown")",
+                    level: .error, category: .wallpaper
+                )
                 throw WallpaperError.processingFailed
             }
 
@@ -228,6 +258,11 @@ final class WallpaperViewModel {
                 )
                 modelContext.insert(event)
 
+                DebugLogger.log(
+                    "Sent wallpaper \(filename) (\(bmpData.count) bytes) to /\(deviceSettings.wallpaperFolder)/",
+                    level: .info, category: .wallpaper
+                )
+
                 statusMessage = loc(.sentImageToFolder, filename, deviceSettings.wallpaperFolder)
                 toast?.showSuccess(loc(.toastImageSent), subtitle: filename)
 
@@ -239,10 +274,18 @@ final class WallpaperViewModel {
                 try? await Task.sleep(for: .seconds(1.5))
                 clearImage()
             } else {
+                DebugLogger.log(
+                    "Wallpaper converted: \(filename) (\(bmpData.count) bytes) — device not connected",
+                    level: .info, category: .wallpaper
+                )
                 statusMessage = loc(.convertedImageSaveOrConnect, filename)
                 toast?.showQueued(loc(.toastImageConverted), subtitle: filename)
             }
         } catch {
+            DebugLogger.log(
+                "Wallpaper convert/send failed: \(error.localizedDescription)",
+                level: .error, category: .wallpaper
+            )
             errorMessage = error.localizedDescription
             toast?.showError(loc(.phaseFailed), subtitle: error.localizedDescription)
 
