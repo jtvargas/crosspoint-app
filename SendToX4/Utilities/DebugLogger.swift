@@ -34,6 +34,7 @@ final class DebugLogger {
         case conversion
         case device
         case rss
+        case wallpaper
         case general
 
         var label: String {
@@ -42,6 +43,7 @@ final class DebugLogger {
             case .conversion: return "Conversion"
             case .device:     return "Device"
             case .rss:        return "RSS"
+            case .wallpaper:  return "Wallpaper"
             case .general:    return "General"
             }
         }

@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 // MARK: - Fit Mode
@@ -142,4 +143,28 @@ struct WallpaperSettings: Sendable {
     var colorDepth: BMPColorDepth = .depth24
     var grayscale: Bool = true
     var invert: Bool = false
+
+    // MARK: - Zoom & Pan (Crop Region)
+
+    /// Zoom level applied to the source image before conversion.
+    ///
+    /// - `1.0` = no zoom (default behaviour per fit mode).
+    /// - `> 1.0` = zoom in (crops a smaller region of the source).
+    /// - Range is clamped to `1.0 ... maxZoom` at the gesture layer.
+    var zoomScale: CGFloat = 1.0
+
+    /// Normalized pan offset within the zoomed source image.
+    ///
+    /// Each component is in the range `-1.0 ... 1.0`, where `(0, 0)` is centered.
+    /// At maximum pan the visible region slides to the edge of the source image.
+    /// The gesture layer clamps values so the crop region never exceeds image bounds.
+    var panOffset: CGSize = .zero
+
+    /// Maximum allowed zoom level.
+    static let maxZoom: CGFloat = 5.0
+
+    /// Whether the user has customised zoom or pan from defaults.
+    var hasZoomOrPan: Bool {
+        zoomScale != 1.0 || panOffset != .zero
+    }
 }

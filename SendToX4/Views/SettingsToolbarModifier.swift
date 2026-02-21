@@ -8,6 +8,7 @@ struct SettingsToolbarModifier: ViewModifier {
     var toast: ToastManager?
 
     @State private var showSettings = false
+    @State private var showAbout = false
 
     func body(content: Content) -> some View {
         content
@@ -19,9 +20,19 @@ struct SettingsToolbarModifier: ViewModifier {
                         Image(systemName: "gearshape")
                     }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showAbout = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                }
             }
             .sheet(isPresented: $showSettings) {
                 SettingsSheet(deviceVM: deviceVM, settings: settings, toast: toast)
+            }
+            .sheet(isPresented: $showAbout) {
+                AboutAppView()
             }
     }
 }

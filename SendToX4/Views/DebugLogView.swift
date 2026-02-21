@@ -10,6 +10,7 @@ private enum LogFilter: String, CaseIterable {
     case device
     case conversion
     case rss
+    case wallpaper
 
     var displayName: String {
         switch self {
@@ -19,6 +20,7 @@ private enum LogFilter: String, CaseIterable {
         case .device:     return loc(.debugFilterDevice)
         case .conversion: return loc(.debugFilterConversion)
         case .rss:        return loc(.debugFilterRSS)
+        case .wallpaper:  return loc(.debugFilterWallpaper)
         }
     }
 
@@ -31,6 +33,7 @@ private enum LogFilter: String, CaseIterable {
         case .device:     return entry.category == .device
         case .conversion: return entry.category == .conversion
         case .rss:        return entry.category == .rss
+        case .wallpaper:  return entry.category == .wallpaper
         }
     }
 }

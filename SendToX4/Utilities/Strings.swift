@@ -169,6 +169,13 @@ enum L10n {
         case clearEPUBQueueTitle
         case clearEPUBQueueMessage
         case about
+        case aboutCrossX
+        case aboutHiLine
+        case aboutDescription1
+        case aboutDescription2
+        case aboutDescription3
+        case myApps
+        case aboutFeatureRequestsSubtitle
         case version
         case epubFormat
         case showOnboarding
@@ -239,6 +246,14 @@ enum L10n {
         case refresh
         case scanning
         case processing
+        case zoom
+        case resetZoom
+        case zoomHint
+        case zoomActive
+        case pinchToZoom
+        case experimental
+        case pinchToZoomToggle
+        case pinchToZoomToggleFooter
 
         // MARK: ConvertViewModel Phase Labels
         case phaseReady
@@ -408,6 +423,7 @@ enum L10n {
         case debugFilterDevice
         case debugFilterConversion
         case debugFilterRSS
+        case debugFilterWallpaper
         case queueCircuitBreaker
 
         // MARK: RSS Feed
@@ -622,6 +638,13 @@ enum L10n {
         .clearEPUBQueueTitle: "Clear EPUB Queue?",
         .clearEPUBQueueMessage: "All %d queued EPUB(s) will be permanently deleted.",
         .about: "About",
+        .aboutCrossX: "About CrossX",
+        .aboutHiLine: "Hi, I'm JT!",
+        .aboutDescription1: "I built CrossX to make it easy to send content to the Xteink X4 e-reader. Convert web pages to EPUB, set custom wallpapers, and manage files — all over the device's local WiFi hotspot.",
+        .aboutDescription2: "CrossX is free, open source, and has no tracking or ads. I built it because I wanted a simple, native tool that just works.",
+        .aboutDescription3: "The project is fully open source on GitHub. Bug reports, feature requests, and contributions are always welcome.",
+        .myApps: "My Apps",
+        .aboutFeatureRequestsSubtitle: "Request features or report bugs",
         .version: "Version",
         .epubFormat: "EPUB Format",
         .showOnboarding: "Show Onboarding",
@@ -692,6 +715,14 @@ enum L10n {
         .refresh: "Refresh",
         .scanning: "Scanning...",
         .processing: "Processing...",
+        .zoom: "Zoom",
+        .resetZoom: "Reset",
+        .zoomHint: "Pinch to zoom, drag to pan, double-tap to reset. Zoom affects the final output.",
+        .zoomActive: "Zoomed",
+        .pinchToZoom: "Pinch to zoom",
+        .experimental: "Experimental",
+        .pinchToZoomToggle: "Pinch to Zoom",
+        .pinchToZoomToggleFooter: "Enable pinch-to-zoom and drag-to-pan gestures on the WallpaperX image preview. This feature is experimental.",
 
         // ConvertViewModel Phase Labels
         .phaseReady: "Ready",
@@ -861,6 +892,7 @@ enum L10n {
         .debugFilterDevice: "Device",
         .debugFilterConversion: "Conversion",
         .debugFilterRSS: "RSS",
+        .debugFilterWallpaper: "Wallpaper",
         .queueCircuitBreaker: "Aborted after %d consecutive failures. Device may be unreachable.",
 
         // RSS Feed
@@ -1068,6 +1100,13 @@ enum L10n {
         .clearEPUBQueueTitle: "清除EPUB队列？",
         .clearEPUBQueueMessage: "所有 %d 本排队的EPUB将被永久删除。",
         .about: "关于",
+        .aboutCrossX: "关于 CrossX",
+        .aboutHiLine: "你好，我是 JT！",
+        .aboutDescription1: "我开发 CrossX 是为了方便向 Xteink X4 电子阅读器发送内容。通过设备的本地 WiFi 热点，可以将网页转换为 EPUB、设置自定义壁纸以及管理文件。",
+        .aboutDescription2: "CrossX 是免费、开源的，没有追踪或广告。我开发它是因为我想要一个简单、原生的工具。",
+        .aboutDescription3: "该项目在 GitHub 上完全开源。欢迎提交错误报告、功能请求和贡献。",
+        .myApps: "我的应用",
+        .aboutFeatureRequestsSubtitle: "请求功能或报告错误",
         .version: "版本",
         .epubFormat: "EPUB格式",
         .showOnboarding: "显示引导",
@@ -1138,6 +1177,14 @@ enum L10n {
         .refresh: "刷新",
         .scanning: "扫描中...",
         .processing: "处理中...",
+        .zoom: "缩放",
+        .resetZoom: "重置",
+        .zoomHint: "双指缩放，拖动平移，双击重置。缩放会影响最终输出。",
+        .zoomActive: "已缩放",
+        .pinchToZoom: "双指缩放",
+        .experimental: "实验性功能",
+        .pinchToZoomToggle: "双指缩放",
+        .pinchToZoomToggleFooter: "在 WallpaperX 图片预览中启用双指缩放和拖动平移手势。此功能为实验性功能。",
 
         // ConvertViewModel Phase Labels
         .phaseReady: "就绪",
@@ -1307,6 +1354,7 @@ enum L10n {
         .debugFilterDevice: "设备",
         .debugFilterConversion: "转换",
         .debugFilterRSS: "RSS",
+        .debugFilterWallpaper: "壁纸",
         .queueCircuitBreaker: "连续 %d 次失败后已中止。设备可能无法连接。",
 
         // RSS Feed

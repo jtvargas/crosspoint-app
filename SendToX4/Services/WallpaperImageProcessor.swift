@@ -31,6 +31,10 @@ nonisolated struct WallpaperImageProcessor {
 
         // Create the target-sized canvas
         guard let context = createContext(width: targetWidth, height: targetHeight) else {
+            DebugLogger.log(
+                "Failed to create CG context (\(targetWidth)x\(targetHeight))",
+                level: .error, category: .wallpaper
+            )
             return nil
         }
 
@@ -89,17 +93,32 @@ nonisolated struct WallpaperImageProcessor {
             sourceRect = srcRect
         }
 
+        // Apply zoom & pan to the source rect (crop a smaller region of the source)
+        let zoomedSourceRect = applyZoomPan(
+            to: sourceRect,
+            zoomScale: settings.zoomScale,
+            panOffset: settings.panOffset,
+            imageWidth: sourceWidth,
+            imageHeight: sourceHeight
+        )
+
         // Draw the image with rotation
         drawRotatedImage(
             context: context,
             image: image,
             rotation: settings.rotation,
             drawRect: drawRect,
-            sourceRect: sourceRect
+            sourceRect: zoomedSourceRect
         )
 
         // Get the rendered image for pixel manipulation
-        guard let rendered = context.makeImage() else { return nil }
+        guard let rendered = context.makeImage() else {
+            DebugLogger.log(
+                "Context.makeImage() returned nil (\(targetWidth)x\(targetHeight))",
+                level: .error, category: .wallpaper
+            )
+            return nil
+        }
 
         // Apply pixel-level effects (grayscale, invert, depth quantization)
         return applyEffects(
@@ -108,6 +127,56 @@ nonisolated struct WallpaperImageProcessor {
             height: targetHeight,
             settings: settings
         )
+    }
+
+    // MARK: - Zoom & Pan
+
+    /// Apply zoom and pan to a source rect, producing a smaller crop region.
+    ///
+    /// - `zoomScale` 1.0 = use the source rect as-is.
+    /// - `zoomScale` 2.0 = crop to half the source area (quarter in each dimension is wrong —
+    ///   we divide each dimension by zoomScale so area shrinks by zoomScale²,
+    ///   but visually it's "2x zoom" which means half the width & height).
+    /// - `panOffset` is normalized (−1…1). At (0,0) the crop is centred within the
+    ///   source rect. At (−1,−1) the crop is anchored at the source rect's origin.
+    ///
+    /// The result is clamped so it never exceeds the full image bounds.
+    private static func applyZoomPan(
+        to sourceRect: CGRect,
+        zoomScale: CGFloat,
+        panOffset: CGSize,
+        imageWidth: CGFloat,
+        imageHeight: CGFloat
+    ) -> CGRect {
+        guard zoomScale > 1.0 || panOffset != .zero else { return sourceRect }
+
+        let clampedZoom = max(1.0, zoomScale)
+
+        // Zoomed crop dimensions within the existing source rect
+        let cropW = sourceRect.width / clampedZoom
+        let cropH = sourceRect.height / clampedZoom
+
+        // Centre of the existing source rect
+        let centerX = sourceRect.midX
+        let centerY = sourceRect.midY
+
+        // Maximum offset the centre can shift before the crop exits the source rect
+        let maxShiftX = (sourceRect.width - cropW) / 2
+        let maxShiftY = (sourceRect.height - cropH) / 2
+
+        // Apply normalised pan (−1…1) → pixel shift
+        let shiftX = panOffset.width * maxShiftX
+        let shiftY = panOffset.height * maxShiftY
+
+        // New crop origin (centred + shifted)
+        var cropX = centerX + shiftX - cropW / 2
+        var cropY = centerY + shiftY - cropH / 2
+
+        // Clamp to image bounds
+        cropX = max(0, min(cropX, imageWidth - cropW))
+        cropY = max(0, min(cropY, imageHeight - cropH))
+
+        return CGRect(x: cropX, y: cropY, width: cropW, height: cropH)
     }
 
     // MARK: - Context Creation
@@ -270,7 +339,13 @@ nonisolated struct WallpaperImageProcessor {
         drawRect: CGRect,
         sourceRect: CGRect
     ) {
-        guard let cropped = image.cropping(to: sourceRect) else { return }
+        guard let cropped = image.cropping(to: sourceRect) else {
+            DebugLogger.log(
+                "CGImage.cropping failed — rect: \(Int(sourceRect.origin.x)),\(Int(sourceRect.origin.y)) \(Int(sourceRect.width))x\(Int(sourceRect.height)), image: \(image.width)x\(image.height)",
+                level: .error, category: .wallpaper
+            )
+            return
+        }
 
         context.saveGState()
 
