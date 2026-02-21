@@ -23,6 +23,7 @@ struct WallpaperXView: View {
     @AppStorage("pinchToZoomEnabled") private var pinchToZoomEnabled = false
     @State private var showDevicePopover = false
     @State private var showAppSettings = false
+    @State private var showAbout = false
 
     // MARK: - Zoom & Pan Gesture State (GPU-composited, 120fps)
     //
@@ -100,6 +101,9 @@ struct WallpaperXView: View {
         }
         .sheet(isPresented: $showAppSettings) {
             SettingsSheet(deviceVM: deviceVM, settings: settings, toast: toast)
+        }
+        .sheet(isPresented: $showAbout) {
+            AboutAppView()
         }
     }
     #endif
@@ -785,6 +789,13 @@ struct WallpaperXView: View {
                 showAppSettings = true
             } label: {
                 Image(systemName: "gearshape")
+            }
+
+            // About
+            Button {
+                showAbout = true
+            } label: {
+                Image(systemName: "info.circle")
             }
         }
 
