@@ -151,7 +151,7 @@ struct AboutAppView: View {
 
     private var appIconImage: Image {
         #if canImport(UIKit)
-        if let uiImage = UIImage(named: "AppIcon") {
+        if let uiImage = UIImage(named: "icon-crossx") {
             return Image(uiImage: uiImage)
         }
         #elseif canImport(AppKit)
@@ -183,14 +183,16 @@ struct AboutAppView: View {
             description: "Minimalistic Blackjack - Free",
             iconName: "suit.spade.fill",
             iconColor: .purple,
-            url: URL(string: "https://apps.apple.com/us/app/hit21-blackjack-game/id6740510784")!
+            url: URL(string: "https://apps.apple.com/us/app/hit21-blackjack-game/id6740510784")!,
+            localImage: "hit21-icon"
         ),
         AboutAppLink(
             name: "SnipKey",
-            description: "Clipboard snippets from your keyboard",
+            description: "Clipboard snippets from your keyboard - Free",
             iconName: "keyboard",
             iconColor: .blue,
-            url: URL(string: "https://apps.apple.com/us/app/snipkey/id6480381137")!
+            url: URL(string: "https://apps.apple.com/us/app/snipkey/id6480381137")!,
+            localImage: "snipkey-icon"
         ),
         AboutAppLink(
             name: "More Apps",
@@ -211,6 +213,16 @@ struct AboutAppLink: Identifiable {
     let iconName: String
     let iconColor: Color
     let url: URL
+    let localImage: String?
+
+    init(name: String, description: String, iconName: String, iconColor: Color, url: URL, localImage: String? = nil) {
+        self.name = name
+        self.description = description
+        self.iconName = iconName
+        self.iconColor = iconColor
+        self.url = url
+        self.localImage = localImage
+    }
 }
 
 // MARK: - App Link Row
@@ -222,11 +234,19 @@ private struct AboutAppLinkRow: View {
     var body: some View {
         Button { openURL(app.url) } label: {
             HStack(spacing: 12) {
-                Image(systemName: app.iconName)
-                    .font(.body)
-                    .foregroundStyle(.white)
-                    .frame(width: 32, height: 32)
-                    .background(app.iconColor, in: RoundedRectangle(cornerRadius: 8))
+                if let localImage = app.localImage {
+                    Image(localImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 32, height: 32)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    Image(systemName: app.iconName)
+                        .font(.body)
+                        .foregroundStyle(.white)
+                        .frame(width: 32, height: 32)
+                        .background(app.iconColor, in: RoundedRectangle(cornerRadius: 8))
+                }
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(app.name)
