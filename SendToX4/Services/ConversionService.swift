@@ -186,10 +186,11 @@ struct ConversionService {
 
         // Readability.js fallback (pre-fetched HTML, hidden WKWebView).
         let readability = ReadabilityExtractor()
-        if let content = try await readability.extract(
+        let fallback = try await readability.extract(
             html: html, baseURL: url, language: pageLanguage, options: sanitizerOptions
-        ) {
-            return content
+        )
+        if let fallback {
+            return fallback
         }
 
         throw EPUBError.contentTooShort

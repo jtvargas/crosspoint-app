@@ -94,11 +94,9 @@ struct EPUBOptimizerTests {
             CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
         )
         let type = try #require(CGImageSourceGetType(source) as String?)
-        return (
-            props[kCGImagePropertyPixelWidth] as? Int ?? 0,
-            props[kCGImagePropertyPixelHeight] as? Int ?? 0,
-            type
-        )
+        let width = (props[kCGImagePropertyPixelWidth] as? Int) ?? 0
+        let height = (props[kCGImagePropertyPixelHeight] as? Int) ?? 0
+        return (width, height, type)
     }
 
     // MARK: - Tests
