@@ -122,6 +122,13 @@ extension ReaderWebView: UIViewRepresentable {
     func updateUIView(_ uiView: WKWebView, context: Context) {
         update(uiView, coordinator: context.coordinator)
     }
+
+    static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
+        // Break the WKUserContentController -> handler retain cycle
+        uiView.configuration.userContentController.removeScriptMessageHandler(forName: "reader")
+        uiView.stopLoading()
+        uiView.navigationDelegate = nil
+    }
 }
 #elseif os(macOS)
 extension ReaderWebView: NSViewRepresentable {
@@ -131,6 +138,13 @@ extension ReaderWebView: NSViewRepresentable {
 
     func updateNSView(_ nsView: WKWebView, context: Context) {
         update(nsView, coordinator: context.coordinator)
+    }
+
+    static func dismantleNSView(_ nsView: WKWebView, coordinator: Coordinator) {
+        // Break the WKUserContentController -> handler retain cycle
+        nsView.configuration.userContentController.removeScriptMessageHandler(forName: "reader")
+        nsView.stopLoading()
+        nsView.navigationDelegate = nil
     }
 }
 #endif
