@@ -346,4 +346,4 @@ xcodebuild -project SendToX4.xcodeproj \
 - **EPUB generation** can be tested by unzipping the output `Data` object and validating the XML structure
 - **Device communication** can be tested against a mock HTTP server (e.g., `URLProtocol` subclass)
 - **Content extraction** can be tested with static HTML fixtures
-- **No test target exists yet** — tests should be added as the project matures
+- **`SendToX4Tests`** is a Swift Testing unit-test bundle hosted by the app (`@testable import SendToX4`). Run with `xcodebuild -project SendToX4.xcodeproj -scheme SendToX4 -destination 'platform=macOS' test` (or an iOS Simulator destination). Suites cover the sanitizer, chapter splitter, EPUB builder/optimizer/document, content extractor, fetcher decoding, conversion service, image downloader/processor, and library store.

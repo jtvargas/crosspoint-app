@@ -6,6 +6,7 @@ import SwiftData
 enum AppTab: Hashable {
     case convert
     case wallpaperX
+    case library
     case files
     case history
 }
@@ -181,6 +182,10 @@ struct MainView: View {
                     settings: settings,
                     toast: toast
                 )
+            }
+
+            Tab(loc(.tabLibrary), systemImage: "books.vertical", value: .library) {
+                LibraryView(toast: toast)
             }
 
             Tab(loc(.tabFiles), systemImage: "folder", value: .files) {

@@ -26,6 +26,7 @@ struct ConvertView: View {
     @State private var showLargeQueueWarning = false
     @State private var shareEPUBData: Data?
     @State private var shareFilename: String?
+    @State private var readerArticle: Article?
     @FocusState private var isURLFieldFocused: Bool
 
     private var recentArticles: [Article] {
@@ -94,6 +95,16 @@ struct ConvertView: View {
                     requestReview()
                 }
             }
+            #if os(iOS)
+            .fullScreenCover(item: $readerArticle) { article in
+                ReaderView(article: article)
+            }
+            #else
+            .sheet(item: $readerArticle) { article in
+                ReaderView(article: article)
+                    .frame(minWidth: 700, minHeight: 800)
+            }
+            #endif
 
         }
     }
@@ -353,6 +364,14 @@ struct ConvertView: View {
 
     private func recentMenu(for article: Article) -> some View {
         Menu {
+            if LibraryStore.epubURL(for: article) != nil {
+                Button {
+                    readerArticle = article
+                } label: {
+                    Label(loc(.libraryRead), systemImage: "book")
+                }
+            }
+
             if deviceVM.isConnected {
                 Button {
                     let target = article

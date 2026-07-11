@@ -14,6 +14,21 @@ enum L10n {
         case tabWallpaperX
         case tabFiles
         case tabHistory
+        case tabLibrary
+
+        // MARK: Library & Reader
+        case librarySearchPrompt
+        case libraryRead
+        case libraryRemove
+        case libraryEmptyTitle
+        case libraryEmptyDescription
+        case readerCouldNotOpen
+        case readerCouldNotOpenDescription
+        case readerChapters
+        case readerTextSize
+        case readerLargerText
+        case readerSmallerText
+        case readerResetTextSize
 
         // MARK: MainView Alerts
         case sendQueuedFilesTitle
@@ -492,6 +507,19 @@ enum L10n {
         .tabWallpaperX: "WallpaperX",
         .tabFiles: "Files",
         .tabHistory: "History",
+        .tabLibrary: "Library",
+        .librarySearchPrompt: "Search saved articles",
+        .libraryRead: "Read",
+        .libraryRemove: "Remove from Library",
+        .libraryEmptyTitle: "No Saved Articles",
+        .libraryEmptyDescription: "Converted articles are saved here automatically so you can read them anytime — even offline. Convert a web page to get started.",
+        .readerCouldNotOpen: "Can't Open Article",
+        .readerCouldNotOpenDescription: "The saved EPUB is missing or damaged. Try reconverting the article from History.",
+        .readerChapters: "Chapters",
+        .readerTextSize: "Text Size",
+        .readerLargerText: "Larger Text",
+        .readerSmallerText: "Smaller Text",
+        .readerResetTextSize: "Reset Text Size",
 
         // MainView Alerts
         .sendQueuedFilesTitle: "Send Queued Files?",
@@ -963,6 +991,19 @@ enum L10n {
         .tabWallpaperX: "壁纸X",
         .tabFiles: "文件",
         .tabHistory: "历史",
+        .tabLibrary: "图书馆",
+        .librarySearchPrompt: "搜索已保存的文章",
+        .libraryRead: "阅读",
+        .libraryRemove: "从图书馆移除",
+        .libraryEmptyTitle: "暂无已保存的文章",
+        .libraryEmptyDescription: "转换后的文章会自动保存在这里，随时可读——即使离线。转换一个网页开始吧。",
+        .readerCouldNotOpen: "无法打开文章",
+        .readerCouldNotOpenDescription: "已保存的EPUB丢失或损坏。请尝试从历史记录中重新转换该文章。",
+        .readerChapters: "章节",
+        .readerTextSize: "文字大小",
+        .readerLargerText: "放大文字",
+        .readerSmallerText: "缩小文字",
+        .readerResetTextSize: "重置文字大小",
 
         // MainView Alerts
         .sendQueuedFilesTitle: "发送队列文件？",

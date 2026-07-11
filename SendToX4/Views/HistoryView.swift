@@ -64,6 +64,7 @@ struct HistoryView: View {
     @State private var showClearConfirmation = false
     @State private var filter: HistoryFilter = .all
     @State private var expandedItems: Set<String> = []
+    @State private var readerArticle: Article?
 
     // MARK: - Unified Timeline
 
@@ -127,6 +128,17 @@ struct HistoryView: View {
                     ShareSheetView(items: [tempURL], epubData: data, filename: filename)
                 }
             }
+            // MARK: - Reader
+            #if os(iOS)
+            .fullScreenCover(item: $readerArticle) { article in
+                ReaderView(article: article)
+            }
+            #else
+            .sheet(item: $readerArticle) { article in
+                ReaderView(article: article)
+                    .frame(minWidth: 700, minHeight: 800)
+            }
+            #endif
             // MARK: - Clear Confirmation
             .alert(loc(.clearAllHistoryTitle), isPresented: $showClearConfirmation) {
                 Button(loc(.deleteAll), role: .destructive) {
@@ -255,6 +267,14 @@ struct HistoryView: View {
 
     private func conversionMenu(for article: Article) -> some View {
         Menu {
+            if LibraryStore.epubURL(for: article) != nil {
+                Button {
+                    readerArticle = article
+                } label: {
+                    Label(loc(.libraryRead), systemImage: "book")
+                }
+            }
+
             Button {
                 let target = article
                 Task {
