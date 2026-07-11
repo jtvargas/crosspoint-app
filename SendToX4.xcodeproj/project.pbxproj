@@ -10,16 +10,34 @@
 		0689D1612F45F69800E5137C /* AlertToast in Frameworks */ = {isa = PBXBuildFile; productRef = 0689D1602F45F69800E5137C /* AlertToast */; };
 		BB000001BBBBBBBB00000001 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = AA000003AAAAAAAA00000003 /* ZIPFoundation */; };
 		BB000002BBBBBBBB00000002 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = AA000004AAAAAAAA00000004 /* SwiftSoup */; };
+		CC00000DCCCCCCCC0000000D /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = CC00000BCCCCCCCC0000000B /* ZIPFoundation */; };
+		CC00000ECCCCCCCC0000000E /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = CC00000CCCCCCCCC0000000C /* SwiftSoup */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		CC000009CCCCCCCC00000009 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 062C179A2F4015F7007E89F9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 062C17A12F4015F7007E89F9;
+			remoteInfo = SendToX4;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		062C17A22F4015F7007E89F9 /* SendToX4.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SendToX4.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CC000001CCCCCCCC00000001 /* SendToX4Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SendToX4Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		062C17A42F4015F7007E89F9 /* SendToX4 */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = SendToX4;
+			sourceTree = "<group>";
+		};
+		CC000002CCCCCCCC00000002 /* SendToX4Tests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SendToX4Tests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -35,6 +53,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CC000005CCCCCCCC00000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CC00000DCCCCCCCC0000000D /* ZIPFoundation in Frameworks */,
+				CC00000ECCCCCCCC0000000E /* SwiftSoup in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -42,6 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				062C17A42F4015F7007E89F9 /* SendToX4 */,
+				CC000002CCCCCCCC00000002 /* SendToX4Tests */,
 				062C17A32F4015F7007E89F9 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -50,6 +78,7 @@
 			isa = PBXGroup;
 			children = (
 				062C17A22F4015F7007E89F9 /* SendToX4.app */,
+				CC000001CCCCCCCC00000001 /* SendToX4Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -82,6 +111,31 @@
 			productReference = 062C17A22F4015F7007E89F9 /* SendToX4.app */;
 			productType = "com.apple.product-type.application";
 		};
+		CC000003CCCCCCCC00000003 /* SendToX4Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CC000006CCCCCCCC00000006 /* Build configuration list for PBXNativeTarget "SendToX4Tests" */;
+			buildPhases = (
+				CC000004CCCCCCCC00000004 /* Sources */,
+				CC000005CCCCCCCC00000005 /* Frameworks */,
+				CC00000FCCCCCCCC0000000F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CC00000ACCCCCCCC0000000A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				CC000002CCCCCCCC00000002 /* SendToX4Tests */,
+			);
+			name = SendToX4Tests;
+			packageProductDependencies = (
+				CC00000BCCCCCCCC0000000B /* ZIPFoundation */,
+				CC00000CCCCCCCCC0000000C /* SwiftSoup */,
+			);
+			productName = SendToX4Tests;
+			productReference = CC000001CCCCCCCC00000001 /* SendToX4Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -94,6 +148,10 @@
 				TargetAttributes = {
 					062C17A12F4015F7007E89F9 = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					CC000003CCCCCCCC00000003 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 062C17A12F4015F7007E89F9;
 					};
 				};
 			};
@@ -117,12 +175,20 @@
 			projectRoot = "";
 			targets = (
 				062C17A12F4015F7007E89F9 /* SendToX4 */,
+				CC000003CCCCCCCC00000003 /* SendToX4Tests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		062C17A02F4015F7007E89F9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CC00000FCCCCCCCC0000000F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -139,7 +205,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CC000004CCCCCCCC00000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		CC00000ACCCCCCCC0000000A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 062C17A12F4015F7007E89F9 /* SendToX4 */;
+			targetProxy = CC000009CCCCCCCC00000009 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		062C17AD2F4015F9007E89F9 /* Debug */ = {
@@ -360,6 +441,60 @@
 			};
 			name = Release;
 		};
+		CC000007CCCCCCCC00000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
+				DEVELOPMENT_TEAM = J7K9Z79S5F;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 2.5;
+				PRODUCT_BUNDLE_IDENTIFIER = com.crossappjtv.point.SendToX4Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SendToX4.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SendToX4";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		CC000008CCCCCCCC00000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
+				DEVELOPMENT_TEAM = J7K9Z79S5F;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 2.5;
+				PRODUCT_BUNDLE_IDENTIFIER = com.crossappjtv.point.SendToX4Tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/SendToX4.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/SendToX4";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -377,6 +512,15 @@
 			buildConfigurations = (
 				062C17B02F4015F9007E89F9 /* Debug */,
 				062C17B12F4015F9007E89F9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		CC000006CCCCCCCC00000006 /* Build configuration list for PBXNativeTarget "SendToX4Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CC000007CCCCCCCC00000007 /* Debug */,
+				CC000008CCCCCCCC00000008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -422,6 +566,16 @@
 			productName = ZIPFoundation;
 		};
 		AA000004AAAAAAAA00000004 /* SwiftSoup */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA000006AAAAAAAA00000006 /* XCRemoteSwiftPackageReference "SwiftSoup" */;
+			productName = SwiftSoup;
+		};
+		CC00000BCCCCCCCC0000000B /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA000005AAAAAAAA00000005 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
+		};
+		CC00000CCCCCCCCC0000000C /* SwiftSoup */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = AA000006AAAAAAAA00000006 /* XCRemoteSwiftPackageReference "SwiftSoup" */;
 			productName = SwiftSoup;

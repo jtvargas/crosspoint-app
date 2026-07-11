@@ -622,12 +622,26 @@ struct ShareSheetView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIActivityViewController {
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(filename)
-        try? epubData.write(to: tempURL)
 
-        return UIActivityViewController(
-            activityItems: [tempURL],
-            applicationActivities: nil
-        )
+        do {
+            // Remove any stale file so a failed write can't share old content
+            try? FileManager.default.removeItem(at: tempURL)
+            try epubData.write(to: tempURL)
+            return UIActivityViewController(
+                activityItems: [tempURL],
+                applicationActivities: nil
+            )
+        } catch {
+            DebugLogger.log(
+                "Share temp write failed: \(error.localizedDescription)",
+                level: .error, category: .conversion
+            )
+            // Fall back to sharing the raw data so the user still gets the EPUB
+            return UIActivityViewController(
+                activityItems: [epubData],
+                applicationActivities: nil
+            )
+        }
     }
 
     func updateUIViewController(
@@ -651,10 +665,21 @@ struct ShareSheetView: NSViewRepresentable {
         DispatchQueue.main.async {
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent(filename)
-            try? epubData.write(to: tempURL)
 
-            let picker = NSSharingServicePicker(items: [tempURL])
-            picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+            do {
+                // Remove any stale file so a failed write can't share old content
+                try? FileManager.default.removeItem(at: tempURL)
+                try epubData.write(to: tempURL)
+                let picker = NSSharingServicePicker(items: [tempURL])
+                picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+            } catch {
+                DebugLogger.log(
+                    "Share temp write failed: \(error.localizedDescription)",
+                    level: .error, category: .conversion
+                )
+                let picker = NSSharingServicePicker(items: [epubData])
+                picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+            }
         }
         return view
     }

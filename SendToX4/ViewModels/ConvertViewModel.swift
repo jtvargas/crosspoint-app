@@ -2,6 +2,9 @@ import Foundation
 import SwiftData
 
 /// Orchestrates the web page -> EPUB -> device pipeline.
+///
+/// The actual fetch/extract/build sequence lives in `ConversionService`;
+/// this view model owns UI state and the send/queue/share post-processing.
 @MainActor
 @Observable
 final class ConvertViewModel {
@@ -21,7 +24,7 @@ final class ConvertViewModel {
 
     // MARK: - Private
 
-    private let readabilityExtractor = ReadabilityExtractor()
+    private let conversionService = ConversionService()
 
     /// The current phase label shown to the user.
     var phaseLabel: String {
@@ -81,57 +84,30 @@ final class ConvertViewModel {
         )
 
         do {
-            // Phase 1: Fetch
-            currentPhase = .fetching
-            article.status = .fetching
-            let page = try await WebPageFetcher.fetch(url: url)
+            let result = try await runConversion(url: url, article: article, settings: settings)
 
-            // Phase 2: Extract
-            currentPhase = .extracting
-            article.status = .extracting
-            let content = try await extractContent(html: page.html, url: page.finalURL)
+            lastEPUBData = result.epubData
+            lastFilename = result.filename
 
-            article.title = content.title
-            article.author = content.author
-            article.sourceDomain = page.finalURL.host ?? url.host ?? "unknown"
-
-            // Phase 3: Build EPUB
-            currentPhase = .building
-            article.status = .building
-            let metadata = EPUBBuilder.Metadata(
-                title: content.title,
-                author: content.author ?? "Unknown",
-                language: content.language,
-                sourceURL: page.finalURL,
-                description: content.description
-            )
-            let epubData = try EPUBBuilder.build(body: content.bodyHTML, metadata: metadata)
-            let filename = FileNameGenerator.generate(
-                title: content.title, author: content.author, url: page.finalURL
-            )
-
-            lastEPUBData = epubData
-            lastFilename = filename
-
-            // Phase 4: Send to device (if connected and not busy deleting)
+            // Send to device (if connected and not busy deleting)
             if deviceVM.isConnected && !deviceVM.isBatchDeleting {
                 currentPhase = .sending
                 article.status = .sending
                 let folder = settings?.convertFolder ?? "content"
                 let uploadData = await EPUBOptimizer.optimizeIfNeeded(
-                    epubData,
-                    filename: filename,
+                    result.epubData,
+                    filename: result.filename,
                     enabled: settings?.optimizeEPUBUpload ?? true
                 )
-                try await deviceVM.upload(data: uploadData, filename: filename, toFolder: folder)
+                try await deviceVM.upload(data: uploadData, filename: result.filename, toFolder: folder)
 
                 currentPhase = .sent
                 article.status = .sent
-                statusMessage = loc(.sentArticleToX4, content.title.truncated(to: 40))
-                toast?.showSuccess(loc(.phaseSent), subtitle: content.title.truncated(to: 50))
+                statusMessage = loc(.sentArticleToX4, result.content.title.truncated(to: 40))
+                toast?.showSuccess(loc(.phaseSent), subtitle: result.content.title.truncated(to: 50))
 
                 DebugLogger.log(
-                    "Conversion complete + sent: '\(content.title)' (\(filename))",
+                    "Conversion complete + sent: '\(result.content.title)' (\(result.filename))",
                     level: .info, category: .conversion
                 )
 
@@ -147,16 +123,16 @@ final class ConvertViewModel {
                 currentPhase = .savedLocally
                 article.status = .savedLocally
                 queueVM.enqueue(
-                    epubData: epubData,
-                    filename: filename,
+                    epubData: result.epubData,
+                    filename: result.filename,
                     article: article,
                     modelContext: modelContext
                 )
-                statusMessage = loc(.queuedArticle, content.title.truncated(to: 40))
-                toast?.showQueued(loc(.phaseSavedLocally), subtitle: content.title.truncated(to: 50))
+                statusMessage = loc(.queuedArticle, result.content.title.truncated(to: 40))
+                toast?.showQueued(loc(.phaseSavedLocally), subtitle: result.content.title.truncated(to: 50))
 
                 DebugLogger.log(
-                    "Conversion complete + queued: '\(content.title)' (\(filename))",
+                    "Conversion complete + queued: '\(result.content.title)' (\(result.filename))",
                     level: .info, category: .conversion
                 )
 
@@ -183,7 +159,7 @@ final class ConvertViewModel {
     }
 
     /// Convert only (no send) — generates EPUB for local save.
-    func convertOnly(modelContext: ModelContext) async -> Data? {
+    func convertOnly(modelContext: ModelContext, settings: DeviceSettings? = nil) async -> Data? {
         guard let url = validatedURL else {
             lastError = loc(.enterValidURL)
             return nil
@@ -196,41 +172,17 @@ final class ConvertViewModel {
         modelContext.insert(article)
 
         do {
-            currentPhase = .fetching
-            article.status = .fetching
-            let page = try await WebPageFetcher.fetch(url: url)
+            let result = try await runConversion(url: url, article: article, settings: settings)
 
-            currentPhase = .extracting
-            article.status = .extracting
-            let content = try await extractContent(html: page.html, url: page.finalURL)
-
-            article.title = content.title
-            article.author = content.author
-            article.sourceDomain = page.finalURL.host ?? url.host ?? "unknown"
-
-            currentPhase = .building
-            article.status = .building
-            let metadata = EPUBBuilder.Metadata(
-                title: content.title,
-                author: content.author ?? "Unknown",
-                language: content.language,
-                sourceURL: page.finalURL,
-                description: content.description
-            )
-            let epubData = try EPUBBuilder.build(body: content.bodyHTML, metadata: metadata)
-            let filename = FileNameGenerator.generate(
-                title: content.title, author: content.author, url: page.finalURL
-            )
-
-            lastEPUBData = epubData
-            lastFilename = filename
+            lastEPUBData = result.epubData
+            lastFilename = result.filename
 
             currentPhase = .savedLocally
             article.status = .savedLocally
-            statusMessage = loc(.epubCreated, content.title.truncated(to: 40))
+            statusMessage = loc(.epubCreated, result.content.title.truncated(to: 40))
 
             isProcessing = false
-            return epubData
+            return result.epubData
 
         } catch {
             currentPhase = .failed
@@ -266,42 +218,22 @@ final class ConvertViewModel {
 
         do {
             // Re-generate the EPUB
-            currentPhase = .fetching
-            article.status = .fetching
-            let page = try await WebPageFetcher.fetch(url: url)
-
-            currentPhase = .extracting
-            article.status = .extracting
-            let content = try await extractContent(html: page.html, url: page.finalURL)
-
-            currentPhase = .building
-            article.status = .building
-            let metadata = EPUBBuilder.Metadata(
-                title: content.title,
-                author: content.author ?? "Unknown",
-                language: content.language,
-                sourceURL: page.finalURL,
-                description: content.description
-            )
-            let epubData = try EPUBBuilder.build(body: content.bodyHTML, metadata: metadata)
-            let filename = FileNameGenerator.generate(
-                title: content.title, author: content.author, url: page.finalURL
-            )
+            let result = try await runConversion(url: url, article: article, settings: settings)
 
             currentPhase = .sending
             article.status = .sending
             let folder = settings?.convertFolder ?? "content"
             let uploadData = await EPUBOptimizer.optimizeIfNeeded(
-                epubData,
-                filename: filename,
+                result.epubData,
+                filename: result.filename,
                 enabled: settings?.optimizeEPUBUpload ?? true
             )
-            try await deviceVM.upload(data: uploadData, filename: filename, toFolder: folder)
+            try await deviceVM.upload(data: uploadData, filename: result.filename, toFolder: folder)
 
             currentPhase = .sent
             article.status = .sent
-            statusMessage = loc(.resentArticleToX4, content.title.truncated(to: 40))
-            toast?.showSuccess(loc(.phaseSent), subtitle: content.title.truncated(to: 50))
+            statusMessage = loc(.resentArticleToX4, result.content.title.truncated(to: 40))
+            toast?.showSuccess(loc(.phaseSent), subtitle: result.content.title.truncated(to: 50))
 
             if ReviewPromptManager.shouldPromptAfterSuccess() {
                 shouldRequestReview = true
@@ -321,7 +253,8 @@ final class ConvertViewModel {
     /// Does NOT create a new Article — reuses the existing record.
     func reconvertForShare(
         article: Article,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        settings: DeviceSettings? = nil
     ) async -> (data: Data, filename: String)? {
         guard let url = URL(string: article.url) else {
             lastError = loc(.invalidArticleURL)
@@ -332,39 +265,15 @@ final class ConvertViewModel {
         lastError = nil
 
         do {
-            currentPhase = .fetching
-            article.status = .fetching
-            let page = try await WebPageFetcher.fetch(url: url)
+            let result = try await runConversion(url: url, article: article, settings: settings)
 
-            currentPhase = .extracting
-            article.status = .extracting
-            let content = try await extractContent(html: page.html, url: page.finalURL)
-
-            article.title = content.title
-            article.author = content.author
-            article.sourceDomain = page.finalURL.host ?? url.host ?? "unknown"
-
-            currentPhase = .building
-            article.status = .building
-            let metadata = EPUBBuilder.Metadata(
-                title: content.title,
-                author: content.author ?? "Unknown",
-                language: content.language,
-                sourceURL: page.finalURL,
-                description: content.description
-            )
-            let epubData = try EPUBBuilder.build(body: content.bodyHTML, metadata: metadata)
-            let filename = FileNameGenerator.generate(
-                title: content.title, author: content.author, url: page.finalURL
-            )
-
-            lastEPUBData = epubData
-            lastFilename = filename
+            lastEPUBData = result.epubData
+            lastFilename = result.filename
 
             currentPhase = .savedLocally
             article.status = .savedLocally
             isProcessing = false
-            return (epubData, filename)
+            return (result.epubData, result.filename)
 
         } catch {
             currentPhase = .failed
@@ -397,26 +306,23 @@ final class ConvertViewModel {
         return URL(string: str)
     }
 
-    /// Multi-strategy extraction: Twitter API → SwiftSoup → Readability.js fallback.
-    private func extractContent(html: String, url: URL) async throws -> ExtractedContent {
-        // Twitter/X: use fxtwitter API (JS-only SPA, HTML has no content)
-        if TwitterExtractor.canHandle(url: url) {
-            if let content = try await TwitterExtractor.extract(from: url) {
-                return content
-            }
+    /// Run the shared pipeline, mirroring phases onto this view model and the
+    /// Article record, and updating the article's metadata on success.
+    private func runConversion(
+        url: URL,
+        article: Article,
+        settings: DeviceSettings?
+    ) async throws -> ConversionResult {
+        let options = ConversionOptions()
+        let result = try await conversionService.convert(url: url, options: options) { phase in
+            currentPhase = phase
+            article.status = phase
         }
 
-        // Try fast SwiftSoup extraction first
-        if let content = try ContentExtractor.extract(from: html, url: url) {
-            return content
-        }
+        article.title = result.content.title
+        article.author = result.content.author
+        article.sourceDomain = result.finalURL.host ?? url.host ?? "unknown"
 
-        // Fallback to Readability.js (using pre-fetched HTML to avoid WKWebView entitlement issues)
-        if let content = try await readabilityExtractor.extract(html: html, baseURL: url) {
-            return content
-        }
-
-        // All strategies failed
-        throw EPUBError.contentTooShort
+        return result
     }
 }

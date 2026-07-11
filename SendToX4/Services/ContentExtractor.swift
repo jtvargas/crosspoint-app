@@ -19,32 +19,34 @@ enum ContentExtractor {
     
     /// Extract article content from raw HTML.
     /// Returns nil if the extraction produces too little content (triggers fallback).
+    ///
+    /// The document is parsed exactly once: the selected article element is
+    /// sanitized in place and serialized as XHTML from the same DOM.
     static func extract(from html: String, url: URL) throws -> ExtractedContent? {
         let doc = try SwiftSoup.parse(html, url.absoluteString)
-        
+
         // Extract metadata
         let title = try extractTitle(from: doc)
         let author = try extractAuthor(from: doc)
         let description = try extractDescription(from: doc)
         let language = try doc.select("html").first()?.attr("lang") ?? "en"
-        
+
         // Extract article body
-        guard let bodyHTML = try extractArticleBody(from: doc) else {
+        guard let article = try extractArticleElement(from: doc) else {
             return nil
         }
-        
-        // Sanitize the extracted HTML
-        let sanitized = try HTMLSanitizer.sanitize(bodyHTML)
-        
-        // Validate content length
-        let textContent = try SwiftSoup.parse(sanitized).text()
+
+        // Sanitize the selected subtree in place (no re-parse)
+        try HTMLSanitizer.sanitizeElement(article, in: doc)
+
+        // Validate content length after sanitization
+        let textContent = try article.text()
         guard textContent.count >= minimumContentLength else {
             return nil // Too short — trigger fallback to Readability.js
         }
-        
-        // Convert to XHTML
-        let xhtml = try HTMLSanitizer.toXHTML(sanitized)
-        
+
+        let xhtml = try article.html()
+
         return ExtractedContent(
             title: title,
             author: author,
@@ -118,10 +120,15 @@ enum ContentExtractor {
     }
     
     // MARK: - Article Body Extraction
-    
+
+    /// Maximum candidates evaluated by the text-density scorer.
+    private static let maxScoringCandidates = 200
+
     /// Heuristic article body extraction.
-    /// Tries known article containers, then falls back to scoring elements by text density.
-    private static func extractArticleBody(from doc: Document) throws -> String? {
+    /// Tries known article containers, then falls back to scoring elements by
+    /// text density. Returns the winning element still attached to its
+    /// document so callers can sanitize/serialize without re-parsing.
+    private static func extractArticleElement(from doc: Document) throws -> Element? {
         // Strategy 1: Look for known article containers
         let articleSelectors = [
             "article",
@@ -137,48 +144,50 @@ enum ContentExtractor {
             "#article-content",
             ".content-body"
         ]
-        
+
         for selector in articleSelectors {
             if let element = try doc.select(selector).first() {
-                let html = try element.html()
                 let text = try element.text()
                 if text.count >= minimumContentLength {
-                    return html
+                    return element
                 }
             }
         }
-        
-        // Strategy 2: Score elements by text density
+
+        // Strategy 2: Score elements by text density.
+        // Pre-filter to containers that actually hold paragraphs, and check
+        // the cheap paragraph count before computing full text length.
         guard let body = doc.body() else { return nil }
-        
+
         var bestElement: Element?
         var bestScore = 0
-        
-        let candidates = try body.select("div, section, td")
-        for candidate in candidates {
-            let text = try candidate.text()
+
+        let candidates = try body.select("div:has(p), section:has(p), td:has(p)")
+        for candidate in candidates.prefix(maxScoringCandidates) {
             let paragraphs = try candidate.select("p").size()
-            
+            guard paragraphs >= 2 else { continue }
+
+            let text = try candidate.text()
+            guard text.count >= minimumContentLength else { continue }
+
             // Score: text length + paragraph count bonus
             let score = text.count + (paragraphs * 100)
-            
-            // Must have meaningful content and some structure
-            if score > bestScore && text.count >= minimumContentLength && paragraphs >= 2 {
+            if score > bestScore {
                 bestScore = score
                 bestElement = candidate
             }
         }
-        
+
         if let best = bestElement {
-            return try best.html()
+            return best
         }
-        
+
         // Strategy 3: Just use body content
         let bodyText = try body.text()
         if bodyText.count >= minimumContentLength {
-            return try body.html()
+            return body
         }
-        
+
         return nil
     }
 }

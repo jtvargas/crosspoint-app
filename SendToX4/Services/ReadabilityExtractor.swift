@@ -8,6 +8,8 @@ final class ReadabilityExtractor: NSObject {
     
     private var webView: WKWebView?
     private var continuation: CheckedContinuation<ExtractedContent?, Error>?
+    private var timeoutTask: Task<Void, Never>?
+    private var pageLanguage = "en"
     
     /// Readability.js source loaded from the app bundle.
     private static let readabilityJS: String? = {
@@ -44,27 +46,36 @@ final class ReadabilityExtractor: NSObject {
     /// - Parameters:
     ///   - html: The pre-fetched HTML string.
     ///   - baseURL: The original page URL (used for resolving relative paths).
+    ///   - language: The page language (from the fetched page), carried into the result.
     /// - Returns: Extracted content, or nil if extraction fails.
-    func extract(html: String, baseURL: URL) async throws -> ExtractedContent? {
+    func extract(html: String, baseURL: URL, language: String = "en") async throws -> ExtractedContent? {
         guard ReadabilityExtractor.readabilityJS != nil else {
             return nil // Readability.js not bundled
         }
-        
+
+        // Reentrancy guard: this instance holds a single continuation, so a
+        // second concurrent extract would clobber the first. Callers create
+        // one extractor per conversion; this is defense in depth.
+        guard continuation == nil else { return nil }
+
+        pageLanguage = language
+
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
-            
+
             let config = WKWebViewConfiguration()
             config.suppressesIncrementalRendering = true
-            
+
             let webView = WKWebView(frame: .zero, configuration: config)
             webView.navigationDelegate = self
             self.webView = webView
-            
+
             webView.loadHTMLString(html, baseURL: baseURL)
-            
-            // Timeout after 30 seconds
-            Task { @MainActor [weak self] in
+
+            // Timeout after 30 seconds (cancelled on completion)
+            timeoutTask = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(30))
+                guard !Task.isCancelled else { return }
                 if let cont = self?.continuation {
                     self?.continuation = nil
                     self?.cleanup()
@@ -73,8 +84,10 @@ final class ReadabilityExtractor: NSObject {
             }
         }
     }
-    
+
     private func cleanup() {
+        timeoutTask?.cancel()
+        timeoutTask = nil
         webView?.stopLoading()
         webView?.navigationDelegate = nil
         webView = nil
@@ -139,15 +152,14 @@ extension ReadabilityExtractor: WKNavigationDelegate {
                 return
             }
             
-            // Sanitize the Readability output
-            let sanitized = try HTMLSanitizer.sanitize(content)
-            let xhtml = try HTMLSanitizer.toXHTML(sanitized)
-            
+            // Sanitize the Readability output (single parse: sanitize + XHTML)
+            let xhtml = try HTMLSanitizer.sanitizeToXHTML(content)
+
             let extracted = ExtractedContent(
                 title: json["title"]?.condensed ?? "Untitled",
                 author: json["byline"]?.condensed,
                 description: json["excerpt"]?.condensed ?? "",
-                language: "en",
+                language: pageLanguage,
                 bodyHTML: xhtml
             )
             

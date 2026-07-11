@@ -48,11 +48,9 @@ struct EPUBBuilder {
             throw EPUBError.contentTooShort
         }
         
+        // Templates escape their own text parameters — pass raw strings.
         let uuid = UUID().uuidString
-        let escapedTitle = metadata.title.xmlEscaped
-        let escapedAuthor = metadata.author.xmlEscaped
-        let escapedDescription = metadata.description.xmlEscaped
-        
+
         // Create in-memory ZIP archive
         guard let archive = Archive(accessMode: .create) else {
             throw EPUBError.archiveCreationFailed
@@ -82,20 +80,20 @@ struct EPUBBuilder {
             // Use the original single-chapter templates for backward compatibility
             let opf = EPUBTemplates.contentOPF(
                 uuid: uuid,
-                title: escapedTitle,
-                author: escapedAuthor,
+                title: metadata.title,
+                author: metadata.author,
                 language: metadata.language,
                 date: metadata.date,
-                publisher: metadata.publisher.xmlEscaped,
-                description: escapedDescription
+                publisher: metadata.publisher,
+                description: metadata.description
             )
             try addCompressedEntry(to: archive, path: "OEBPS/content.opf", content: opf)
-            
-            let ncx = EPUBTemplates.tocNCX(uuid: uuid, title: escapedTitle)
+
+            let ncx = EPUBTemplates.tocNCX(uuid: uuid, title: metadata.title)
             try addCompressedEntry(to: archive, path: "OEBPS/toc.ncx", content: ncx)
-            
+
             let xhtml = EPUBTemplates.contentXHTML(
-                title: escapedTitle,
+                title: metadata.title,
                 body: chapters[0].bodyHTML,
                 language: metadata.language
             )
@@ -104,23 +102,23 @@ struct EPUBBuilder {
             // Multi-chapter: generate OPF, NCX, and chapter XHTML files
             let opf = EPUBTemplates.contentOPF(
                 uuid: uuid,
-                title: escapedTitle,
-                author: escapedAuthor,
+                title: metadata.title,
+                author: metadata.author,
                 language: metadata.language,
                 date: metadata.date,
-                publisher: metadata.publisher.xmlEscaped,
-                description: escapedDescription,
+                publisher: metadata.publisher,
+                description: metadata.description,
                 chapterCount: chapters.count
             )
             try addCompressedEntry(to: archive, path: "OEBPS/content.opf", content: opf)
-            
-            let ncx = EPUBTemplates.tocNCX(uuid: uuid, title: escapedTitle, chapters: chapters)
+
+            let ncx = EPUBTemplates.tocNCX(uuid: uuid, title: metadata.title, chapters: chapters)
             try addCompressedEntry(to: archive, path: "OEBPS/toc.ncx", content: ncx)
-            
+
             // Add each chapter as a separate XHTML file
             for chapter in chapters {
                 let xhtml = EPUBTemplates.chapterXHTML(
-                    title: chapter.title.xmlEscaped,
+                    title: chapter.title,
                     body: chapter.bodyHTML,
                     language: metadata.language
                 )
