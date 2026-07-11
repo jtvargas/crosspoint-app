@@ -34,6 +34,7 @@ struct SettingsSheet: View {
                 languageSection
                 deviceSection
                 featureFoldersSection
+                epubOptimizationSection
                 connectionTestSection
                 feedbackSection
                 siriShortcutSection
@@ -180,6 +181,18 @@ struct SettingsSheet: View {
             Text(loc(.featureFolders))
         } footer: {
             Text(loc(.featureFoldersDescription, settings.convertFolder))
+        }
+    }
+
+    // MARK: - EPUB Optimization
+
+    private var epubOptimizationSection: some View {
+        Section {
+            Toggle(loc(.optimizeEPUBToggle), isOn: $settings.optimizeEPUBUpload)
+        } header: {
+            Text(loc(.epubOptimization))
+        } footer: {
+            Text(loc(.optimizeEPUBDescription))
         }
     }
 

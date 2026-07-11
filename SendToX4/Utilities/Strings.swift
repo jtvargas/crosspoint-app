@@ -136,6 +136,9 @@ enum L10n {
         case convertSectionLabel
         case wallpaperXSectionLabel
         case featureFoldersDescription
+        case epubOptimization
+        case optimizeEPUBToggle
+        case optimizeEPUBDescription
         case testConnection
         case connectedWithInfo
         case notReachable
@@ -605,6 +608,9 @@ enum L10n {
         .convertSectionLabel: "Convert",
         .wallpaperXSectionLabel: "WallpaperX",
         .featureFoldersDescription: "Each feature uploads to its own folder on the device (e.g. /%@/). Tap a field to change the destination.",
+        .epubOptimization: "EPUB Optimization",
+        .optimizeEPUBToggle: "Optimize EPUBs Before Upload",
+        .optimizeEPUBDescription: "Resizes images to the e-ink display, converts them to grayscale JPEG, and shrinks the file before sending. Works like CrossPoint's web optimizer. Text-only EPUBs are unaffected.",
         .testConnection: "Test Connection",
         .connectedWithInfo: "Connected (%@)",
         .notReachable: "Not reachable",
@@ -1067,6 +1073,9 @@ enum L10n {
         .convertSectionLabel: "转换",
         .wallpaperXSectionLabel: "壁纸X",
         .featureFoldersDescription: "每个功能上传到设备上各自的文件夹（例如 /%@/）。点击字段更改目标位置。",
+        .epubOptimization: "EPUB优化",
+        .optimizeEPUBToggle: "上传前优化EPUB",
+        .optimizeEPUBDescription: "将图片调整为墨水屏尺寸、转换为灰度JPEG并压缩文件后再发送。与CrossPoint网页优化器功能相同。纯文本EPUB不受影响。",
         .testConnection: "测试连接",
         .connectedWithInfo: "已连接（%@）",
         .notReachable: "无法连接",

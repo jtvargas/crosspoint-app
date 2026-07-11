@@ -225,12 +225,25 @@ final class FileManagerViewModel {
 
     /// Upload a file to the current directory, routed through `DeviceViewModel`
     /// so that global upload state (progress, filename) is visible across all tabs.
-    func uploadFile(data: Data, filename: String, deviceVM: DeviceViewModel, modelContext: ModelContext) async {
+    func uploadFile(
+        data: Data,
+        filename: String,
+        deviceVM: DeviceViewModel,
+        modelContext: ModelContext,
+        settings: DeviceSettings? = nil
+    ) async {
         // Determine the folder path for upload (strip leading "/" for the upload API)
         let folder = currentPath == "/" ? "" : String(currentPath.dropFirst())
 
+        // Imported EPUBs get the CrossPoint-style optimization pass (issue #19)
+        let uploadData = await EPUBOptimizer.optimizeIfNeeded(
+            data,
+            filename: filename,
+            enabled: settings?.optimizeEPUBUpload ?? true
+        )
+
         do {
-            try await deviceVM.upload(data: data, filename: filename, toFolder: folder)
+            try await deviceVM.upload(data: uploadData, filename: filename, toFolder: folder)
             logActivity(.upload, detail: loc(.uploadedFileTo, filename, currentPath), modelContext: modelContext)
             if ReviewPromptManager.shouldPromptAfterSuccess() {
                 shouldRequestReview = true

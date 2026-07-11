@@ -118,7 +118,12 @@ final class ConvertViewModel {
                 currentPhase = .sending
                 article.status = .sending
                 let folder = settings?.convertFolder ?? "content"
-                try await deviceVM.upload(data: epubData, filename: filename, toFolder: folder)
+                let uploadData = await EPUBOptimizer.optimizeIfNeeded(
+                    epubData,
+                    filename: filename,
+                    enabled: settings?.optimizeEPUBUpload ?? true
+                )
+                try await deviceVM.upload(data: uploadData, filename: filename, toFolder: folder)
 
                 currentPhase = .sent
                 article.status = .sent
@@ -286,7 +291,12 @@ final class ConvertViewModel {
             currentPhase = .sending
             article.status = .sending
             let folder = settings?.convertFolder ?? "content"
-            try await deviceVM.upload(data: epubData, filename: filename, toFolder: folder)
+            let uploadData = await EPUBOptimizer.optimizeIfNeeded(
+                epubData,
+                filename: filename,
+                enabled: settings?.optimizeEPUBUpload ?? true
+            )
+            try await deviceVM.upload(data: uploadData, filename: filename, toFolder: folder)
 
             currentPhase = .sent
             article.status = .sent

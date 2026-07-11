@@ -318,8 +318,13 @@ final class RSSFeedViewModel {
 
                 if deviceVM.isConnected && !deviceVM.isBatchDeleting {
                     // Send directly
+                    let uploadData = await EPUBOptimizer.optimizeIfNeeded(
+                        epubData,
+                        filename: filename,
+                        enabled: settings.optimizeEPUBUpload
+                    )
                     try await deviceVM.upload(
-                        data: epubData,
+                        data: uploadData,
                         filename: filename,
                         toFolder: destFolder
                     )
