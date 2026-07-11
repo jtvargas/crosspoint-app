@@ -202,15 +202,11 @@ struct ConvertURLIntent: AppIntent {
     // MARK: - Private Helpers
 
     /// Create a ModelContext using the same SwiftData store as the main app.
+    /// Must use the full `AppSchema.schema`: opening the shared store with a
+    /// subset schema silently drops the omitted entities' data (issue #20).
     private static func makeModelContext() throws -> ModelContext {
-        let schema = Schema([
-            Article.self,
-            DeviceSettings.self,
-            ActivityEvent.self,
-            QueueItem.self,
-        ])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-        let container = try ModelContainer(for: schema, configurations: [config])
+        let config = ModelConfiguration(schema: AppSchema.schema, isStoredInMemoryOnly: false)
+        let container = try ModelContainer(for: AppSchema.schema, configurations: [config])
         return ModelContext(container)
     }
 
