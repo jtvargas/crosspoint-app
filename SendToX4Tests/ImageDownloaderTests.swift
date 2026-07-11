@@ -34,6 +34,9 @@ final class StubURLProtocol: URLProtocol {
     override func stopLoading() {}
 }
 
+// Serialized: every test replaces the shared `StubURLProtocol.responses`,
+// so parallel execution would clobber another test's stubs mid-download.
+@Suite(.serialized)
 struct ImageDownloaderTests {
 
     private static func makeSession() -> URLSession {
@@ -70,14 +73,14 @@ struct ImageDownloaderTests {
             refs, session: Self.makeSession()
         )
 
-        #expect(images.count == 1)
         #expect(failed.isEmpty)
-        #expect(images[0].path == "images/img-0.jpg")
-        #expect(images[0].mediaType == "image/jpeg")
-        #expect(images[0].data.prefix(2) == Data([0xFF, 0xD8]))
+        let image = try #require(images.first)
+        #expect(image.path == "images/img-0.jpg")
+        #expect(image.mediaType == "image/jpeg")
+        #expect(image.data.prefix(2) == Data([0xFF, 0xD8]))
     }
 
-    @Test func failuresLandInFailedListNotErrors() async {
+    @Test func failuresLandInFailedListNotErrors() async throws {
         let good = URL(string: "https://img.example.com/good.jpg")!
         let broken = URL(string: "https://img.example.com/broken.jpg")!
         let notImage = URL(string: "https://img.example.com/page.html")!
@@ -96,8 +99,8 @@ struct ImageDownloaderTests {
             refs, session: Self.makeSession()
         )
 
-        #expect(images.count == 1)
-        #expect(images[0].path == "images/img-0.jpg")
+        let image = try #require(images.first)
+        #expect(image.path == "images/img-0.jpg")
         #expect(failed.count == 2)
         #expect(failed.contains(refs[1]))
         #expect(failed.contains(refs[2]))
@@ -118,7 +121,7 @@ struct ImageDownloaderTests {
         #expect(failed.count == 1)
     }
 
-    @Test func countCapMarksOverflowAsFailed() async {
+    @Test func countCapMarksOverflowAsFailed() async throws {
         let url = URL(string: "https://img.example.com/only.jpg")!
         StubURLProtocol.responses = [url: .success((Self.makeJPEG(), 200))]
 
@@ -133,8 +136,8 @@ struct ImageDownloaderTests {
             refs, limits: limits, session: Self.makeSession()
         )
         #expect(images.count == 1)
-        #expect(failed.count == 1)
-        #expect(failed[0].index == 1)
+        let failure = try #require(failed.first)
+        #expect(failure.index == 1)
     }
 
     @Test func httpErrorStatusFails() async {

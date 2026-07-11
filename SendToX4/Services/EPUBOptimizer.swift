@@ -58,6 +58,11 @@ nonisolated enum EPUBOptimizer {
     /// in these formats are copied through untouched.
     private static let deviceFriendlyExtensions: Set<String> = ["png", "jpg", "jpeg"]
 
+    /// Whether a zip entry path has a raster image extension the optimizer re-encodes.
+    private static func isRasterImagePath(_ path: String) -> Bool {
+        rasterExtensions.contains((path as NSString).pathExtension.lowercased())
+    }
+
     // MARK: - Public API
 
     /// Convenience gate used by upload call sites.
