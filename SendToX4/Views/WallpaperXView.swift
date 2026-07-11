@@ -17,7 +17,7 @@ struct WallpaperXView: View {
     @Environment(\.requestReview) private var requestReview
     @Bindable var wallpaperVM: WallpaperViewModel
     var deviceVM: DeviceViewModel
-    var settings: DeviceSettings
+    @Bindable var settings: DeviceSettings
     var toast: ToastManager
 
     @AppStorage("pinchToZoomEnabled") private var pinchToZoomEnabled = false
@@ -74,6 +74,13 @@ struct WallpaperXView: View {
                 ReviewPromptManager.recordPromptShown()
                 requestReview()
             }
+        }
+        .onAppear {
+            wallpaperVM.device = settings.wallpaperDevice
+        }
+        .onChange(of: settings.wallpaperDeviceRaw) { _, _ in
+            wallpaperVM.device = settings.wallpaperDevice
+            wallpaperVM.updatePreview()
         }
     }
 
@@ -567,6 +574,23 @@ struct WallpaperXView: View {
 
     var settingsControls: some View {
         VStack(spacing: 20) {
+            // Target Device
+            VStack(alignment: .leading, spacing: 8) {
+                Text(loc(.device))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .textCase(.uppercase)
+
+                Picker(loc(.device), selection: $settings.wallpaperDevice) {
+                    ForEach(DeviceSpecification.all) { spec in
+                        Text(spec.name).tag(spec)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            Divider()
+
             // Fit Mode
             VStack(alignment: .leading, spacing: 8) {
                 Text(loc(.fit))
