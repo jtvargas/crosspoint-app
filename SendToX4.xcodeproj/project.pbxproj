@@ -14,6 +14,16 @@
 		CC00000ECCCCCCCC0000000E /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = CC00000CCCCCCCCC0000000C /* SwiftSoup */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		0636842A3002FB5B008ABC4C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 062C179A2F4015F7007E89F9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 062C17A12F4015F7007E89F9;
+			remoteInfo = SendToX4;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		062C17A22F4015F7007E89F9 /* SendToX4.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SendToX4.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CC000001CCCCCCCC00000001 /* SendToX4Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SendToX4Tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -208,6 +218,7 @@
 		CC00000ACCCCCCCC0000000A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 062C17A12F4015F7007E89F9 /* SendToX4 */;
+			targetProxy = 0636842A3002FB5B008ABC4C /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
