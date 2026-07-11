@@ -151,7 +151,7 @@ struct AboutAppView: View {
 
     private var appIconImage: Image {
         #if canImport(UIKit)
-        if let uiImage = UIImage(named: "icon-crossx") {
+        if let uiImage = UIImage(named: "icon-app") {
             return Image(uiImage: uiImage)
         }
         #elseif canImport(AppKit)
