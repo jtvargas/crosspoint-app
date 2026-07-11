@@ -30,20 +30,22 @@ struct EPUBBuilder {
     /// - Parameters:
     ///   - body: Sanitized XHTML body content (inner HTML, not a complete document).
     ///   - metadata: Article metadata.
+    ///   - images: Downloaded article images to embed (paths relative to OEBPS/).
     /// - Returns: EPUB file as in-memory Data.
     /// - Throws: If ZIP archive operations fail.
-    static func build(body: String, metadata: Metadata) throws -> Data {
+    static func build(body: String, metadata: Metadata, images: [EPUBImage] = []) throws -> Data {
         let chapters = try ChapterSplitter.split(body: body, articleTitle: metadata.title)
-        return try build(chapters: chapters, metadata: metadata)
+        return try build(chapters: chapters, metadata: metadata, images: images)
     }
-    
+
     /// Build an EPUB 2.0 from pre-split chapters and metadata.
     /// - Parameters:
     ///   - chapters: Array of chapters (at least one).
     ///   - metadata: Article metadata.
+    ///   - images: Downloaded article images to embed (paths relative to OEBPS/).
     /// - Returns: EPUB file as in-memory Data.
     /// - Throws: If ZIP archive operations fail.
-    static func build(chapters: [Chapter], metadata: Metadata) throws -> Data {
+    static func build(chapters: [Chapter], metadata: Metadata, images: [EPUBImage] = []) throws -> Data {
         guard !chapters.isEmpty else {
             throw EPUBError.contentTooShort
         }
@@ -75,6 +77,10 @@ struct EPUBBuilder {
             content: EPUBTemplates.containerXML
         )
         
+        // Image manifest fragments (shared by both single/multi-chapter paths)
+        let imageItems = EPUBTemplates.imageManifestItems(for: images)
+        let coverMeta = EPUBTemplates.coverMeta(for: images)
+
         // Single chapter vs multi-chapter
         if chapters.count == 1 {
             // Use the original single-chapter templates for backward compatibility
@@ -85,7 +91,9 @@ struct EPUBBuilder {
                 language: metadata.language,
                 date: metadata.date,
                 publisher: metadata.publisher,
-                description: metadata.description
+                description: metadata.description,
+                imageItems: imageItems,
+                coverMeta: coverMeta
             )
             try addCompressedEntry(to: archive, path: "OEBPS/content.opf", content: opf)
 
@@ -108,7 +116,9 @@ struct EPUBBuilder {
                 date: metadata.date,
                 publisher: metadata.publisher,
                 description: metadata.description,
-                chapterCount: chapters.count
+                chapterCount: chapters.count,
+                imageItems: imageItems,
+                coverMeta: coverMeta
             )
             try addCompressedEntry(to: archive, path: "OEBPS/content.opf", content: opf)
 
@@ -129,12 +139,17 @@ struct EPUBBuilder {
                 )
             }
         }
-        
+
+        // Embed image resources (already-compressed JPEG: STORE, no deflate)
+        for image in images {
+            try addStoredEntry(to: archive, path: "OEBPS/\(image.path)", data: image.data)
+        }
+
         // Extract the archive data
         guard let data = archive.data else {
             throw EPUBError.archiveDataExtractionFailed
         }
-        
+
         return data
     }
     
@@ -146,6 +161,20 @@ struct EPUBBuilder {
             type: .file,
             uncompressedSize: UInt32(Int64(data.count)),
             compressionMethod: .deflate,
+            provider: { position, size in
+                data.subdata(in: position..<(position + size))
+            }
+        )
+    }
+
+    /// Adds a binary entry without compression (for already-compressed data
+    /// such as JPEG images).
+    private static func addStoredEntry(to archive: Archive, path: String, data: Data) throws {
+        try archive.addEntry(
+            with: path,
+            type: .file,
+            uncompressedSize: UInt32(Int64(data.count)),
+            compressionMethod: .none,
             provider: { position, size in
                 data.subdata(in: position..<(position + size))
             }

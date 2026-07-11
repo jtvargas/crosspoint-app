@@ -22,6 +22,25 @@ enum EPUBTemplates {
 </container>
 """
 
+    // MARK: - Image Manifest Fragments
+
+    /// Manifest `<item>` lines for embedded images. The cover image gets the
+    /// conventional `cover-image` id.
+    static func imageManifestItems(for images: [EPUBImage]) -> String {
+        guard !images.isEmpty else { return "" }
+        return "\n" + images.enumerated().map { index, image in
+            let id = image.isCover ? "cover-image" : "img-\(index)"
+            return "    <item id=\"\(id)\" href=\"\(image.path)\" media-type=\"\(image.mediaType)\"/>"
+        }.joined(separator: "\n")
+    }
+
+    /// EPUB 2.0 cover declaration (`<meta name="cover">`), or empty when no
+    /// image is marked as cover.
+    static func coverMeta(for images: [EPUBImage]) -> String {
+        guard images.contains(where: { $0.isCover }) else { return "" }
+        return "\n    <meta name=\"cover\" content=\"cover-image\"/>"
+    }
+
     // MARK: - Single-Chapter Templates (backward compatible)
 
     /// OEBPS/content.opf — OPF 2.0 package document (single chapter).
@@ -32,7 +51,9 @@ enum EPUBTemplates {
         language: String,
         date: String,
         publisher: String,
-        description: String
+        description: String,
+        imageItems: String = "",
+        coverMeta: String = ""
     ) -> String {
 """
 <?xml version="1.0" encoding="UTF-8"?>
@@ -44,11 +65,11 @@ enum EPUBTemplates {
     <dc:language>\(language)</dc:language>
     <dc:date>\(date)</dc:date>
     <dc:publisher>\(publisher.xmlEscaped)</dc:publisher>
-    <dc:description>\(description.xmlEscaped)</dc:description>
+    <dc:description>\(description.xmlEscaped)</dc:description>\(coverMeta)
   </metadata>
   <manifest>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-    <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>
+    <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>\(imageItems)
   </manifest>
   <spine toc="ncx">
     <itemref idref="content"/>
@@ -100,6 +121,9 @@ enum EPUBTemplates {
       p { margin: 0.5em 0; text-indent: 0; }
       blockquote { margin: 1em 2em; font-style: italic; }
       pre, code { font-family: monospace; font-size: 0.9em; }
+      img { max-width: 100%; height: auto; }
+      figure { margin: 1em 0; text-align: center; }
+      figcaption { font-size: 0.85em; font-style: italic; }
     </style>
   </head>
   <body>
@@ -121,7 +145,9 @@ enum EPUBTemplates {
         date: String,
         publisher: String,
         description: String,
-        chapterCount: Int
+        chapterCount: Int,
+        imageItems: String = "",
+        coverMeta: String = ""
     ) -> String {
         let manifestItems = (0..<chapterCount).map { i in
             "    <item id=\"chapter-\(i)\" href=\"chapter-\(i).xhtml\" media-type=\"application/xhtml+xml\"/>"
@@ -141,11 +167,11 @@ enum EPUBTemplates {
     <dc:language>\(language)</dc:language>
     <dc:date>\(date)</dc:date>
     <dc:publisher>\(publisher.xmlEscaped)</dc:publisher>
-    <dc:description>\(description.xmlEscaped)</dc:description>
+    <dc:description>\(description.xmlEscaped)</dc:description>\(coverMeta)
   </metadata>
   <manifest>
     <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
-\(manifestItems)
+\(manifestItems)\(imageItems)
   </manifest>
   <spine toc="ncx">
 \(spineItems)
@@ -204,6 +230,9 @@ enum EPUBTemplates {
       p { margin: 0.5em 0; text-indent: 0; }
       blockquote { margin: 1em 2em; font-style: italic; }
       pre, code { font-family: monospace; font-size: 0.9em; }
+      img { max-width: 100%; height: auto; }
+      figure { margin: 1em 0; text-align: center; }
+      figcaption { font-size: 0.85em; font-style: italic; }
     </style>
   </head>
   <body>

@@ -70,10 +70,83 @@ struct HTMLSanitizerTests {
 
     @Test func sanitizeToXHTMLProducesClosedTags() throws {
         let html = "<div><p>One<br>Two</p></div>"
-        let result = try HTMLSanitizer.sanitizeToXHTML(html)
+        let result = try HTMLSanitizer.sanitizeToXHTML(html).bodyHTML
         // XML syntax self-closes void elements
         #expect(result.contains("<br />") || result.contains("<br/>"))
         #expect(result.contains("One"))
         #expect(result.contains("Two"))
+    }
+
+    // MARK: - Image Preservation (includeImages)
+
+    @Test func keepImagesResolvesAndRewritesSources() throws {
+        let html = """
+        <div><p>Intro text.</p>
+        <img src="/media/photo.png" alt="A photo"/>
+        <figure><img src="https://cdn.example.com/pic2.jpg" alt="Second"/>
+        <figcaption>Caption text</figcaption></figure></div>
+        """
+        let result = try HTMLSanitizer.sanitizeToXHTML(
+            html,
+            baseURI: "https://example.com/article",
+            options: SanitizerOptions(keepImages: true)
+        )
+        #expect(result.images.count == 2)
+        #expect(result.images[0].absoluteURL.absoluteString == "https://example.com/media/photo.png")
+        #expect(result.images[0].alt == "A photo")
+        #expect(result.images[1].absoluteURL.absoluteString == "https://cdn.example.com/pic2.jpg")
+        // src rewritten to EPUB-relative placeholder paths
+        #expect(result.bodyHTML.contains("src=\"images/img-0.jpg\""))
+        #expect(result.bodyHTML.contains("src=\"images/img-1.jpg\""))
+        // figure/figcaption preserved
+        #expect(result.bodyHTML.contains("<figure>"))
+        #expect(result.bodyHTML.contains("Caption text"))
+    }
+
+    @Test func keepImagesUsesSrcsetWhenSrcMissing() throws {
+        let html = """
+        <div><p>Text.</p>
+        <img srcset="/small.jpg 400w, /large.jpg 1200w, /huge.jpg 2400w" alt="responsive"/></div>
+        """
+        let result = try HTMLSanitizer.sanitizeToXHTML(
+            html,
+            baseURI: "https://example.com/post",
+            options: SanitizerOptions(keepImages: true)
+        )
+        #expect(result.images.count == 1)
+        // Largest candidate <= 1600w wins
+        #expect(result.images[0].absoluteURL.absoluteString == "https://example.com/large.jpg")
+    }
+
+    @Test func keepImagesDropsDataURIsAndTrackingPixels() throws {
+        let html = """
+        <div><p>Text.</p>
+        <img src="data:image/gif;base64,R0lGOD"/>
+        <img src="https://tracker.example.com/p.gif" width="1" height="1"/></div>
+        """
+        let result = try HTMLSanitizer.sanitizeToXHTML(
+            html,
+            baseURI: "https://example.com",
+            options: SanitizerOptions(keepImages: true)
+        )
+        #expect(result.images.isEmpty)
+        #expect(!result.bodyHTML.contains("<img"))
+    }
+
+    @Test func collapsesPictureToInnerImg() throws {
+        let html = """
+        <div><picture>
+        <source srcset="/img.webp" type="image/webp"/>
+        <img src="/img.png" alt="pic"/>
+        </picture></div>
+        """
+        let result = try HTMLSanitizer.sanitizeToXHTML(
+            html,
+            baseURI: "https://example.com",
+            options: SanitizerOptions(keepImages: true)
+        )
+        #expect(result.images.count == 1)
+        #expect(!result.bodyHTML.contains("<picture"))
+        #expect(result.bodyHTML.contains("src=\"images/img-0.jpg\""))
     }
 }

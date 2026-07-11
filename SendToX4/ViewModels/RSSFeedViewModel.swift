@@ -285,7 +285,8 @@ final class RSSFeedViewModel {
 
             do {
                 // Shared pipeline: fetch -> extract -> build EPUB
-                let result = try await conversionService.convert(url: articleURL)
+                let options = ConversionOptions(includeImages: settings.includeImages)
+                let result = try await conversionService.convert(url: articleURL, options: options)
                 let content = result.content
                 let epubData = result.epubData
                 let filename = result.filename

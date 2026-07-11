@@ -189,10 +189,11 @@ struct SettingsSheet: View {
     private var epubOptimizationSection: some View {
         Section {
             Toggle(loc(.optimizeEPUBToggle), isOn: $settings.optimizeEPUBUpload)
+            Toggle(loc(.includeImagesToggle), isOn: $settings.includeImages)
         } header: {
             Text(loc(.epubOptimization))
         } footer: {
-            Text(loc(.optimizeEPUBDescription))
+            Text(loc(.optimizeEPUBDescription) + "\n\n" + loc(.includeImagesDescription))
         }
     }
 

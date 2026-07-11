@@ -109,10 +109,14 @@ struct ConvertURLIntent: AppIntent {
         modelContext.insert(article)
 
         // 5-7. Fetch, extract, and build via the shared pipeline
+        let settingsDescriptor = FetchDescriptor<DeviceSettings>()
+        let includeImages = (try? modelContext.fetch(settingsDescriptor))?.first?.includeImages ?? false
+        let options = ConversionOptions(includeImages: includeImages)
+
         let result: ConversionResult
         var lastPhase: ConversionStatus = .pending
         do {
-            result = try await ConversionService().convert(url: resolvedURL) { phase in
+            result = try await ConversionService().convert(url: resolvedURL, options: options) { phase in
                 lastPhase = phase
             }
         } catch {

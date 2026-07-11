@@ -92,4 +92,45 @@ struct EPUBBuilderTests {
             _ = try EPUBBuilder.build(chapters: [], metadata: makeMetadata())
         }
     }
+
+    @Test func embeddedImagesAppearInManifestWithCover() throws {
+        let jpegStub = Data([0xFF, 0xD8, 0xFF, 0xE0]) + Data(count: 64)
+        var cover = EPUBImage(
+            path: "images/img-0.jpg", data: jpegStub,
+            mediaType: "image/jpeg", width: 800, height: 600
+        )
+        cover.isCover = true
+        let second = EPUBImage(
+            path: "images/img-1.jpg", data: jpegStub,
+            mediaType: "image/jpeg", width: 200, height: 150
+        )
+
+        let epub = try EPUBBuilder.build(
+            body: "<p>Body with images.</p><img src=\"images/img-0.jpg\" alt=\"a\"/>",
+            metadata: makeMetadata(),
+            images: [cover, second]
+        )
+
+        // Image bytes are embedded at OEBPS/<path>
+        let img0 = try extract("OEBPS/images/img-0.jpg", from: epub)
+        #expect(img0 == jpegStub)
+        let img1 = try extract("OEBPS/images/img-1.jpg", from: epub)
+        #expect(img1 == jpegStub)
+
+        // Manifest declares both, cover uses the conventional id + meta
+        let opf = String(decoding: try extract("OEBPS/content.opf", from: epub), as: UTF8.self)
+        #expect(opf.contains("<item id=\"cover-image\" href=\"images/img-0.jpg\" media-type=\"image/jpeg\"/>"))
+        #expect(opf.contains("href=\"images/img-1.jpg\""))
+        #expect(opf.contains("<meta name=\"cover\" content=\"cover-image\"/>"))
+
+        // Still well-formed XML
+        #expect(XMLParser(data: Data(opf.utf8)).parse())
+    }
+
+    @Test func noImagesMeansNoImageManifestEntries() throws {
+        let epub = try EPUBBuilder.build(body: "<p>Plain text body.</p>", metadata: makeMetadata())
+        let opf = String(decoding: try extract("OEBPS/content.opf", from: epub), as: UTF8.self)
+        #expect(!opf.contains("media-type=\"image/jpeg\""))
+        #expect(!opf.contains("name=\"cover\""))
+    }
 }

@@ -10,6 +10,8 @@ final class ReadabilityExtractor: NSObject {
     private var continuation: CheckedContinuation<ExtractedContent?, Error>?
     private var timeoutTask: Task<Void, Never>?
     private var pageLanguage = "en"
+    private var baseURL: URL?
+    private var sanitizerOptions = SanitizerOptions()
     
     /// Readability.js source loaded from the app bundle.
     private static let readabilityJS: String? = {
@@ -47,8 +49,14 @@ final class ReadabilityExtractor: NSObject {
     ///   - html: The pre-fetched HTML string.
     ///   - baseURL: The original page URL (used for resolving relative paths).
     ///   - language: The page language (from the fetched page), carried into the result.
+    ///   - options: Sanitizer options (image preservation).
     /// - Returns: Extracted content, or nil if extraction fails.
-    func extract(html: String, baseURL: URL, language: String = "en") async throws -> ExtractedContent? {
+    func extract(
+        html: String,
+        baseURL: URL,
+        language: String = "en",
+        options: SanitizerOptions = SanitizerOptions()
+    ) async throws -> ExtractedContent? {
         guard ReadabilityExtractor.readabilityJS != nil else {
             return nil // Readability.js not bundled
         }
@@ -59,6 +67,8 @@ final class ReadabilityExtractor: NSObject {
         guard continuation == nil else { return nil }
 
         pageLanguage = language
+        self.baseURL = baseURL
+        sanitizerOptions = options
 
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
@@ -153,14 +163,19 @@ extension ReadabilityExtractor: WKNavigationDelegate {
             }
             
             // Sanitize the Readability output (single parse: sanitize + XHTML)
-            let xhtml = try HTMLSanitizer.sanitizeToXHTML(content)
+            let sanitized = try HTMLSanitizer.sanitizeToXHTML(
+                content,
+                baseURI: baseURL?.absoluteString ?? "",
+                options: sanitizerOptions
+            )
 
             let extracted = ExtractedContent(
                 title: json["title"]?.condensed ?? "Untitled",
                 author: json["byline"]?.condensed,
                 description: json["excerpt"]?.condensed ?? "",
                 language: pageLanguage,
-                bodyHTML: xhtml
+                bodyHTML: sanitized.bodyHTML,
+                images: sanitized.images
             )
             
             resumeWithResult(extracted)

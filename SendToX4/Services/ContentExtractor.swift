@@ -8,6 +8,9 @@ struct ExtractedContent {
     let description: String
     let language: String
     let bodyHTML: String
+    /// Image references discovered during sanitization (empty unless the
+    /// conversion ran with `includeImages`).
+    var images: [ImageRef] = []
 }
 
 /// Extracts article content from HTML using SwiftSoup heuristics.
@@ -22,7 +25,11 @@ enum ContentExtractor {
     ///
     /// The document is parsed exactly once: the selected article element is
     /// sanitized in place and serialized as XHTML from the same DOM.
-    static func extract(from html: String, url: URL) throws -> ExtractedContent? {
+    static func extract(
+        from html: String,
+        url: URL,
+        options: SanitizerOptions = SanitizerOptions()
+    ) throws -> ExtractedContent? {
         let doc = try SwiftSoup.parse(html, url.absoluteString)
 
         // Extract metadata
@@ -37,7 +44,7 @@ enum ContentExtractor {
         }
 
         // Sanitize the selected subtree in place (no re-parse)
-        try HTMLSanitizer.sanitizeElement(article, in: doc)
+        let images = try HTMLSanitizer.sanitizeElement(article, in: doc, options: options)
 
         // Validate content length after sanitization
         let textContent = try article.text()
@@ -52,7 +59,8 @@ enum ContentExtractor {
             author: author,
             description: description,
             language: language.components(separatedBy: "-").first ?? "en",
-            bodyHTML: xhtml
+            bodyHTML: xhtml,
+            images: images
         )
     }
     

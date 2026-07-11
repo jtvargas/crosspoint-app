@@ -313,7 +313,7 @@ final class ConvertViewModel {
         article: Article,
         settings: DeviceSettings?
     ) async throws -> ConversionResult {
-        let options = ConversionOptions()
+        let options = ConversionOptions(includeImages: settings?.includeImages ?? false)
         let result = try await conversionService.convert(url: url, options: options) { phase in
             currentPhase = phase
             article.status = phase

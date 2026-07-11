@@ -139,6 +139,8 @@ enum L10n {
         case epubOptimization
         case optimizeEPUBToggle
         case optimizeEPUBDescription
+        case includeImagesToggle
+        case includeImagesDescription
         case testConnection
         case connectedWithInfo
         case notReachable
@@ -611,6 +613,8 @@ enum L10n {
         .epubOptimization: "EPUB Optimization",
         .optimizeEPUBToggle: "Optimize EPUBs Before Upload",
         .optimizeEPUBDescription: "Resizes images to the e-ink display, converts them to grayscale JPEG, and shrinks the file before sending. Works like CrossPoint's web optimizer. Text-only EPUBs are unaffected.",
+        .includeImagesToggle: "Include Images in EPUBs",
+        .includeImagesDescription: "Downloads article images and embeds them in converted EPUBs. Conversions take longer and files get bigger. If an image can't be downloaded, its alt text is used instead.",
         .testConnection: "Test Connection",
         .connectedWithInfo: "Connected (%@)",
         .notReachable: "Not reachable",
@@ -1076,6 +1080,8 @@ enum L10n {
         .epubOptimization: "EPUB优化",
         .optimizeEPUBToggle: "上传前优化EPUB",
         .optimizeEPUBDescription: "将图片调整为墨水屏尺寸、转换为灰度JPEG并压缩文件后再发送。与CrossPoint网页优化器功能相同。纯文本EPUB不受影响。",
+        .includeImagesToggle: "EPUB中包含图片",
+        .includeImagesDescription: "下载文章图片并嵌入转换后的EPUB。转换耗时更长，文件更大。如果图片无法下载，将使用其替代文本。",
         .testConnection: "测试连接",
         .connectedWithInfo: "已连接（%@）",
         .notReachable: "无法连接",

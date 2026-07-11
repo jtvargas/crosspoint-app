@@ -1,10 +1,14 @@
 import Foundation
+import SwiftSoup
 
 /// Options controlling a single URL→EPUB conversion.
 struct ConversionOptions {
     /// Preserve article images in the generated EPUB (downloaded and embedded).
     /// Wired to `DeviceSettings.includeImages`; off by default.
     var includeImages = false
+
+    /// Download caps applied when `includeImages` is enabled.
+    var imageLimits = ImageLimits.default
 }
 
 /// The product of a successful conversion.
@@ -50,7 +54,8 @@ struct ConversionService {
         let content = try await extractContent(
             html: page.html,
             url: page.finalURL,
-            pageLanguage: page.language
+            pageLanguage: page.language,
+            sanitizerOptions: SanitizerOptions(keepImages: options.includeImages)
         )
 
         onPhase(.building)
@@ -61,7 +66,24 @@ struct ConversionService {
             sourceURL: page.finalURL,
             description: content.description
         )
-        let epubData = try EPUBBuilder.build(body: content.bodyHTML, metadata: metadata)
+
+        // Optional image embedding — failures degrade to alt text or, on any
+        // surprise, to a text-only EPUB. Never fails the conversion.
+        var bodyHTML = content.bodyHTML
+        var embeddedImages: [EPUBImage] = []
+        if options.includeImages && !content.images.isEmpty {
+            let (downloaded, failed) = await ImageDownloader.download(
+                content.images, limits: options.imageLimits
+            )
+            embeddedImages = markCover(downloaded)
+            if !failed.isEmpty {
+                bodyHTML = replaceFailedImages(in: bodyHTML, failed: failed)
+            }
+        }
+
+        let epubData = try EPUBBuilder.build(
+            body: bodyHTML, metadata: metadata, images: embeddedImages
+        )
         let filename = FileNameGenerator.generate(
             title: content.title, author: content.author, url: page.finalURL
         )
@@ -74,6 +96,59 @@ struct ConversionService {
         )
     }
 
+    // MARK: - Image Post-Processing
+
+    /// Cover threshold: the first image at least this large becomes the
+    /// EPUB cover (EPUB 2.0 `<meta name="cover">` idiom).
+    private static let coverMinDimension = 300
+
+    /// Marks the first sufficiently large image as the cover.
+    private func markCover(_ images: [EPUBImage]) -> [EPUBImage] {
+        var result = images
+        if let index = result.firstIndex(where: {
+            $0.width >= Self.coverMinDimension && $0.height >= Self.coverMinDimension
+        }) {
+            result[index].isCover = true
+        }
+        return result
+    }
+
+    /// Replaces `<img>` placeholders whose download failed with their alt
+    /// text (italic paragraph), or removes them when no alt is available.
+    /// Any parsing trouble returns the body unchanged (images degrade to
+    /// broken refs at worst — never a failed conversion).
+    private func replaceFailedImages(in bodyHTML: String, failed: [ImageRef]) -> String {
+        do {
+            let doc = try SwiftSoup.parseBodyFragment(bodyHTML)
+            guard let body = doc.body() else { return bodyHTML }
+            doc.outputSettings()
+                .syntax(syntax: OutputSettings.Syntax.xml)
+                .escapeMode(Entities.EscapeMode.xhtml)
+                .charset(String.Encoding.utf8)
+
+            for ref in failed {
+                for img in try body.select("img[src=\(ref.placeholderPath)]") {
+                    let alt = ref.alt.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if alt.isEmpty {
+                        try img.remove()
+                    } else {
+                        let paragraph = try Element(Tag.valueOf("p"), "")
+                        let emphasis = try paragraph.appendElement("em")
+                        try emphasis.text("[\(alt)]")
+                        try img.replaceWith(paragraph)
+                    }
+                }
+            }
+            return try body.html()
+        } catch {
+            DebugLogger.log(
+                "Failed-image fallback skipped: \(error.localizedDescription)",
+                level: .warning, category: .conversion
+            )
+            return bodyHTML
+        }
+    }
+
     // MARK: - Extraction Cascade
 
     /// Multi-strategy extraction: Twitter API → SwiftSoup → Readability.js fallback.
@@ -83,7 +158,8 @@ struct ConversionService {
     private func extractContent(
         html: String,
         url: URL,
-        pageLanguage: String
+        pageLanguage: String,
+        sanitizerOptions: SanitizerOptions = SanitizerOptions()
     ) async throws -> ExtractedContent {
         // Twitter/X: use fxtwitter API (JS-only SPA, HTML has no content).
         // Errors are swallowed so an fxtwitter outage falls through to the
@@ -104,14 +180,14 @@ struct ConversionService {
         }
 
         // Fast SwiftSoup heuristic extraction.
-        if let content = try ContentExtractor.extract(from: html, url: url) {
+        if let content = try ContentExtractor.extract(from: html, url: url, options: sanitizerOptions) {
             return content
         }
 
         // Readability.js fallback (pre-fetched HTML, hidden WKWebView).
         let readability = ReadabilityExtractor()
         if let content = try await readability.extract(
-            html: html, baseURL: url, language: pageLanguage
+            html: html, baseURL: url, language: pageLanguage, options: sanitizerOptions
         ) {
             return content
         }
