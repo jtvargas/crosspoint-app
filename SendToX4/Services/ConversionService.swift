@@ -165,7 +165,7 @@ struct ConversionService {
         // Errors are swallowed so an fxtwitter outage falls through to the
         // generic extractors instead of failing the conversion outright.
         if TwitterExtractor.canHandle(url: url) {
-            if let content = try? await twitterExtract(url), let content {
+            if let content = try? await twitterExtract(url) {
                 // Twitter bodies are built tag-by-tag but still get normalized
                 // to XHTML like every other source.
                 let xhtml = (try? HTMLSanitizer.toXHTML(content.bodyHTML)) ?? content.bodyHTML
