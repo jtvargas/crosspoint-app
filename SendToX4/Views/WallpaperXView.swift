@@ -824,6 +824,24 @@ struct WallpaperXView: View {
         }
 
         ToolbarItemGroup(placement: .topBarTrailing) {
+            // Target device (X4/X3) — kept in the header so it's always reachable
+            Menu {
+                Picker(loc(.device), selection: $settings.wallpaperDevice) {
+                    ForEach(DeviceSpecification.all) { spec in
+                        Text(
+                            "\(spec.name) (\(Int(spec.resolution.width))\u{00D7}\(Int(spec.resolution.height)))"
+                        )
+                        .tag(spec)
+                    }
+                }
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "display")
+                    Text(settings.wallpaperDevice.id.uppercased())
+                        .font(.caption.weight(.medium))
+                }
+            }
+
             if wallpaperVM.lastBMPData != nil {
                 Button {
                     wallpaperVM.showShareSheet = true
