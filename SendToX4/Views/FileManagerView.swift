@@ -507,7 +507,13 @@ struct FileManagerView: View {
                 let data = try Data(contentsOf: url)
                 let filename = url.lastPathComponent
                 Task {
-                    await fileVM.uploadFile(data: data, filename: filename, deviceVM: deviceVM, modelContext: modelContext)
+                    await fileVM.uploadFile(
+                        data: data,
+                        filename: filename,
+                        deviceVM: deviceVM,
+                        modelContext: modelContext,
+                        settings: settings
+                    )
                 }
             } catch {
                 fileVM.errorMessage = loc(.failedToReadFile, error.localizedDescription)

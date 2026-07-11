@@ -108,54 +108,42 @@ struct ConvertURLIntent: AppIntent {
         )
         modelContext.insert(article)
 
-        // 5. Fetch the web page
-        let page: FetchedPage
+        // 5-7. Fetch, extract, and build via the shared pipeline
+        let settingsDescriptor = FetchDescriptor<DeviceSettings>()
+        let includeImages = (try? modelContext.fetch(settingsDescriptor))?.first?.includeImages ?? false
+        let options = ConversionOptions(includeImages: includeImages)
+
+        let result: ConversionResult
+        var lastPhase: ConversionStatus = .pending
         do {
-            page = try await WebPageFetcher.fetch(url: resolvedURL)
+            result = try await ConversionService().convert(url: resolvedURL, options: options) { phase in
+                lastPhase = phase
+            }
         } catch {
             article.status = .failed
             article.errorMessage = error.localizedDescription
             try? modelContext.save()
-            throw ConvertURLIntentError.fetchFailed(error.localizedDescription)
+            switch lastPhase {
+            case .fetching:
+                throw ConvertURLIntentError.fetchFailed(error.localizedDescription)
+            case .extracting:
+                throw ConvertURLIntentError.extractionFailed
+            default:
+                throw ConvertURLIntentError.epubBuildFailed(error.localizedDescription)
+            }
         }
 
-        // 6. Extract content (Twitter -> SwiftSoup -> Readability.js fallback)
-        let content: ExtractedContent
-        do {
-            content = try await Self.extractContent(html: page.html, url: page.finalURL)
-        } catch {
-            article.status = .failed
-            article.errorMessage = "Content extraction failed"
-            try? modelContext.save()
-            throw ConvertURLIntentError.extractionFailed
-        }
+        let content = result.content
+        let epubData = result.epubData
+        let filename = result.filename
 
         article.title = content.title
         article.author = content.author
-        article.sourceDomain = page.finalURL.host ?? resolvedURL.host ?? "unknown"
+        article.sourceDomain = result.finalURL.host ?? resolvedURL.host ?? "unknown"
 
-        // 7. Build the EPUB
-        let epubData: Data
-        let filename: String
-        do {
-            let metadata = EPUBBuilder.Metadata(
-                title: content.title,
-                author: content.author ?? "Unknown",
-                language: content.language,
-                sourceURL: page.finalURL,
-                description: content.description
-            )
-            epubData = try EPUBBuilder.build(body: content.bodyHTML, metadata: metadata)
-            filename = FileNameGenerator.generate(
-                title: content.title,
-                author: content.author,
-                url: page.finalURL
-            )
-        } catch {
-            article.status = .failed
-            article.errorMessage = error.localizedDescription
-            try? modelContext.save()
-            throw ConvertURLIntentError.epubBuildFailed(error.localizedDescription)
+        // Keep a library copy for the in-app reader (non-fatal)
+        if (try? LibraryStore.save(epubData: epubData, for: article)) != nil {
+            LibraryStore.enforceLimit(modelContext: modelContext)
         }
 
         // 8. Enqueue the EPUB for later sending
@@ -224,30 +212,6 @@ struct ConvertURLIntent: AppIntent {
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         let container = try ModelContainer(for: schema, configurations: [config])
         return ModelContext(container)
-    }
-
-    /// Multi-strategy content extraction (same pipeline as ConvertViewModel).
-    @MainActor
-    private static func extractContent(html: String, url: URL) async throws -> ExtractedContent {
-        // Twitter/X: use fxtwitter API
-        if TwitterExtractor.canHandle(url: url) {
-            if let content = try await TwitterExtractor.extract(from: url) {
-                return content
-            }
-        }
-
-        // SwiftSoup heuristic extraction
-        if let content = try ContentExtractor.extract(from: html, url: url) {
-            return content
-        }
-
-        // Readability.js fallback via WKWebView
-        let readability = ReadabilityExtractor()
-        if let content = try await readability.extract(html: html, baseURL: url) {
-            return content
-        }
-
-        throw ConvertURLIntentError.extractionFailed
     }
 
     /// Count queued items for the result dialog.

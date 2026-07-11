@@ -61,6 +61,18 @@ final class DeviceSettings {
     /// Destination folder for WallpaperX (wallpapers). Default: "sleep".
     var wallpaperFolder: String
 
+    // MARK: - EPUB Optimization
+
+    /// Optimize EPUBs for the e-ink device before upload (downscale images to
+    /// the panel size, grayscale, baseline JPEG). Mirrors the CrossPoint
+    /// firmware's web-UI optimizer. Default: enabled.
+    var optimizeEPUBUpload: Bool = true
+
+    /// Preserve article images when converting web pages to EPUB.
+    /// Images are downloaded with strict caps and embedded in the EPUB.
+    /// Default: disabled (text-only EPUBs).
+    var includeImages: Bool = false
+
     // MARK: - Language
 
     /// BCP-47 language code, or empty string for system default.
@@ -91,7 +103,9 @@ final class DeviceSettings {
         convertFolder: String = "content",
         wallpaperFolder: String = "sleep",
         showFileManager: Bool = false,
-        languageCode: String = ""
+        languageCode: String = "",
+        optimizeEPUBUpload: Bool = true,
+        includeImages: Bool = false
     ) {
         self.firmwareTypeRaw = firmwareType.rawValue
         self.customIP = customIP
@@ -99,5 +113,7 @@ final class DeviceSettings {
         self.wallpaperFolder = wallpaperFolder
         self.showFileManager = showFileManager
         self.languageCode = languageCode
+        self.optimizeEPUBUpload = optimizeEPUBUpload
+        self.includeImages = includeImages
     }
 }

@@ -29,8 +29,9 @@ final class HistoryViewModel {
 
     // MARK: - Single Item Deletion
 
-    /// Delete an article from history.
+    /// Delete an article from history (including its library EPUB, if any).
     func delete(article: Article, from modelContext: ModelContext) {
+        LibraryStore.delete(for: article)
         modelContext.delete(article)
     }
 
@@ -42,14 +43,17 @@ final class HistoryViewModel {
     /// Delete multiple articles by index set (for swipe-to-delete in lists).
     func delete(at offsets: IndexSet, from articles: [Article], modelContext: ModelContext) {
         for index in offsets {
+            LibraryStore.delete(for: articles[index])
             modelContext.delete(articles[index])
         }
     }
 
     // MARK: - Granular Clear
 
-    /// Clear only conversion history (Article records).
+    /// Clear only conversion history (Article records + library EPUBs).
     func clearConversions(modelContext: ModelContext) {
+        // Remove library files first — batch record deletion would orphan them
+        LibraryStore.clearAll(modelContext: modelContext)
         do {
             try modelContext.delete(model: Article.self)
         } catch {

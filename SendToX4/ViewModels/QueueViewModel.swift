@@ -263,7 +263,12 @@ final class QueueViewModel {
                 }
 
                 do {
-                    let data = try Data(contentsOf: item.fileURL)
+                    let rawData = try Data(contentsOf: item.fileURL)
+                    let data = await EPUBOptimizer.optimizeIfNeeded(
+                        rawData,
+                        filename: item.filename,
+                        enabled: settings.optimizeEPUBUpload
+                    )
 
                     DebugLogger.log(
                         "Sending item \(index + 1)/\(items.count): \(item.filename) (\(data.count) bytes) -> /\(folder)/",
@@ -283,7 +288,8 @@ final class QueueViewModel {
                                         + Double(uploadDuration.components.attoseconds) / 1e18
 
                     // Record transfer performance for improving future estimates
-                    TransferStatsTracker.recordTransfer(bytes: item.fileSize, duration: durationSeconds)
+                    // (use the actual sent byte count — optimization may shrink the file)
+                    TransferStatsTracker.recordTransfer(bytes: Int64(data.count), duration: durationSeconds)
 
                     sentFilenames.append(item.filename)
                     consecutiveFailures = 0 // Reset on success
@@ -465,7 +471,12 @@ final class QueueViewModel {
             var sent = false
 
             do {
-                let data = try Data(contentsOf: item.fileURL)
+                let rawData = try Data(contentsOf: item.fileURL)
+                let data = await EPUBOptimizer.optimizeIfNeeded(
+                    rawData,
+                    filename: item.filename,
+                    enabled: settings.optimizeEPUBUpload
+                )
 
                 DebugLogger.log(
                     "Single send: \(item.filename) (\(data.count) bytes) -> /\(folder)/",

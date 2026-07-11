@@ -40,7 +40,7 @@ final class RSSFeedViewModel {
 
     // MARK: - Private
 
-    private let readabilityExtractor = ReadabilityExtractor()
+    private let conversionService = ConversionService()
 
     // MARK: - Feed Management
 
@@ -284,24 +284,12 @@ final class RSSFeedViewModel {
             var article: Article?
 
             do {
-                // Fetch HTML
-                let page = try await WebPageFetcher.fetch(url: articleURL)
-
-                // Extract content (same multi-strategy pipeline as ConvertViewModel)
-                let content = try await extractContent(html: page.html, url: page.finalURL)
-
-                // Build EPUB
-                let metadata = EPUBBuilder.Metadata(
-                    title: content.title,
-                    author: content.author ?? "Unknown",
-                    language: content.language,
-                    sourceURL: page.finalURL,
-                    description: content.description
-                )
-                let epubData = try EPUBBuilder.build(body: content.bodyHTML, metadata: metadata)
-                let filename = FileNameGenerator.generate(
-                    title: content.title, author: content.author, url: page.finalURL
-                )
+                // Shared pipeline: fetch -> extract -> build EPUB
+                let options = ConversionOptions(includeImages: settings.includeImages)
+                let result = try await conversionService.convert(url: articleURL, options: options)
+                let content = result.content
+                let epubData = result.epubData
+                let filename = result.filename
 
                 // Create an Article record for history tracking
                 let newArticle = Article(
@@ -313,13 +301,23 @@ final class RSSFeedViewModel {
                 modelContext.insert(newArticle)
                 article = newArticle
 
+                // Keep a library copy for the in-app reader (non-fatal)
+                if (try? LibraryStore.save(epubData: epubData, for: newArticle)) != nil {
+                    LibraryStore.enforceLimit(modelContext: modelContext)
+                }
+
                 // Destination folder: /feed/<domain>/
                 let destFolder = "feed/\(rssArticle.domain)"
 
                 if deviceVM.isConnected && !deviceVM.isBatchDeleting {
                     // Send directly
+                    let uploadData = await EPUBOptimizer.optimizeIfNeeded(
+                        epubData,
+                        filename: filename,
+                        enabled: settings.optimizeEPUBUpload
+                    )
                     try await deviceVM.upload(
-                        data: epubData,
+                        data: uploadData,
                         filename: filename,
                         toFolder: destFolder
                     )
@@ -467,28 +465,6 @@ final class RSSFeedViewModel {
             predicate: #Predicate<RSSArticle> { $0.statusRaw == newStatus }
         )
         newArticleCount = (try? modelContext.fetchCount(descriptor)) ?? 0
-    }
-
-    // MARK: - Private: Content Extraction
-
-    /// Multi-strategy extraction: Twitter API -> SwiftSoup -> Readability.js fallback.
-    /// Mirrors `ConvertViewModel.extractContent` to reuse the same pipeline.
-    private func extractContent(html: String, url: URL) async throws -> ExtractedContent {
-        if TwitterExtractor.canHandle(url: url) {
-            if let content = try await TwitterExtractor.extract(from: url) {
-                return content
-            }
-        }
-
-        if let content = try ContentExtractor.extract(from: html, url: url) {
-            return content
-        }
-
-        if let content = try await readabilityExtractor.extract(html: html, baseURL: url) {
-            return content
-        }
-
-        throw EPUBError.contentTooShort
     }
 
     // MARK: - Private: Article Ingestion

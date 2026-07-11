@@ -26,6 +26,7 @@ struct ConvertView: View {
     @State private var showLargeQueueWarning = false
     @State private var shareEPUBData: Data?
     @State private var shareFilename: String?
+    @State private var readerArticle: Article?
     @FocusState private var isURLFieldFocused: Bool
 
     private var recentArticles: [Article] {
@@ -94,6 +95,16 @@ struct ConvertView: View {
                     requestReview()
                 }
             }
+            #if os(iOS)
+            .fullScreenCover(item: $readerArticle) { article in
+                ReaderView(article: article)
+            }
+            #else
+            .sheet(item: $readerArticle) { article in
+                ReaderView(article: article)
+                    .frame(minWidth: 700, minHeight: 800)
+            }
+            #endif
 
         }
     }
@@ -353,6 +364,14 @@ struct ConvertView: View {
 
     private func recentMenu(for article: Article) -> some View {
         Menu {
+            if LibraryStore.epubURL(for: article) != nil {
+                Button {
+                    readerArticle = article
+                } label: {
+                    Label(loc(.libraryRead), systemImage: "book")
+                }
+            }
+
             if deviceVM.isConnected {
                 Button {
                     let target = article
@@ -622,12 +641,26 @@ struct ShareSheetView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIActivityViewController {
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(filename)
-        try? epubData.write(to: tempURL)
 
-        return UIActivityViewController(
-            activityItems: [tempURL],
-            applicationActivities: nil
-        )
+        do {
+            // Remove any stale file so a failed write can't share old content
+            try? FileManager.default.removeItem(at: tempURL)
+            try epubData.write(to: tempURL)
+            return UIActivityViewController(
+                activityItems: [tempURL],
+                applicationActivities: nil
+            )
+        } catch {
+            DebugLogger.log(
+                "Share temp write failed: \(error.localizedDescription)",
+                level: .error, category: .conversion
+            )
+            // Fall back to sharing the raw data so the user still gets the EPUB
+            return UIActivityViewController(
+                activityItems: [epubData],
+                applicationActivities: nil
+            )
+        }
     }
 
     func updateUIViewController(
@@ -651,10 +684,21 @@ struct ShareSheetView: NSViewRepresentable {
         DispatchQueue.main.async {
             let tempURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent(filename)
-            try? epubData.write(to: tempURL)
 
-            let picker = NSSharingServicePicker(items: [tempURL])
-            picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+            do {
+                // Remove any stale file so a failed write can't share old content
+                try? FileManager.default.removeItem(at: tempURL)
+                try epubData.write(to: tempURL)
+                let picker = NSSharingServicePicker(items: [tempURL])
+                picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+            } catch {
+                DebugLogger.log(
+                    "Share temp write failed: \(error.localizedDescription)",
+                    level: .error, category: .conversion
+                )
+                let picker = NSSharingServicePicker(items: [epubData])
+                picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
+            }
         }
         return view
     }
