@@ -13,21 +13,13 @@ struct SendToX4App: App {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Article.self,
-            DeviceSettings.self,
-            ActivityEvent.self,
-            QueueItem.self,
-            RSSFeed.self,
-            RSSArticle.self,
-        ])
         let modelConfiguration = ModelConfiguration(
-            schema: schema,
+            schema: AppSchema.schema,
             isStoredInMemoryOnly: false
         )
 
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try ModelContainer(for: AppSchema.schema, configurations: [modelConfiguration])
         } catch {
             fatalError("Could not create ModelContainer: \(error)")
         }

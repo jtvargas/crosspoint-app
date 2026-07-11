@@ -73,11 +73,16 @@ final class DeviceSettings {
     /// Default: disabled (text-only EPUBs).
     var includeImages: Bool = false
 
+    // MARK: - WallpaperX
+
+    /// `DeviceSpecification.id` of the wallpaper target device. Default: X4.
+    var wallpaperDeviceRaw: String = DeviceSpecification.x4.id
+
     // MARK: - Language
 
     /// BCP-47 language code, or empty string for system default.
     var languageCode: String
-    
+
     var firmwareType: FirmwareType {
         get { FirmwareType(rawValue: firmwareTypeRaw) ?? .stock }
         set { firmwareTypeRaw = newValue.rawValue }
@@ -87,6 +92,12 @@ final class DeviceSettings {
     var appLanguage: AppLanguage {
         get { AppLanguage(rawValue: languageCode) ?? .system }
         set { languageCode = newValue.rawValue }
+    }
+
+    /// Typed accessor for the wallpaper target device.
+    var wallpaperDevice: DeviceSpecification {
+        get { DeviceSpecification.all.first { $0.id == wallpaperDeviceRaw } ?? .x4 }
+        set { wallpaperDeviceRaw = newValue.id }
     }
     
     /// The resolved host address based on firmware type and custom setting.
@@ -105,7 +116,8 @@ final class DeviceSettings {
         showFileManager: Bool = false,
         languageCode: String = "",
         optimizeEPUBUpload: Bool = true,
-        includeImages: Bool = false
+        includeImages: Bool = false,
+        wallpaperDevice: DeviceSpecification = .x4
     ) {
         self.firmwareTypeRaw = firmwareType.rawValue
         self.customIP = customIP
@@ -115,5 +127,6 @@ final class DeviceSettings {
         self.languageCode = languageCode
         self.optimizeEPUBUpload = optimizeEPUBUpload
         self.includeImages = includeImages
+        self.wallpaperDeviceRaw = wallpaperDevice.id
     }
 }

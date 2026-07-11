@@ -17,7 +17,7 @@ struct WallpaperXView: View {
     @Environment(\.requestReview) private var requestReview
     @Bindable var wallpaperVM: WallpaperViewModel
     var deviceVM: DeviceViewModel
-    var settings: DeviceSettings
+    @Bindable var settings: DeviceSettings
     var toast: ToastManager
 
     @AppStorage("pinchToZoomEnabled") private var pinchToZoomEnabled = false
@@ -74,6 +74,13 @@ struct WallpaperXView: View {
                 ReviewPromptManager.recordPromptShown()
                 requestReview()
             }
+        }
+        .onAppear {
+            wallpaperVM.device = settings.wallpaperDevice
+        }
+        .onChange(of: settings.wallpaperDeviceRaw) { _, _ in
+            wallpaperVM.device = settings.wallpaperDevice
+            wallpaperVM.updatePreview()
         }
     }
 
@@ -567,6 +574,23 @@ struct WallpaperXView: View {
 
     var settingsControls: some View {
         VStack(spacing: 20) {
+            // Target Device
+            VStack(alignment: .leading, spacing: 8) {
+                Text(loc(.device))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .textCase(.uppercase)
+
+                Picker(loc(.device), selection: $settings.wallpaperDevice) {
+                    ForEach(DeviceSpecification.all) { spec in
+                        Text(spec.name).tag(spec)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            Divider()
+
             // Fit Mode
             VStack(alignment: .leading, spacing: 8) {
                 Text(loc(.fit))
@@ -800,6 +824,24 @@ struct WallpaperXView: View {
         }
 
         ToolbarItemGroup(placement: .topBarTrailing) {
+            // Target device (X4/X3) — kept in the header so it's always reachable
+            Menu {
+                Picker(loc(.device), selection: $settings.wallpaperDevice) {
+                    ForEach(DeviceSpecification.all) { spec in
+                        Text(
+                            "\(spec.name) (\(Int(spec.resolution.width))\u{00D7}\(Int(spec.resolution.height)))"
+                        )
+                        .tag(spec)
+                    }
+                }
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "display")
+                    Text(settings.wallpaperDevice.id.uppercased())
+                        .font(.caption.weight(.medium))
+                }
+            }
+
             if wallpaperVM.lastBMPData != nil {
                 Button {
                     wallpaperVM.showShareSheet = true
