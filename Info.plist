@@ -4,8 +4,10 @@
 <dict>
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
+		<!-- Covers local device networking too. Do NOT re-add
+		     NSAllowsLocalNetworking alongside it: when both are present,
+		     iOS 10+ ignores NSAllowsArbitraryLoads and HTTP RSS feeds
+		     stop loading again (issue #21). -->
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
