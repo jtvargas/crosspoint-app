@@ -55,6 +55,26 @@ xcodebuild -project SendToX4.xcodeproj \
 
 > **Note:** LSP errors like "Cannot find type X in scope" are cross-file indexing noise. Only errors from `xcodebuild` are real.
 
+### Releasing (maintainers)
+
+App Store releases are driven by `scripts/release.sh`, which reads the version
+from the Xcode project:
+
+```bash
+./scripts/release.sh archive   # build the .xcarchive only
+./scripts/release.sh export    # archive + export a signed .ipa to build/export/
+./scripts/release.sh upload    # archive + upload to App Store Connect (default)
+```
+
+Authentication: either be signed in to your Apple ID in Xcode
+(Settings > Accounts), or provide an App Store Connect API key via
+`ASC_KEY_ID`, `ASC_ISSUER_ID`, and `ASC_KEY_PATH` (recommended for CI).
+
+Release flow: bump `MARKETING_VERSION` via PR, merge, run
+`./scripts/release.sh upload`, then tag the release
+(`git tag -a vX.Y && git push origin vX.Y`) and publish a GitHub release
+with the changelog.
+
 ## PR Process
 
 1. **Fork** the repository
