@@ -642,7 +642,7 @@ enum L10n {
         .aboutHiLine: "Hi, I'm JT!",
         .aboutDescription1: "I built CrossX to make it easy to send content to the Xteink X4 e-reader. Convert web pages to EPUB, set custom wallpapers, and manage files — all over the device's local WiFi hotspot.",
         .aboutDescription2: "CrossX is free, open source, and has no tracking or ads. I built it because I wanted a simple, native tool that just works.",
-        .aboutDescription3: "The project is fully open source on GitHub. Bug reports, feature requests, and contributions are always welcome.",
+        .aboutDescription3: "The project is fully open source on GitHub. Bug reports, feature requests, and contributions are always welcome.\n\n Icon designed by: Juan Carlzon",
         .myApps: "My Apps",
         .aboutFeatureRequestsSubtitle: "Request features or report bugs",
         .version: "Version",
