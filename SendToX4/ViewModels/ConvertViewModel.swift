@@ -84,7 +84,7 @@ final class ConvertViewModel {
         )
 
         do {
-            let result = try await runConversion(url: url, article: article, settings: settings)
+            let result = try await runConversion(url: url, article: article, settings: settings, modelContext: modelContext)
 
             lastEPUBData = result.epubData
             lastFilename = result.filename
@@ -172,7 +172,7 @@ final class ConvertViewModel {
         modelContext.insert(article)
 
         do {
-            let result = try await runConversion(url: url, article: article, settings: settings)
+            let result = try await runConversion(url: url, article: article, settings: settings, modelContext: modelContext)
 
             lastEPUBData = result.epubData
             lastFilename = result.filename
@@ -217,23 +217,35 @@ final class ConvertViewModel {
         }
 
         do {
-            // Re-generate the EPUB
-            let result = try await runConversion(url: url, article: article, settings: settings)
+            // Fast path: reuse the library copy instead of refetching
+            let epubData: Data
+            let filename: String
+            let title: String
+            if let cached = libraryCopy(of: article) {
+                (epubData, filename) = cached
+                title = article.title
+            } else {
+                // Re-generate the EPUB
+                let result = try await runConversion(url: url, article: article, settings: settings, modelContext: modelContext)
+                epubData = result.epubData
+                filename = result.filename
+                title = result.content.title
+            }
 
             currentPhase = .sending
             article.status = .sending
             let folder = settings?.convertFolder ?? "content"
             let uploadData = await EPUBOptimizer.optimizeIfNeeded(
-                result.epubData,
-                filename: result.filename,
+                epubData,
+                filename: filename,
                 enabled: settings?.optimizeEPUBUpload ?? true
             )
-            try await deviceVM.upload(data: uploadData, filename: result.filename, toFolder: folder)
+            try await deviceVM.upload(data: uploadData, filename: filename, toFolder: folder)
 
             currentPhase = .sent
             article.status = .sent
-            statusMessage = loc(.resentArticleToX4, result.content.title.truncated(to: 40))
-            toast?.showSuccess(loc(.phaseSent), subtitle: result.content.title.truncated(to: 50))
+            statusMessage = loc(.resentArticleToX4, title.truncated(to: 40))
+            toast?.showSuccess(loc(.phaseSent), subtitle: title.truncated(to: 50))
 
             if ReviewPromptManager.shouldPromptAfterSuccess() {
                 shouldRequestReview = true
@@ -264,8 +276,16 @@ final class ConvertViewModel {
         isProcessing = true
         lastError = nil
 
+        // Fast path: share the library copy without refetching
+        if let cached = libraryCopy(of: article) {
+            lastEPUBData = cached.data
+            lastFilename = cached.filename
+            isProcessing = false
+            return cached
+        }
+
         do {
-            let result = try await runConversion(url: url, article: article, settings: settings)
+            let result = try await runConversion(url: url, article: article, settings: settings, modelContext: modelContext)
 
             lastEPUBData = result.epubData
             lastFilename = result.filename
@@ -297,6 +317,21 @@ final class ConvertViewModel {
 
     // MARK: - Private Helpers
 
+    /// Load an article's persisted library EPUB, regenerating its filename
+    /// from the stored metadata. Returns nil when no usable copy exists.
+    private func libraryCopy(of article: Article) -> (data: Data, filename: String)? {
+        guard let fileURL = LibraryStore.epubURL(for: article),
+              let data = try? Data(contentsOf: fileURL),
+              !data.isEmpty,
+              let url = URL(string: article.url) else {
+            return nil
+        }
+        let filename = FileNameGenerator.generate(
+            title: article.title, author: article.author, url: url
+        )
+        return (data, filename)
+    }
+
     /// Validate and parse the URL string.
     var validatedURL: URL? {
         var str = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -308,10 +343,13 @@ final class ConvertViewModel {
 
     /// Run the shared pipeline, mirroring phases onto this view model and the
     /// Article record, and updating the article's metadata on success.
+    /// The finished EPUB is persisted to the local library (non-fatal on
+    /// failure) so it can be read in-app and re-sent without refetching.
     private func runConversion(
         url: URL,
         article: Article,
-        settings: DeviceSettings?
+        settings: DeviceSettings?,
+        modelContext: ModelContext
     ) async throws -> ConversionResult {
         let options = ConversionOptions(includeImages: settings?.includeImages ?? false)
         let result = try await conversionService.convert(url: url, options: options) { phase in
@@ -322,6 +360,16 @@ final class ConvertViewModel {
         article.title = result.content.title
         article.author = result.content.author
         article.sourceDomain = result.finalURL.host ?? url.host ?? "unknown"
+
+        do {
+            try LibraryStore.save(epubData: result.epubData, for: article)
+            LibraryStore.enforceLimit(modelContext: modelContext)
+        } catch {
+            DebugLogger.log(
+                "Library save failed (non-fatal): \(error.localizedDescription)",
+                level: .warning, category: .conversion
+            )
+        }
 
         return result
     }

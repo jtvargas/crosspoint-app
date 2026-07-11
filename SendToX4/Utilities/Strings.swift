@@ -141,6 +141,10 @@ enum L10n {
         case optimizeEPUBDescription
         case includeImagesToggle
         case includeImagesDescription
+        case libraryEPUBCount
+        case clearLibrary
+        case clearLibraryTitle
+        case clearLibraryMessage
         case testConnection
         case connectedWithInfo
         case notReachable
@@ -615,6 +619,10 @@ enum L10n {
         .optimizeEPUBDescription: "Resizes images to the e-ink display, converts them to grayscale JPEG, and shrinks the file before sending. Works like CrossPoint's web optimizer. Text-only EPUBs are unaffected.",
         .includeImagesToggle: "Include Images in EPUBs",
         .includeImagesDescription: "Downloads article images and embeds them in converted EPUBs. Conversions take longer and files get bigger. If an image can't be downloaded, its alt text is used instead.",
+        .libraryEPUBCount: "Library (%d EPUBs)",
+        .clearLibrary: "Clear Library",
+        .clearLibraryTitle: "Clear Library?",
+        .clearLibraryMessage: "Removes all %d saved EPUBs from the local library. Articles stay in History and can be reconverted from their original URLs.",
         .testConnection: "Test Connection",
         .connectedWithInfo: "Connected (%@)",
         .notReachable: "Not reachable",
@@ -1082,6 +1090,10 @@ enum L10n {
         .optimizeEPUBDescription: "将图片调整为墨水屏尺寸、转换为灰度JPEG并压缩文件后再发送。与CrossPoint网页优化器功能相同。纯文本EPUB不受影响。",
         .includeImagesToggle: "EPUB中包含图片",
         .includeImagesDescription: "下载文章图片并嵌入转换后的EPUB。转换耗时更长，文件更大。如果图片无法下载，将使用其替代文本。",
+        .libraryEPUBCount: "图书馆（%d本EPUB）",
+        .clearLibrary: "清空图书馆",
+        .clearLibraryTitle: "清空图书馆？",
+        .clearLibraryMessage: "从本地图书馆中删除全部%d本已保存的EPUB。文章仍保留在历史记录中，可以从原始网址重新转换。",
         .testConnection: "测试连接",
         .connectedWithInfo: "已连接（%@）",
         .notReachable: "无法连接",

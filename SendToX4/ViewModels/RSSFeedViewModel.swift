@@ -301,6 +301,11 @@ final class RSSFeedViewModel {
                 modelContext.insert(newArticle)
                 article = newArticle
 
+                // Keep a library copy for the in-app reader (non-fatal)
+                if (try? LibraryStore.save(epubData: epubData, for: newArticle)) != nil {
+                    LibraryStore.enforceLimit(modelContext: modelContext)
+                }
+
                 // Destination folder: /feed/<domain>/
                 let destFolder = "feed/\(rssArticle.domain)"
 

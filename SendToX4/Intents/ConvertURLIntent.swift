@@ -141,6 +141,11 @@ struct ConvertURLIntent: AppIntent {
         article.author = content.author
         article.sourceDomain = result.finalURL.host ?? resolvedURL.host ?? "unknown"
 
+        // Keep a library copy for the in-app reader (non-fatal)
+        if (try? LibraryStore.save(epubData: epubData, for: article)) != nil {
+            LibraryStore.enforceLimit(modelContext: modelContext)
+        }
+
         // 8. Enqueue the EPUB for later sending
         article.status = .savedLocally
         do {

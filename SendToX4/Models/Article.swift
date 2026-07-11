@@ -24,6 +24,18 @@ final class Article {
     var createdAt: Date
     var statusRaw: String  // Store ConversionStatus as raw String for SwiftData compatibility
     var errorMessage: String?
+
+    // MARK: - Library (optional -> lightweight migration)
+
+    /// Relative path of the persisted EPUB in the local library
+    /// ("Library/<id>.epub"), or nil when no copy is kept.
+    var libraryFilePath: String?
+
+    /// Size in bytes of the persisted EPUB (for storage UI and eviction).
+    var epubFileSize: Int64?
+
+    /// Reading progress in the in-app reader (0...1 scroll fraction).
+    var readingProgress: Double?
     
     var status: ConversionStatus {
         get { ConversionStatus(rawValue: statusRaw) ?? .pending }

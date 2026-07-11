@@ -19,6 +19,9 @@ struct SettingsSheet: View {
     @State private var webCacheSize: Int64 = 0
     @State private var tempSize: Int64 = 0
     @State private var queueSize: Int64 = 0
+    @State private var librarySize: Int64 = 0
+    @State private var libraryCount = 0
+    @State private var showClearLibraryConfirm = false
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = true
     @AppStorage("pinchToZoomEnabled") private var pinchToZoomEnabled = false
     @State private var showClearHistoryConfirm = false
@@ -80,6 +83,15 @@ struct SettingsSheet: View {
                 Button(loc(.cancel), role: .cancel) {}
             } message: {
                 Text(loc(.clearEPUBQueueMessage, queueItems.count))
+            }
+            .alert(loc(.clearLibraryTitle), isPresented: $showClearLibraryConfirm) {
+                Button(loc(.clearLibrary), role: .destructive) {
+                    LibraryStore.clearAll(modelContext: modelContext)
+                    refreshStorageSizes()
+                }
+                Button(loc(.cancel), role: .cancel) {}
+            } message: {
+                Text(loc(.clearLibraryMessage, libraryCount))
             }
             .alert(loc(.clearDebugLogsTitle), isPresented: $showClearLogsConfirm) {
                 Button(loc(.clearDebugLogs), role: .destructive) {
@@ -298,6 +310,10 @@ struct SettingsSheet: View {
                 Text(StorageCalculator.formatted(queueSize))
                     .foregroundStyle(.secondary)
             }
+            LabeledContent(loc(.libraryEPUBCount, libraryCount)) {
+                Text(StorageCalculator.formatted(librarySize))
+                    .foregroundStyle(.secondary)
+            }
 
             NavigationLink {
                 DebugLogView(toast: toast)
@@ -322,6 +338,12 @@ struct SettingsSheet: View {
             if !queueItems.isEmpty {
                 Button(loc(.clearQueue), role: .destructive) {
                     showClearQueueConfirm = true
+                }
+            }
+
+            if libraryCount > 0 {
+                Button(loc(.clearLibrary), role: .destructive) {
+                    showClearLibraryConfirm = true
                 }
             }
 
@@ -430,6 +452,8 @@ struct SettingsSheet: View {
         webCacheSize = StorageCalculator.urlCacheSize()
         tempSize = StorageCalculator.tempDirectorySize()
         queueSize = StorageCalculator.queueDirectorySize()
+        librarySize = LibraryStore.totalBytes
+        libraryCount = LibraryStore.itemCount
     }
 
     private func clearHistoryData() {
