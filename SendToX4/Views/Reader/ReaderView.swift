@@ -1,15 +1,40 @@
 import SwiftUI
 import SwiftData
 
-/// Full-screen Apple News-style reader for a library EPUB.
+/// Full-screen Apple News-style reader for a local EPUB.
 ///
-/// Content streams lazily from the zip via `EPUBSchemeHandler`; reading
-/// progress persists on the `Article` record and restores on reopen.
+/// Content streams lazily from the zip via `EPUBSchemeHandler`; article-backed
+/// reading progress persists and restores on reopen. File-only reads do not save progress.
 struct ReaderView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
-    let article: Article
+    private let article: Article?
+    private let standaloneFileURL: URL?
+    private let standaloneTitle: String
+
+    init(article: Article) {
+        self.article = article
+        self.standaloneFileURL = nil
+        self.standaloneTitle = ""
+    }
+
+    init(fileURL: URL, title: String) {
+        self.article = nil
+        self.standaloneFileURL = fileURL
+        self.standaloneTitle = title
+    }
+
+    private var title: String {
+        article?.title ?? standaloneTitle
+    }
+
+    private var fileURL: URL? {
+        if let article {
+            return LibraryStore.epubURL(for: article)
+        }
+        return standaloneFileURL
+    }
 
     @AppStorage("readerFontScale") private var fontScale = 1.0
 
@@ -30,7 +55,7 @@ struct ReaderView: View {
                         document: document,
                         fontScale: fontScale,
                         chapterAnchor: $chapterAnchor,
-                        initialProgress: article.readingProgress ?? 0,
+                        initialProgress: article?.readingProgress ?? 0,
                         onProgress: scheduleProgressSave
                     )
                     .ignoresSafeArea(edges: .bottom)
@@ -44,7 +69,7 @@ struct ReaderView: View {
                     ProgressView()
                 }
             }
-            .navigationTitle(article.title.isEmpty ? loc(.untitled) : article.title)
+            .navigationTitle(title.isEmpty ? loc(.untitled) : title)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -96,7 +121,7 @@ struct ReaderView: View {
                     }
                 }
 
-                if let fileURL = LibraryStore.epubURL(for: article) {
+                if let fileURL {
                     ToolbarItem(placement: .secondaryAction) {
                         ShareLink(item: fileURL) {
                             Label(loc(.reconvertAndShare), systemImage: "square.and.arrow.up")
@@ -117,7 +142,7 @@ struct ReaderView: View {
 
     private func openDocument() {
         guard document == nil else { return }
-        guard let fileURL = LibraryStore.epubURL(for: article) else {
+        guard let fileURL else {
             loadFailed = true
             return
         }
@@ -135,6 +160,7 @@ struct ReaderView: View {
     // MARK: - Progress Persistence (throttled)
 
     private func scheduleProgressSave(_ progress: Double) {
+        guard let article else { return }
         pendingProgress = progress
         guard progressSaveTask == nil else { return }
         progressSaveTask = Task { @MainActor in
@@ -147,6 +173,7 @@ struct ReaderView: View {
     }
 
     private func flushProgressSave() {
+        guard let article else { return }
         progressSaveTask?.cancel()
         progressSaveTask = nil
         if let value = pendingProgress {

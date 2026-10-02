@@ -97,6 +97,8 @@ The app supports both **Stock** and **CrossPoint** firmware variants with automa
 - **Offline queuing** — EPUBs converted while the device is disconnected are saved to disk and queued for later sending
 - **Auto-prompt on connect** — when the device connects, an alert offers to send all queued items at once
 - **Queue management** — view queued items in the Convert tab, remove individual items, or clear the entire queue from Settings
+- **Read from home** — tap a queued EPUB to open the reader. When its library copy is available, reading progress is saved; otherwise the queued file opens without saving progress
+- **Recent conversions** — tap a recent row to read its local library EPUB. Rows without a local copy do nothing; the existing row menus and queue send/remove controls remain independent
 - **Persistent storage** — queued EPUBs survive app restarts; stored in Application Support with SwiftData tracking
 - **Batch sending** — sends queued items sequentially with progress indicator, logs results to activity history
 
