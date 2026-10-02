@@ -44,7 +44,7 @@ The app supports both **Stock** and **CrossPoint** firmware variants with automa
 ### EPUB Conversion
 
 - **URL-to-EPUB pipeline** — paste any web page URL and get a properly formatted EPUB 2.0 e-book
-- **Dual content extraction** — fast SwiftSoup heuristic extraction with automatic Readability.js fallback for complex pages
+- **Tiered content extraction** — fast SwiftSoup extraction, pre-fetched Readability.js fallback, and live rendering for JavaScript-only pages when static extraction fails
 - **Twitter/X support** — dedicated extractor using the fxtwitter API for tweet threads
 - **Auto chapter splitting** — long articles are split at `<h2>` headings or by paragraph count (50 max per chapter)
 - **HTML sanitization** — strips scripts, forms, media, styles, and images for clean text-only EPUBs
@@ -270,7 +270,7 @@ Views → ViewModels → Services
 ### Key design decisions
 
 - **Protocol-oriented device communication** — `DeviceService` protocol with concrete implementations per firmware, enabling easy mocking and future firmware support
-- **Dual content extraction** — SwiftSoup for speed (primary), WKWebView + Readability.js for accuracy (fallback), Twitter API for tweets
+- **Tiered content extraction** — SwiftSoup for speed (primary), pre-fetched Readability.js for complex HTML, live WKWebView navigation for JavaScript-rendered pages after static extraction fails, and Twitter API for tweets
 - **In-memory EPUB generation** — no temporary files; all ZIP operations produce `Data` objects directly
 - **Offline queue** — EPUBs are written to disk and tracked via SwiftData when the device is disconnected; batch-sent when it reconnects
 - **Headless Siri Shortcuts** — `ConvertURLIntent` runs the full conversion pipeline without opening the app, using its own `ModelContext` against the shared SwiftData store
@@ -365,7 +365,7 @@ crosspoint-app/
 The conversion pipeline runs entirely in memory with no temporary files:
 
 1. **Fetch** — `WebPageFetcher` downloads the HTML via `URLSession` with a Safari user-agent, encoding detection, and redirect following
-2. **Extract** — `ContentExtractor` (SwiftSoup) parses the DOM for article content using semantic selectors (`<article>`, `[role=main]`, `.post-content`, etc.). If extraction fails (< 400 chars), falls back to `ReadabilityExtractor` (WKWebView + Readability.js). Twitter/X URLs use `TwitterExtractor` via the fxtwitter API
+2. **Extract** — `ContentExtractor` (SwiftSoup) parses the DOM for article content using semantic selectors (`<article>`, `[role=main]`, `.post-content`, etc.). If extraction fails (< 400 chars), `ReadabilityExtractor` tries the fetched HTML, then loads the real URL in WKWebView and runs Readability.js on the rendered DOM. Empty application shells skip the pre-fetched fallback. Twitter/X URLs first use `TwitterExtractor` via the fxtwitter API
 3. **Sanitize** — `HTMLSanitizer` strips all scripts, styles, forms, media, images, SVGs, iframes, event handlers, and data attributes. Links are converted to plain text for a clean reading experience
 4. **Build** — `EPUBBuilder` assembles the EPUB 2.0 package in memory: `mimetype` (uncompressed), `META-INF/container.xml`, `content.opf`, `toc.ncx`, and one or more `chapter-N.xhtml` files. Long content is auto-split by `ChapterSplitter` at `<h2>` boundaries or every 50 paragraphs
 5. **Send** — The `Data` blob is uploaded via multipart/form-data POST to the device's upload endpoint, with real-time progress tracking
@@ -380,7 +380,8 @@ CrossX uses a tiered extraction approach to handle the widest range of web pages
 |------|-----------|--------|------|
 | **1** | `TwitterExtractor` | fxtwitter JSON API | Twitter/X status URLs |
 | **2** | `ContentExtractor` | SwiftSoup DOM parsing | All other URLs (primary) |
-| **3** | `ReadabilityExtractor` | WKWebView + Readability.js | Fallback when SwiftSoup extracts < 400 chars |
+| **3** | `ReadabilityExtractor` | Readability.js on pre-fetched HTML | Static extraction fails and the HTML is not an empty application shell |
+| **4** | `ReadabilityExtractor` | Live WKWebView navigation + Readability.js on the rendered DOM | Static extraction fails; waits for stable rendered text within a 30-second deadline |
 
 The SwiftSoup extractor uses a priority list of CSS selectors to find article content:
 `article`, `[role=main]`, `.post-content`, `.entry-content`, `.article-body`, `#content`, `main`, and more.

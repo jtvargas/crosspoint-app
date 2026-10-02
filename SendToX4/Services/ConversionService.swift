@@ -34,6 +34,14 @@ struct ConversionService {
     /// Injected for testability; defaults to the fxtwitter API extractor.
     var twitterExtract: (URL) async throws -> ExtractedContent? = { try await TwitterExtractor.extract(from: $0) }
 
+    /// Separate injectable stages keep cascade tests independent of WebKit.
+    var readabilityExtract: (String, URL, String, SanitizerOptions) async throws -> ExtractedContent? = {
+        try await ReadabilityExtractor().extract(html: $0, baseURL: $1, language: $2, options: $3)
+    }
+    var renderedExtract: (URL, String, SanitizerOptions) async throws -> ExtractedContent? = {
+        try await ReadabilityExtractor().extract(url: $0, language: $1, options: $2)
+    }
+
     /// Run the full pipeline for one URL.
     ///
     /// - Parameters:
@@ -151,7 +159,7 @@ struct ConversionService {
 
     // MARK: - Extraction Cascade
 
-    /// Multi-strategy extraction: Twitter API → SwiftSoup → Readability.js fallback.
+    /// Twitter API → SwiftSoup → pre-fetched Readability → live rendered DOM.
     ///
     /// A fresh `ReadabilityExtractor` is created per call so concurrent
     /// conversions can never clobber each other's continuation state.
@@ -161,6 +169,7 @@ struct ConversionService {
         pageLanguage: String,
         sanitizerOptions: SanitizerOptions = SanitizerOptions()
     ) async throws -> ExtractedContent {
+        try Task.checkCancellation()
         // Twitter/X: use fxtwitter API (JS-only SPA, HTML has no content).
         // Errors are swallowed so an fxtwitter outage falls through to the
         // generic extractors instead of failing the conversion outright.
@@ -178,20 +187,28 @@ struct ConversionService {
                 )
             }
         }
+        try Task.checkCancellation()
 
         // Fast SwiftSoup heuristic extraction.
         if let content = try ContentExtractor.extract(from: html, url: url, options: sanitizerOptions) {
             return content
         }
 
-        // Readability.js fallback (pre-fetched HTML, hidden WKWebView).
-        let readability = ReadabilityExtractor()
-        let fallback = try await readability.extract(
-            html: html, baseURL: url, language: pageLanguage, options: sanitizerOptions
-        )
-        if let fallback {
-            return fallback
+        // App shells have no article in the fetched DOM. Other pages retain
+        // the pre-fetched Readability path before paying for a live navigation.
+        if !AppShellDetector.isAppShell(html) {
+            if let fallback = try await readabilityExtract(html, url, pageLanguage, sanitizerOptions) {
+                try Task.checkCancellation()
+                return fallback
+            }
         }
+
+        try Task.checkCancellation()
+        if let rendered = try await renderedExtract(url, pageLanguage, sanitizerOptions) {
+            try Task.checkCancellation()
+            return rendered
+        }
+        try Task.checkCancellation()
 
         throw EPUBError.contentTooShort
     }
