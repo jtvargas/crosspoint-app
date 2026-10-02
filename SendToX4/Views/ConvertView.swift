@@ -100,6 +100,17 @@ struct ConvertView: View {
                     revealQueueAfterImport = true
                 }
             }
+            #if os(iOS)
+            .background {
+                if showShareSheet,
+                   let data = shareEPUBData ?? convertVM.lastEPUBData,
+                   let filename = shareFilename ?? convertVM.lastFilename {
+                    ShareSheetView(epubData: data, filename: filename) {
+                        showShareSheet = false
+                    }
+                }
+            }
+            #else
             .sheet(isPresented: $showShareSheet) {
                 if let shareEPUBData, let shareFilename {
                     let tempURL = FileManager.default.temporaryDirectory
@@ -114,6 +125,7 @@ struct ConvertView: View {
                         .toastHost(toast)
                 }
             }
+            #endif
             .onChange(of: convertVM.shouldRequestReview) { _, shouldPrompt in
                 if shouldPrompt {
                     convertVM.shouldRequestReview = false
@@ -742,37 +754,34 @@ import UIKit
 
 /// UIActivityViewController wrapper for sharing EPUB files on iOS/iPadOS.
 struct ShareSheetView: UIViewControllerRepresentable {
-    let items: [Any]
     let epubData: Data
     let filename: String
+    let onDismiss: () -> Void
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
+    func makeUIViewController(context: Context) -> EPUBSharePresenter {
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(filename)
+        let activityItems: [Any]
 
         do {
             // Remove any stale file so a failed write can't share old content
             try? FileManager.default.removeItem(at: tempURL)
             try epubData.write(to: tempURL)
-            return UIActivityViewController(
-                activityItems: [tempURL],
-                applicationActivities: nil
-            )
+            activityItems = [tempURL]
         } catch {
             DebugLogger.log(
                 "Share temp write failed: \(error.localizedDescription)",
                 level: .error, category: .conversion
             )
             // Fall back to sharing the raw data so the user still gets the EPUB
-            return UIActivityViewController(
-                activityItems: [epubData],
-                applicationActivities: nil
-            )
+            activityItems = [epubData]
         }
+
+        return EPUBSharePresenter(activityItems: activityItems, onDismiss: onDismiss)
     }
 
     func updateUIViewController(
-        _ uiViewController: UIActivityViewController,
+        _ uiViewController: EPUBSharePresenter,
         context: Context
     ) {}
 }
