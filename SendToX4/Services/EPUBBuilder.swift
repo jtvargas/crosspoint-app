@@ -3,10 +3,10 @@ import ZIPFoundation
 
 /// Builds EPUB 2.0 archives entirely in memory.
 /// The output is a `Data` object containing the complete EPUB ZIP file.
-struct EPUBBuilder {
+nonisolated struct EPUBBuilder {
     
     /// Metadata for the EPUB document.
-    struct Metadata {
+    nonisolated struct Metadata: Sendable {
         let title: String
         let author: String
         let language: String
@@ -18,7 +18,7 @@ struct EPUBBuilder {
         }
         
         var date: String {
-            ISO8601DateFormatter.shortDate.string(from: Date())
+            Date().formatted(.iso8601.year().month().day().dateSeparator(.dash))
         }
     }
     

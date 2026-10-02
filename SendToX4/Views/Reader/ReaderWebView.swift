@@ -27,8 +27,8 @@ struct ReaderWebView {
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = coordinator
-        webView.isOpaque = false
         #if os(iOS)
+        webView.isOpaque = false
         webView.scrollView.contentInsetAdjustmentBehavior = .always
         webView.backgroundColor = .systemBackground
         #endif

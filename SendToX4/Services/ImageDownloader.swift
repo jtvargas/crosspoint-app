@@ -14,7 +14,7 @@ struct ImageLimits: Sendable {
 }
 
 /// A downloaded, re-encoded image ready for EPUB embedding.
-struct EPUBImage: Sendable {
+nonisolated struct EPUBImage: Sendable {
     /// EPUB path relative to OEBPS/ (e.g. "images/img-3.jpg").
     let path: String
     let data: Data

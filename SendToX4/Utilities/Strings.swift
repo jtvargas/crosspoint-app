@@ -59,6 +59,36 @@ enum L10n {
         case estimatedTimeSec
         case sendAnyway
 
+        // MARK: Local File Import
+        case importFile
+        case importFormats
+        case importLocalFile
+        case importTitle
+        case importDescription
+        case importDestination
+        case importChooseFile
+        case importChooseAnother
+        case importClose
+        case importProcessingTitle
+        case importPreparing
+        case importConverting
+        case importPageProgress
+        case importFinishing
+        case importKeepOpen
+        case importSuccessTitle
+        case importSuccessDescription
+        case importShowQueue
+        case importErrorTitle
+        case importUnsupportedType
+        case importUnreadableFile
+        case importInvalidEPUB
+        case importInvalidPDF
+        case importLockedPDF
+        case importEmptyPDF
+        case importPageFailed
+        case importBuildFailed
+        case importSaveFailed
+
         // MARK: History View
         case noActivityYet
         case noActivityDescription
@@ -550,6 +580,36 @@ enum L10n {
         .estimatedTimeSec: "%d sec",
         .sendAnyway: "Send Anyway",
 
+        // Local File Import
+        .importFile: "Import File",
+        .importFormats: "EPUB or PDF",
+        .importLocalFile: "Local file",
+        .importTitle: "Bring your next read",
+        .importDescription: "Add an EPUB directly, or turn a PDF into an EPUB. Scanned pages are kept as images.",
+        .importDestination: "Saved in Library and queued for your X4. No device connection needed.",
+        .importChooseFile: "Choose File",
+        .importChooseAnother: "Choose Another File",
+        .importClose: "Close",
+        .importProcessingTitle: "Preparing your book",
+        .importPreparing: "Opening your file…",
+        .importConverting: "Converting your PDF, one page at a time.",
+        .importPageProgress: "%d of %d pages",
+        .importFinishing: "Finishing your EPUB…",
+        .importKeepOpen: "Keep this window open while your file is imported.",
+        .importSuccessTitle: "Ready for your next read",
+        .importSuccessDescription: "Added to Library and your send queue. Read it here, or send it when your X4 is connected.",
+        .importShowQueue: "Show Queue",
+        .importErrorTitle: "Couldn’t import this file",
+        .importUnsupportedType: "Choose an EPUB or PDF file to import.",
+        .importUnreadableFile: "This file couldn’t be read. Check that it is downloaded and you have permission to open it, then choose it again.",
+        .importInvalidEPUB: "This EPUB is damaged or isn’t a supported EPUB book. Try another copy.",
+        .importInvalidPDF: "This PDF couldn’t be opened. It may be damaged. Try another copy.",
+        .importLockedPDF: "This PDF is password-protected. Unlock it before importing.",
+        .importEmptyPDF: "This PDF has no pages to import.",
+        .importPageFailed: "Page %d couldn’t be converted. Try another copy of this PDF.",
+        .importBuildFailed: "An EPUB couldn’t be created from this file. Try another copy.",
+        .importSaveFailed: "The imported book couldn’t be saved. Check your available storage, then choose the file again.",
+
         // History View
         .noActivityYet: "No Activity Yet",
         .noActivityDescription: "Convert a web page or manage files on your device to see your activity here.",
@@ -1033,6 +1093,36 @@ enum L10n {
         .estimatedTimeMinSec: "%d 分 %d 秒",
         .estimatedTimeSec: "%d 秒",
         .sendAnyway: "仍然发送",
+
+        // Local File Import
+        .importFile: "导入文件",
+        .importFormats: "EPUB 或 PDF",
+        .importLocalFile: "本地文件",
+        .importTitle: "带上你的下一本好书",
+        .importDescription: "直接添加 EPUB，或将 PDF 转换为 EPUB。扫描页面将以图片形式保留。",
+        .importDestination: "保存到书库并加入 X4 发送队列，无需连接设备。",
+        .importChooseFile: "选择文件",
+        .importChooseAnother: "选择其他文件",
+        .importClose: "关闭",
+        .importProcessingTitle: "正在准备你的书籍",
+        .importPreparing: "正在打开文件…",
+        .importConverting: "正在逐页转换 PDF。",
+        .importPageProgress: "已处理 %d 页，共 %d 页",
+        .importFinishing: "正在完成 EPUB…",
+        .importKeepOpen: "导入文件时，请保持此窗口打开。",
+        .importSuccessTitle: "好书已就绪",
+        .importSuccessDescription: "已添加到书库和发送队列。你可以在这里阅读，或连接 X4 后发送。",
+        .importShowQueue: "查看队列",
+        .importErrorTitle: "无法导入此文件",
+        .importUnsupportedType: "请选择 EPUB 或 PDF 文件进行导入。",
+        .importUnreadableFile: "无法读取此文件。请确认文件已下载且你有权打开，然后重新选择。",
+        .importInvalidEPUB: "此 EPUB 已损坏或格式不受支持。请尝试其他副本。",
+        .importInvalidPDF: "无法打开此 PDF，文件可能已损坏。请尝试其他副本。",
+        .importLockedPDF: "此 PDF 受密码保护。请先解锁再导入。",
+        .importEmptyPDF: "此 PDF 没有可导入的页面。",
+        .importPageFailed: "无法转换第 %d 页。请尝试此 PDF 的其他副本。",
+        .importBuildFailed: "无法由此文件创建 EPUB。请尝试其他副本。",
+        .importSaveFailed: "无法保存导入的书籍。请检查可用存储空间，然后重新选择文件。",
 
         // History View
         .noActivityYet: "暂无活动",
