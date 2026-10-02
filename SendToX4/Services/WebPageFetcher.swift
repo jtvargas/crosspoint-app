@@ -26,11 +26,63 @@ enum WebPageFetcher {
     /// Backoff delays before retry attempts 1 and 2.
     private static let retryDelays: [Duration] = [.milliseconds(500), .milliseconds(1500)]
 
-    /// Fetch the HTML content of a web page.
-    /// Follows redirects automatically and captures the final URL.
-    /// Transient failures (timeouts, connection drops, HTTP 5xx/429) are
-    /// retried with a short backoff before surfacing an error.
+    /// Resolve reader wrappers before extraction; ordinary URLs keep the single-fetch path.
     static func fetch(url: URL) async throws -> FetchedPage {
+        try await fetch(url: url, load: fetchPage)
+    }
+
+    /// The loader seam keeps URL selection testable without changing network retry policy.
+    static func fetch(
+        url: URL,
+        load: (URL) async throws -> FetchedPage
+    ) async throws -> FetchedPage {
+        guard ReaderURLResolver.isReaderURL(url) else { return try await load(url) }
+        var attempted: Set<URL> = []
+        for candidate in ReaderURLResolver.candidates(for: url) {
+            try Task.checkCancellation()
+            attempted.insert(candidate)
+            let page: FetchedPage
+            if candidate == url {
+                page = try await load(candidate)
+            } else {
+                guard let fetched = try await fetchIfAvailable(url: candidate, load: load) else { continue }
+                page = fetched
+            }
+            attempted.insert(page.finalURL)
+
+            // A canonical link is only knowable after fetching HTML. Try it before
+            // accepting that page, but never chase canonical chains or cycles.
+            if let canonical = ReaderURLResolver.candidates(for: url, html: page.html).first,
+               canonical != url, attempted.insert(canonical).inserted,
+               let preferred = try await fetchIfAvailable(url: canonical, load: load),
+               !ReaderURLResolver.hasNoContent(preferred.html) {
+                return preferred
+            }
+            if candidate == url || !ReaderURLResolver.hasNoContent(page.html) {
+                return page
+            }
+        }
+        throw FetchError.invalidResponse
+    }
+
+    private static func fetchIfAvailable(
+        url: URL,
+        load: (URL) async throws -> FetchedPage
+    ) async throws -> FetchedPage? {
+        do {
+            try Task.checkCancellation()
+            return try await load(url)
+        } catch {
+            try Task.checkCancellation()
+            if error is CancellationError || (error as? URLError)?.code == .cancelled {
+                throw error
+            }
+            return nil
+        }
+    }
+
+    /// Follows redirects and preserves the existing transient-failure retry policy.
+    private static func fetchPage(url: URL) async throws -> FetchedPage {
         var request = URLRequest(url: url)
         request.setValue(
             "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1",

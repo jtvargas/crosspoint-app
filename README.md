@@ -377,6 +377,8 @@ The conversion pipeline runs entirely in memory with no temporary files:
 4. **Build** — `EPUBBuilder` assembles the EPUB 2.0 package in memory: `mimetype` (uncompressed), `META-INF/container.xml`, `content.opf`, `toc.ncx`, and one or more `chapter-N.xhtml` files. Long content is auto-split by `ChapterSplitter` at `<h2>` boundaries or every 50 paragraphs
 5. **Send** — The `Data` blob is uploaded via multipart/form-data POST to the device's upload endpoint, with real-time progress tracking
 
+Reader-view URLs containing a case-insensitive `/reader/` segment are resolved during fetch (JT-21). `ReaderURLResolver` preserves encoded path components, query parameters, and fragments while trying the path without the reader segment first. An absolute HTTP(S) `<link rel="canonical">` discovered in fetched HTML takes priority; failed or empty-content candidates fall back to the original URL. Non-reader URLs are unchanged. Fully client-rendered sites such as gatesnotes.com still require the JavaScript-render fallback from JT-19 for end-to-end conversion; URL resolution alone does not render article content.
+
 ---
 
 ## Content Extraction Strategy
