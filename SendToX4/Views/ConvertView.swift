@@ -27,6 +27,7 @@ struct ConvertView: View {
     @State private var shareEPUBData: Data?
     @State private var shareFilename: String?
     @State private var readerArticle: Article?
+    @State private var readerQueueItem: QueueItem?
     @FocusState private var isURLFieldFocused: Bool
 
     private var recentArticles: [Article] {
@@ -99,9 +100,16 @@ struct ConvertView: View {
             .fullScreenCover(item: $readerArticle) { article in
                 ReaderView(article: article)
             }
+            .fullScreenCover(item: $readerQueueItem) { item in
+                ReaderView(fileURL: item.fileURL, title: item.title)
+            }
             #else
             .sheet(item: $readerArticle) { article in
                 ReaderView(article: article)
+                    .frame(minWidth: 700, minHeight: 800)
+            }
+            .sheet(item: $readerQueueItem) { item in
+                ReaderView(fileURL: item.fileURL, title: item.title)
                     .frame(minWidth: 700, minHeight: 800)
             }
             #endif
@@ -337,29 +345,41 @@ struct ConvertView: View {
     }
 
     private func recentRow(_ article: Article) -> some View {
-        HStack(spacing: 10) {
-            recentStatusIcon(for: article.status)
-                .frame(width: 20)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(article.title.isEmpty ? loc(.untitled) : article.title)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
-
-                HStack(spacing: 4) {
-                    Text(article.sourceDomain)
-                    Text("\u{00B7}")
-                    Text(article.createdAt, format: .relative(presentation: .named))
+        HStack(spacing: 0) {
+            Button {
+                if LibraryStore.epubURL(for: article) != nil {
+                    readerArticle = article
                 }
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-            }
+            } label: {
+                HStack(spacing: 10) {
+                    recentStatusIcon(for: article.status)
+                        .frame(width: 20)
 
-            Spacer(minLength: 0)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(article.title.isEmpty ? loc(.untitled) : article.title)
+                            .font(.subheadline.weight(.medium))
+                            .lineLimit(1)
+
+                        HStack(spacing: 4) {
+                            Text(article.sourceDomain)
+                            Text("\u{00B7}")
+                            Text(article.createdAt, format: .relative(presentation: .named))
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    }
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, 8)
+                .padding(.trailing, 10)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(loc(.libraryRead))
 
             recentMenu(for: article)
         }
-        .padding(.vertical, 8)
     }
 
     private func recentMenu(for article: Article) -> some View {
@@ -415,6 +435,8 @@ struct ConvertView: View {
             Image(systemName: "ellipsis.circle")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .padding(.vertical, 8)
+                .contentShape(.rect)
         }
     }
 
@@ -563,33 +585,44 @@ struct ConvertView: View {
     private func queueRow(_ item: QueueItem) -> some View {
         let isPending = queueVM.pendingSendIDs.contains(item.id)
 
-        return HStack(spacing: 10) {
-            // Leading icon: spinner when this item is pending/sending, doc icon otherwise
-            if isPending {
-                ProgressView()
-                    .controlSize(.mini)
-                    .frame(width: 20)
-            } else {
-                Image(systemName: "doc.text.fill")
-                    .foregroundStyle(AppColor.accent)
-                    .frame(width: 20)
-            }
+        return HStack(spacing: 0) {
+            Button {
+                openQueuedItem(item)
+            } label: {
+                HStack(spacing: 10) {
+                    // Keep the send state visible while the row remains readable.
+                    if isPending {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .frame(width: 20)
+                    } else {
+                        Image(systemName: "doc.text.fill")
+                            .foregroundStyle(AppColor.accent)
+                            .frame(width: 20)
+                    }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(item.title)
+                            .font(.subheadline.weight(.medium))
+                            .lineLimit(1)
 
-                HStack(spacing: 4) {
-                    Text(item.sourceDomain)
-                    Text("\u{00B7}")
-                    Text(item.formattedSize)
+                        HStack(spacing: 4) {
+                            Text(item.sourceDomain)
+                            Text("\u{00B7}")
+                            Text(item.formattedSize)
+                        }
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    }
+
+                    Spacer(minLength: 0)
                 }
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+                .padding(.vertical, 8)
+                .padding(.trailing, 10)
+                .contentShape(.rect)
             }
-
-            Spacer(minLength: 0)
+            .buttonStyle(.plain)
+            .accessibilityHint(loc(.libraryRead))
 
             // Send button (visible when connected and not in batch send)
             if deviceVM.isConnected && !queueVM.isSending && !isPending {
@@ -605,6 +638,9 @@ struct ConvertView: View {
                     Image(systemName: "paperplane.fill")
                         .font(.subheadline)
                         .foregroundStyle(AppColor.accent)
+                        .padding(.vertical, 8)
+                        .padding(.trailing, 10)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
             }
@@ -619,11 +655,33 @@ struct ConvertView: View {
                     Image(systemName: "xmark.circle.fill")
                         .font(.subheadline)
                         .foregroundStyle(.tertiary)
+                        .padding(.vertical, 8)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 8)
+    }
+
+    private func openQueuedItem(_ item: QueueItem) {
+        let articleID = item.articleID
+        var descriptor = FetchDescriptor<Article>(
+            predicate: #Predicate<Article> { $0.id == articleID }
+        )
+        descriptor.fetchLimit = 1
+        do {
+            if let article = try modelContext.fetch(descriptor).first,
+               LibraryStore.epubURL(for: article) != nil {
+                readerArticle = article
+                return
+            }
+        } catch {
+            DebugLogger.log(
+                "Reader could not resolve queued article: \(error.localizedDescription)",
+                level: .error, category: .conversion
+            )
+        }
+        readerQueueItem = item
     }
 }
 
