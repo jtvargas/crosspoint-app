@@ -20,7 +20,7 @@ DerivedData/
 Packages/
 Package.pins
 Package.resolved
-*.xcodeproj/project.xcworkspace/
+!*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 .swiftpm/
 
 # CocoaPods
