@@ -90,6 +90,9 @@ nonisolated struct CrossPointFirmwareService: DeviceService {
             // 409 Conflict means the folder already exists — our goal is met
             if httpResponse.statusCode == 409 { return }
             let bodyText = String(data: data, encoding: .utf8) ?? "Unknown error"
+            // CrossPoint hides dot folders from listings and reports an existing
+            // folder with HTTP 400, so a missing listing entry is not authoritative.
+            if httpResponse.statusCode == 400, bodyText == "Folder already exists" { return }
             switch httpResponse.statusCode {
             case 403:
                 throw DeviceError.protectedItem
