@@ -60,6 +60,14 @@ The app supports both **Stock** and **CrossPoint** firmware variants with automa
 - **Upload progress** — real-time progress tracking via `URLSessionUploadTask` delegate
 - **Connection status** — persistent status bar showing firmware version, IP, WiFi mode, signal strength, free heap, and uptime
 
+### EPUB Upload Optimization
+
+- Enabled by the existing Settings toggle; downscales raster images to the X4 panel and encodes grayscale JPEGs without changing the image-quality settings.
+- Only successfully converted images receive `.jpg` filenames. XHTML, CSS, OPF, and NCX references follow those names; skipped images keep their original paths and bytes.
+- Removes stale image dimensions, unwraps SVG-wrapped raster images, and injects a defensive reader stylesheet once. Repairs OPF cover metadata and synchronizes the NCX identifier with the package identifier.
+- Retains the size/decode guards and upload fallback: malformed text is left unchanged, archive errors return the original EPUB, and rebuilt EPUBs are used only when smaller.
+- Skips text rewriting when no images were converted and no XHTML contains SVG markup.
+
 ### File Manager
 
 - **Browse device storage** — navigate directories with breadcrumb trail
