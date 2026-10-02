@@ -1,19 +1,18 @@
 import Foundation
 import WebKit
 
-/// Fallback content extractor using Mozilla Readability.js in a hidden WKWebView.
-/// Used when SwiftSoup heuristic extraction produces insufficient content.
+/// Readability.js extraction from pre-fetched HTML or a JavaScript-rendered page.
 @MainActor
 final class ReadabilityExtractor: NSObject {
-    
     private var webView: WKWebView?
     private var continuation: CheckedContinuation<ExtractedContent?, Error>?
     private var timeoutTask: Task<Void, Never>?
+    private var extractionTask: Task<Void, Never>?
+    private var waitsForRendering = false
     private var pageLanguage = "en"
     private var baseURL: URL?
     private var sanitizerOptions = SanitizerOptions()
-    
-    /// Readability.js source loaded from the app bundle.
+
     private static let readabilityJS: String? = {
         guard let url = Bundle.main.url(forResource: "readability", withExtension: "js"),
               let source = try? String(contentsOf: url, encoding: .utf8) else {
@@ -21,175 +20,184 @@ final class ReadabilityExtractor: NSObject {
         }
         return source
     }()
-    
-    /// The extraction script that runs Readability and returns results as JSON.
+
     private static let extractionScript = """
     (function() {
-        try {
-            var article = new Readability(document.cloneNode(true)).parse();
-            if (article) {
-                return JSON.stringify({
-                    title: article.title || '',
-                    content: article.content || '',
-                    textContent: article.textContent || '',
-                    byline: article.byline || '',
-                    excerpt: article.excerpt || ''
-                });
-            }
-            return null;
-        } catch(e) {
-            return null;
-        }
+        var article = new Readability(document.cloneNode(true)).parse();
+        if (!article) return null;
+        return JSON.stringify({
+            title: article.title || '',
+            content: article.content || '',
+            textContent: article.textContent || '',
+            byline: article.byline || '',
+            excerpt: article.excerpt || '',
+            language: document.documentElement.lang || ''
+        });
     })();
     """
-    
-    /// Extract article content using Readability.js in a hidden WebView.
-    /// Uses loadHTMLString to avoid web-browser-engine entitlement requirements on iOS 26+.
-    /// - Parameters:
-    ///   - html: The pre-fetched HTML string.
-    ///   - baseURL: The original page URL (used for resolving relative paths).
-    ///   - language: The page language (from the fetched page), carried into the result.
-    ///   - options: Sanitizer options (image preservation).
-    /// - Returns: Extracted content, or nil if extraction fails.
+
+    /// Keeps the pre-fetched fast path without a second page navigation.
     func extract(
         html: String,
         baseURL: URL,
         language: String = "en",
         options: SanitizerOptions = SanitizerOptions()
     ) async throws -> ExtractedContent? {
-        guard ReadabilityExtractor.readabilityJS != nil else {
-            return nil // Readability.js not bundled
-        }
+        try await extract(html: html, url: baseURL, language: language, options: options)
+    }
 
-        // Reentrancy guard: this instance holds a single continuation, so a
-        // second concurrent extract would clobber the first. Callers create
-        // one extractor per conversion; this is defense in depth.
-        guard continuation == nil else { return nil }
+    /// Standard WKWebView HTTPS navigation needs no alternative-browser-engine entitlement.
+    func extract(
+        url: URL,
+        language: String = "en",
+        options: SanitizerOptions = SanitizerOptions()
+    ) async throws -> ExtractedContent? {
+        try await extract(html: nil, url: url, language: language, options: options)
+    }
 
+    private func extract(
+        html: String?, url: URL, language: String, options: SanitizerOptions
+    ) async throws -> ExtractedContent? {
+        try Task.checkCancellation()
+        guard Self.readabilityJS != nil, continuation == nil else { return nil }
         pageLanguage = language
-        self.baseURL = baseURL
+        baseURL = url
         sanitizerOptions = options
+        waitsForRendering = html == nil
 
-        return try await withCheckedThrowingContinuation { continuation in
-            self.continuation = continuation
+        // Capture this operation's view so delayed cancellation cannot affect a
+        // subsequent extraction on the same instance.
+        let config = WKWebViewConfiguration()
+        config.defaultWebpagePreferences.allowsContentJavaScript = true
+        config.websiteDataStore = .nonPersistent()
+        let view = WKWebView(frame: CGRect(x: 0, y: 0, width: 1024, height: 768), configuration: config)
+        webView = view
+        view.navigationDelegate = self
 
-            let config = WKWebViewConfiguration()
-            config.suppressesIncrementalRendering = true
-
-            let webView = WKWebView(frame: .zero, configuration: config)
-            webView.navigationDelegate = self
-            self.webView = webView
-
-            webView.loadHTMLString(html, baseURL: baseURL)
-
-            // Timeout after 30 seconds (cancelled on completion)
-            timeoutTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .seconds(30))
-                guard !Task.isCancelled else { return }
-                if let cont = self?.continuation {
-                    self?.continuation = nil
-                    self?.cleanup()
-                    cont.resume(returning: nil)
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            return try await withCheckedThrowingContinuation { continuation in
+                self.continuation = continuation
+                if let html {
+                    view.loadHTMLString(html, baseURL: url)
+                } else {
+                    view.load(URLRequest(url: url, timeoutInterval: 30))
                 }
+                // Deadline covers navigation, rendering and extraction together.
+                timeoutTask = Task { [weak self, weak view] in
+                    do { try await Task.sleep(for: .seconds(30)) } catch { return }
+                    guard let self, let view, self.webView === view else { return }
+                    self.finish(.success(nil))
+                }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self, weak view] in
+                guard let self, let view, self.webView === view else { return }
+                self.finish(.failure(CancellationError()))
             }
         }
     }
 
-    private func cleanup() {
+    private func finish(_ result: Result<ExtractedContent?, Error>) {
+        let pending = continuation
+        continuation = nil
         timeoutTask?.cancel()
         timeoutTask = nil
-        webView?.stopLoading()
+        extractionTask?.cancel()
+        extractionTask = nil
         webView?.navigationDelegate = nil
+        webView?.stopLoading()
         webView = nil
+        pending?.resume(with: result)
+    }
+
+    private func extractDOM(in view: WKWebView) async throws -> ExtractedContent? {
+        guard let source = Self.readabilityJS else { return nil }
+        // Isolate our parser from globals supplied by the live page's scripts.
+        _ = try await view.evaluateJavaScript(source, in: nil, contentWorld: .defaultClient)
+        let result = try await view.evaluateJavaScript(Self.extractionScript, in: nil, contentWorld: .defaultClient)
+        try Task.checkCancellation()
+        guard webView === view,
+              let jsonString = result as? String,
+              let data = jsonString.data(using: .utf8),
+              let json = try JSONSerialization.jsonObject(with: data) as? [String: String],
+              let text = json["textContent"], text.count >= 400 else { return nil }
+        let sanitized = try HTMLSanitizer.sanitizeToXHTML(
+            json["content"] ?? "",
+            baseURI: view.url?.absoluteString ?? baseURL?.absoluteString ?? "",
+            options: sanitizerOptions
+        )
+        let language = json["language"] ?? ""
+        return ExtractedContent(
+            title: json["title"]?.condensed ?? "Untitled",
+            author: json["byline"]?.condensed,
+            description: json["excerpt"]?.condensed ?? "",
+            language: language.isEmpty ? pageLanguage : language.components(separatedBy: "-")[0],
+            bodyHTML: sanitized.bodyHTML,
+            images: sanitized.images
+        )
+    }
+
+    private func beginExtraction(in view: WKWebView) {
+        guard webView === view, continuation != nil else { return }
+        extractionTask?.cancel()
+        extractionTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                if !self.waitsForRendering {
+                    let content = try await self.extractDOM(in: view)
+                    try Task.checkCancellation()
+                    guard self.webView === view else { return }
+                    self.finish(.success(content))
+                    return
+                }
+
+                var previousLength = 0
+                var stableSamples = 0
+                while !Task.isCancelled, self.webView === view {
+                    let result = try await view.evaluateJavaScript(
+                        "document.body ? document.body.innerText.trim().length : 0",
+                        in: nil, contentWorld: .defaultClient
+                    )
+                    try Task.checkCancellation()
+                    let length = result as? Int ?? 0
+                    stableSamples = length >= 400 && length == previousLength ? stableSamples + 1 : 0
+                    previousLength = length
+                    // Wait for a second of stable text, then validate the actual
+                    // article, not just navigation/footer text. Keep polling if nil.
+                    if stableSamples >= 2, let content = try await self.extractDOM(in: view) {
+                        try Task.checkCancellation()
+                        guard self.webView === view else { return }
+                        self.finish(.success(content))
+                        return
+                    }
+                    try await Task.sleep(for: .milliseconds(500))
+                }
+            } catch {
+                guard !Task.isCancelled, self.webView === view else { return }
+                self.finish(.success(nil))
+            }
+        }
     }
 }
 
 extension ReadabilityExtractor: WKNavigationDelegate {
-    
-    nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        Task { @MainActor in
-            await self.performExtraction(in: webView)
-        }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        beginExtraction(in: webView)
     }
-    
-    nonisolated func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        Task { @MainActor in
-            if let cont = self.continuation {
-                self.continuation = nil
-                self.cleanup()
-                cont.resume(returning: nil)
-            }
-        }
-    }
-    
-    nonisolated func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        Task { @MainActor in
-            if let cont = self.continuation {
-                self.continuation = nil
-                self.cleanup()
-                cont.resume(returning: nil)
-            }
-        }
-    }
-    
-    @MainActor
-    private func performExtraction(in webView: WKWebView) async {
-        guard let readabilityJS = ReadabilityExtractor.readabilityJS else {
-            resumeWithResult(nil)
-            return
-        }
-        
-        do {
-            // Inject Readability.js
-            try await webView.evaluateJavaScript(readabilityJS)
-            
-            // Run extraction
-            let result = try await webView.evaluateJavaScript(Self.extractionScript)
-            
-            guard let jsonString = result as? String,
-                  let jsonData = jsonString.data(using: .utf8),
-                  let json = try JSONSerialization.jsonObject(with: jsonData) as? [String: String] else {
-                resumeWithResult(nil)
-                return
-            }
-            
-            let content = json["content"] ?? ""
-            let textContent = json["textContent"] ?? ""
-            
-            // Validate content length
-            guard textContent.count >= 400 else {
-                resumeWithResult(nil)
-                return
-            }
-            
-            // Sanitize the Readability output (single parse: sanitize + XHTML)
-            let sanitized = try HTMLSanitizer.sanitizeToXHTML(
-                content,
-                baseURI: baseURL?.absoluteString ?? "",
-                options: sanitizerOptions
-            )
 
-            let extracted = ExtractedContent(
-                title: json["title"]?.condensed ?? "Untitled",
-                author: json["byline"]?.condensed,
-                description: json["excerpt"]?.condensed ?? "",
-                language: pageLanguage,
-                bodyHTML: sanitized.bodyHTML,
-                images: sanitized.images
-            )
-            
-            resumeWithResult(extracted)
-        } catch {
-            resumeWithResult(nil)
-        }
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        guard self.webView === webView else { return }
+        finish(.success(nil))
     }
-    
-    @MainActor
-    private func resumeWithResult(_ result: ExtractedContent?) {
-        if let cont = continuation {
-            continuation = nil
-            cleanup()
-            cont.resume(returning: result)
-        }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        guard self.webView === webView else { return }
+        finish(.success(nil))
+    }
+
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        guard self.webView === webView else { return }
+        finish(.success(nil))
     }
 }
