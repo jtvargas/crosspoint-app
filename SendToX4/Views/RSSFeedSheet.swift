@@ -13,9 +13,9 @@ struct RSSFeedSheet: View {
     var settings: DeviceSettings
     var toast: ToastManager
 
-    private var feeds: [RSSFeed] {
-        rssVM.fetchFeeds(modelContext: modelContext)
-    }
+    @Query(sort: \RSSFeed.createdAt) private var feeds: [RSSFeed]
+    @Query(filter: #Predicate<RSSArticle> { $0.statusRaw == "new" })
+    private var newArticles: [RSSArticle]
 
     var body: some View {
         NavigationStack {
@@ -248,19 +248,11 @@ struct RSSFeedSheet: View {
     // MARK: - Helpers
 
     private var totalNewCount: Int {
-        let newStatus = RSSArticleStatus.new.rawValue
-        let descriptor = FetchDescriptor<RSSArticle>(
-            predicate: #Predicate<RSSArticle> { $0.statusRaw == newStatus }
-        )
-        return (try? modelContext.fetchCount(descriptor)) ?? 0
+        newArticles.count
     }
 
     private func newCount(for feedID: UUID) -> Int {
-        let newStatus = RSSArticleStatus.new.rawValue
-        let descriptor = FetchDescriptor<RSSArticle>(
-            predicate: #Predicate<RSSArticle> { $0.feedID == feedID && $0.statusRaw == newStatus }
-        )
-        return (try? modelContext.fetchCount(descriptor)) ?? 0
+        newArticles.count { $0.feedID == feedID }
     }
 }
 
@@ -282,8 +274,32 @@ private struct RSSArticleListView: View {
     /// Feed to filter by. `nil` means show all feeds.
     let feedID: UUID?
 
-    private var articles: [RSSArticle] {
-        rssVM.fetchFilteredArticles(modelContext: modelContext)
+    @Query private var articles: [RSSArticle]
+
+    init(
+        rssVM: RSSFeedViewModel,
+        deviceVM: DeviceViewModel,
+        queueVM: QueueViewModel,
+        settings: DeviceSettings,
+        toast: ToastManager,
+        feedTitle: String,
+        feedID: UUID?
+    ) {
+        self.rssVM = rssVM
+        self.deviceVM = deviceVM
+        self.queueVM = queueVM
+        self.settings = settings
+        self.toast = toast
+        self.feedTitle = feedTitle
+        self.feedID = feedID
+        if let feedID {
+            _articles = Query(
+                filter: #Predicate<RSSArticle> { $0.feedID == feedID },
+                sort: \RSSArticle.publishedAt, order: .reverse
+            )
+        } else {
+            _articles = Query(sort: \RSSArticle.publishedAt, order: .reverse)
+        }
     }
 
     var body: some View {
@@ -355,6 +371,9 @@ private struct RSSArticleListView: View {
         #else
         .listStyle(.inset)
         #endif
+        .refreshable {
+            await rssVM.refreshAllFeeds(modelContext: modelContext)
+        }
     }
 
     private var noArticlesView: some View {
