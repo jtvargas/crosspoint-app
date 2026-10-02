@@ -271,6 +271,14 @@ The `AccentColor` asset set contains teal variants for both light and dark appea
 - System `List`, `NavigationStack`, `TabView` with minimal custom styling
 - SF Symbols for all icons
 
+### Toast presentation (JT-22)
+
+- `ToastManager` owns independent HUD and center messages and cancellable dismissal tasks. Each request gets a fresh `ToastMessage.id`, including repeated identical text; stale dismissals cannot clear newer messages.
+- Errors stay for 4 seconds; success/queued messages for 2.5 seconds; copied confirmations for 1.5 seconds. Error subtitles collapse whitespace and cap at 120 characters; full diagnostics remain in conversion history and `lastError`.
+- `toastHost(_:feedback:)` presents bounded, Dynamic Type-aware buttons inside the host's safe area. Both `MainView` platform branches and Convert modal roots host the same manager, so sheets do not cover an in-flight failure.
+- Keep the banner's view identity stable during replacement. HUD entrance uses a spring, or an opacity fade with Reduce Motion. Only the root enables outcome haptics; modal hosts must not duplicate them. Tapping either toast dismisses its own channel.
+- `ToastManagerTests` covers replacement, stale dismissal, independent channels, duration changes, whitespace, and Unicode truncation boundaries. AlertToast is no longer used: its fixed-width HUD and retained dismissal timer caused overflow and premature failure dismissal.
+
 ## Dependencies
 
 | Package | Min Version | Purpose |
