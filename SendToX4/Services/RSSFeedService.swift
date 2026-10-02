@@ -209,7 +209,7 @@ nonisolated enum RSSFeedService {
 // MARK: - XML Parser Delegate
 
 /// Internal delegate that handles both RSS 2.0 and Atom feed formats.
-private final class RSSXMLParserDelegate: NSObject, XMLParserDelegate, @unchecked Sendable {
+private nonisolated final class RSSXMLParserDelegate: NSObject, XMLParserDelegate, @unchecked Sendable {
 
     // Feed-level data
     var feedTitle = ""

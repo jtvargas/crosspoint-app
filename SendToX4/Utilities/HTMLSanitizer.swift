@@ -20,7 +20,7 @@ struct ImageRef: Sendable, Equatable {
     let alt: String
 
     /// EPUB-relative path the `<img src>` was rewritten to.
-    var placeholderPath: String { "images/img-\(index).jpg" }
+    nonisolated var placeholderPath: String { "images/img-\(index).jpg" }
 }
 
 /// Sanitized body content plus any image references found.
