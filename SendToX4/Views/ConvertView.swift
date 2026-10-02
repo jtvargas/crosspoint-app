@@ -75,17 +75,20 @@ struct ConvertView: View {
                     settings: settings,
                     toast: toast
                 )
+                .toastHost(toast)
             }
             .sheet(isPresented: $showShareSheet) {
                 if let shareEPUBData, let shareFilename {
                     let tempURL = FileManager.default.temporaryDirectory
                         .appendingPathComponent(shareFilename)
                     ShareSheetView(items: [tempURL], epubData: shareEPUBData, filename: shareFilename)
+                        .toastHost(toast)
                 } else if let data = convertVM.lastEPUBData,
                           let filename = convertVM.lastFilename {
                     let tempURL = FileManager.default.temporaryDirectory
                         .appendingPathComponent(filename)
                     ShareSheetView(items: [tempURL], epubData: data, filename: filename)
+                        .toastHost(toast)
                 }
             }
             .onChange(of: convertVM.shouldRequestReview) { _, shouldPrompt in
@@ -98,11 +101,13 @@ struct ConvertView: View {
             #if os(iOS)
             .fullScreenCover(item: $readerArticle) { article in
                 ReaderView(article: article)
+                    .toastHost(toast)
             }
             #else
             .sheet(item: $readerArticle) { article in
                 ReaderView(article: article)
                     .frame(minWidth: 700, minHeight: 800)
+                    .toastHost(toast)
             }
             #endif
 
