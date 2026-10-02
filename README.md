@@ -244,6 +244,8 @@ Open **Settings** (gear icon) to:
 - Configure destination folders for conversions and wallpapers
 - Toggle optional features (File Manager, WallpaperX)
 
+CrossPoint firmware may omit hidden destination folders such as `.sleep` from its file listings. CrossX reuses these folders when the device reports that they already exist, including after reconnecting, so additional wallpapers can be sent without recreating the folder. Other folder-creation errors, including protected-folder restrictions, are still reported.
+
 > **Network note**: The app requires the `NSAllowsLocalNetworking` ATS exception and `com.apple.security.network.client` entitlement for plain HTTP communication with the device. These are already configured in the project.
 
 ---
