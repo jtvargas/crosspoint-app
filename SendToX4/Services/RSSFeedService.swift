@@ -52,7 +52,9 @@ nonisolated enum RSSFeedService {
     /// - Parameter url: Direct URL to the RSS/Atom XML feed.
     /// - Returns: Parsed feed with title, link, and items.
     static func fetch(url: URL) async throws -> ParsedFeed {
-        let (data, response) = try await urlSession.data(from: url)
+        // Refresh must reach the server even when a previous response is still cache-fresh.
+        let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
+        let (data, response) = try await urlSession.data(for: request)
 
         if let httpResponse = response as? HTTPURLResponse,
            !(200...299).contains(httpResponse.statusCode) {

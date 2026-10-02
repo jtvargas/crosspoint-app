@@ -92,6 +92,11 @@ The app supports both **Stock** and **CrossPoint** firmware variants with automa
 - **Persistent storage** — queued EPUBs survive app restarts; stored in Application Support with SwiftData tracking
 - **Batch sending** — sends queued items sequentially with progress indicator, logs results to activity history
 
+### RSS Feeds
+
+- **Pull to refresh** — pull down on the feed grid, a selected feed's article list, or All Feeds to fetch the latest articles from enabled feeds, bypassing the local response cache.
+- **Live updates** — new articles and unread counts appear without reopening the sheet; existing article URLs are deduplicated and retain their processing status.
+
 ### Siri Shortcuts
 
 - **Convert from Shortcuts** — use the "Convert to EPUB & Add to Queue" action in the Shortcuts app
