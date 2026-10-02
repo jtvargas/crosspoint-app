@@ -2,7 +2,7 @@ import Foundation
 
 extension String {
     /// Escapes special XML characters for safe inclusion in XHTML content.
-    var xmlEscaped: String {
+    nonisolated var xmlEscaped: String {
         self.replacingOccurrences(of: "&", with: "&amp;")
             .replacingOccurrences(of: "<", with: "&lt;")
             .replacingOccurrences(of: ">", with: "&gt;")

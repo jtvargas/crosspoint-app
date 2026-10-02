@@ -51,6 +51,15 @@ The app supports both **Stock** and **CrossPoint** firmware variants with automa
 - **In-memory generation** — no temp files; the entire EPUB is built as a `Data` object via ZIPFoundation
 - **Smart filenames** — generated as `Title - Author - domain - YYYY-MM-DD.epub`
 
+### Import EPUB or PDF
+
+In **Convert**, choose **Import File → Choose File** to select an EPUB or PDF from Files on iOS or the file picker on macOS. No device connection is needed.
+
+- **EPUB** — validates the EPUB archive and preserves the original book; its filename becomes the library title.
+- **PDF** — converts selectable text into reflowable EPUB chapters, preserving page order. Scanned or blank pages remain image pages (960 pixels wide); there is no OCR. PDF title and author metadata are retained when available.
+- **Library and queue** — successful imports are saved to Library and the Send Queue. Tap **Show Queue**, then connect your X4 and send through the existing queue controls. Device image optimization still runs when sending.
+- **Private local preparation** — selected files are copied into the app sandbox while security-scoped access is active; temporary copies are removed afterward. Damaged or password-protected PDFs show an actionable error instead of being queued.
+
 ### Device Communication
 
 - **Dual firmware support** — works with both Stock firmware (`192.168.3.3`) and CrossPoint firmware (`192.168.4.1` / `crosspoint.local`)

@@ -7,7 +7,7 @@ import Foundation
 /// (title, author, publisher, description, chapter titles). Callers pass
 /// RAW strings — never pre-escaped — so values can't be double-escaped.
 /// `body` parameters are already-valid XHTML and are interpolated verbatim.
-enum EPUBTemplates {
+nonisolated enum EPUBTemplates {
 
     /// The mimetype file content (must be exactly this, uncompressed, first entry in ZIP).
     static let mimetype = "application/epub+zip"

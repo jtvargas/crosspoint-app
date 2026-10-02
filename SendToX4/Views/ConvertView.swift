@@ -6,6 +6,7 @@ import StoreKit
 struct ConvertView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.requestReview) private var requestReview
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var convertVM: ConvertViewModel
     var deviceVM: DeviceViewModel
     var queueVM: QueueViewModel
@@ -27,6 +28,9 @@ struct ConvertView: View {
     @State private var shareEPUBData: Data?
     @State private var shareFilename: String?
     @State private var readerArticle: Article?
+    @State private var showFileImport = false
+    @State private var revealQueueAfterImport = false
+    @State private var queueRevealRequest = 0
     @State private var readerQueueItem: QueueItem?
     @FocusState private var isURLFieldFocused: Bool
 
@@ -44,27 +48,35 @@ struct ConvertView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // URL Input Card
-                    urlInputCard
+            ScrollViewReader { scrollProxy in
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // URL Input Card
+                        urlInputCard
 
-                    // Action Buttons
-                    actionButtons
+                        // Action Buttons
+                        actionButtons
 
-                    // RSS Feeds Card
-                    rssFeedCard
+                        // RSS Feeds Card
+                        rssFeedCard
 
-                    // Send Queue
-                    queueSection
+                        // Send Queue
+                        queueSection
+                            .id("sendQueue")
 
-                    // Recent Conversions
-                    recentConversionsSection
+                        // Recent Conversions
+                        recentConversionsSection
 
-                    Spacer(minLength: 40)
+                        Spacer(minLength: 40)
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
+                .onChange(of: queueRevealRequest) {
+                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.4)) {
+                        scrollProxy.scrollTo("sendQueue", anchor: .top)
+                    }
+                }
             }
             .navigationTitle(loc(.tabConvert))
             .settingsToolbar(deviceVM: deviceVM, settings: settings, toast: toast)
@@ -77,6 +89,16 @@ struct ConvertView: View {
                     toast: toast
                 )
                 .toastHost(toast)
+            }
+            .sheet(isPresented: $showFileImport, onDismiss: {
+                if revealQueueAfterImport {
+                    revealQueueAfterImport = false
+                    queueRevealRequest += 1
+                }
+            }) {
+                FileImportSheet {
+                    revealQueueAfterImport = true
+                }
             }
             .sheet(isPresented: $showShareSheet) {
                 if let shareEPUBData, let shareFilename {
@@ -171,8 +193,31 @@ struct ConvertView: View {
                 .buttonBorderShape(.capsule)
             }
             .padding()
-            .glassEffect(.regular, in: .rect(cornerRadius: 16))
+            Divider()
+                .padding(.horizontal)
+
+            Button {
+                isURLFieldFocused = false
+                showFileImport = true
+            } label: {
+                HStack(spacing: 12) {
+                    Label(loc(.importFile), systemImage: "doc.badge.plus")
+                        .font(.subheadline.bold())
+                    Spacer(minLength: 8)
+                    Text(loc(.importFormats))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(AppColor.accent)
+            .accessibilityHint(loc(.importDestination))
+            .accessibilityIdentifier("import-file")
         }
+        .glassEffect(.regular, in: .rect(cornerRadius: 16))
     }
 
     // MARK: - Action Button

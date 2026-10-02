@@ -2,7 +2,7 @@ import Foundation
 import SwiftSoup
 
 /// A chapter within an EPUB document.
-struct Chapter {
+nonisolated struct Chapter: Sendable {
     /// Zero-based chapter index.
     let index: Int
     /// Chapter title (from <h2> text or "Part N").
@@ -13,7 +13,7 @@ struct Chapter {
 
 /// Splits long HTML content into multiple chapters for EPUB generation.
 /// This reduces per-file size and improves reading experience on e-readers.
-enum ChapterSplitter {
+nonisolated enum ChapterSplitter {
 
     /// Minimum text length (in characters) before splitting is considered.
     /// Content shorter than this stays as a single chapter.
