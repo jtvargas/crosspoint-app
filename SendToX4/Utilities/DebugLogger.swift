@@ -117,8 +117,10 @@ final class DebugLogger {
     // MARK: - Public API
 
     /// Log a message. This is the primary entry point — call from anywhere.
-    static func log(_ message: String, level: Level = .info, category: Category = .general) {
-        shared.append(message: message, level: level, category: category)
+    nonisolated static func log(_ message: String, level: Level = .info, category: Category = .general) {
+        Task { @MainActor in
+            shared.append(message: message, level: level, category: category)
+        }
     }
 
     /// Export the full log file contents as a plain text string.
