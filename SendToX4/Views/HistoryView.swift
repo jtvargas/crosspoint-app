@@ -121,6 +121,15 @@ struct HistoryView: View {
                 }
             }
             // MARK: - Share Sheet
+            #if os(iOS)
+            .background {
+                if showShareSheet, let data = shareEPUBData, let filename = shareFilename {
+                    ShareSheetView(epubData: data, filename: filename) {
+                        showShareSheet = false
+                    }
+                }
+            }
+            #else
             .sheet(isPresented: $showShareSheet) {
                 if let data = shareEPUBData, let filename = shareFilename {
                     let tempURL = FileManager.default.temporaryDirectory
@@ -128,6 +137,7 @@ struct HistoryView: View {
                     ShareSheetView(items: [tempURL], epubData: data, filename: filename)
                 }
             }
+            #endif
             // MARK: - Reader
             #if os(iOS)
             .fullScreenCover(item: $readerArticle) { article in

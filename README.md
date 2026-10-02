@@ -108,6 +108,7 @@ In **Convert**, choose **Import File → Choose File** to select an EPUB or PDF 
 - **Queue management** — view queued items in the Convert tab, remove individual items, or clear the entire queue from Settings
 - **Read from home** — tap a queued EPUB to open the reader. When its library copy is available, reading progress is saved; otherwise the queued file opens without saving progress
 - **Recent conversions** — tap a recent row to read its local library EPUB. Rows without a local copy do nothing; the existing row menus and queue send/remove controls remain independent
+- **Reconvert & Share** — share recent conversions or History EPUBs through a window-anchored iPhone/iPad share panel, with a non-popover sheet fallback when an anchor is unavailable (JT-24).
 - **Persistent storage** — queued EPUBs survive app restarts; stored in Application Support with SwiftData tracking
 - **Batch sending** — sends queued items sequentially with progress indicator, logs results to activity history
 
