@@ -30,9 +30,11 @@ struct SettingsToolbarModifier: ViewModifier {
             }
             .sheet(isPresented: $showSettings) {
                 SettingsSheet(deviceVM: deviceVM, settings: settings, toast: toast)
+                    .toastHost(toast)
             }
             .sheet(isPresented: $showAbout) {
                 AboutAppView()
+                    .toastHost(toast)
             }
     }
 }

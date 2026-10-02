@@ -1,4 +1,3 @@
-import AlertToast
 import SwiftUI
 import SwiftData
 
@@ -87,12 +86,7 @@ struct MainView: View {
                 Text(loc(.sendQueuedFilesMessage, queueItems.count))
             }
         }
-        .toast(isPresenting: $toast.showHUD, duration: 2.5, tapToDismiss: true) {
-            toast.hudToast
-        }
-        .toast(isPresenting: $toast.showCenter, duration: 1.5, tapToDismiss: true) {
-            toast.centerToast
-        }
+        .toastHost(toast, feedback: true)
         #else
         tabContent
             .tabViewBottomAccessory {
@@ -117,6 +111,7 @@ struct MainView: View {
             }
             .sheet(isPresented: $showAdvancedWallpaperSettings) {
                 WallpaperAdvancedSheet(wallpaperVM: wallpaperVM)
+                    .toastHost(toast)
             }
             .task {
                 await deviceVM.search(settings: settings)
@@ -152,12 +147,7 @@ struct MainView: View {
                     Text(loc(.sendQueuedFilesMessage, queueItems.count))
                 }
             }
-            .toast(isPresenting: $toast.showHUD, duration: 2.5, tapToDismiss: true) {
-                toast.hudToast
-            }
-            .toast(isPresenting: $toast.showCenter, duration: 1.5, tapToDismiss: true) {
-                toast.centerToast
-            }
+            .toastHost(toast, feedback: true)
         #endif
     }
 

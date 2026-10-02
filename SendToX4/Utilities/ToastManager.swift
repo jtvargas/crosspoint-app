@@ -1,77 +1,83 @@
-import AlertToast
 import SwiftUI
 
-/// Centralized toast notification manager for the app.
-///
-/// Provides two independent toast channels:
-/// - **HUD** (`.hud`): drops from the top for action confirmations (sent, queued, errors)
-/// - **Center** (`.alert`): centered popup for quick actions (copy, etc.)
-///
-/// Usage: call convenience methods from ViewModels (passed as parameter)
-/// or directly from Views. The `.toast()` modifiers are attached once
-/// at the root view level (`MainView`).
+/// Independent top and center channels with a fresh lifetime for every request.
+/// Root and modal `toastHost` presenters share this state and retain their view
+/// identity when a visible message is replaced, including identical messages.
 @MainActor
 @Observable
 final class ToastManager {
+    private(set) var hud: ToastMessage?
+    private(set) var center: ToastMessage?
 
-    // MARK: - HUD Channel (top drop-down)
+    @ObservationIgnored private var hudTask: Task<Void, Never>?
+    @ObservationIgnored private var centerTask: Task<Void, Never>?
 
-    var showHUD = false
-    var hudToast = AlertToast(displayMode: .hud, type: .regular, title: "")
+    deinit {
+        hudTask?.cancel()
+        centerTask?.cancel()
+    }
 
-    // MARK: - Center Channel (center popup)
-
-    var showCenter = false
-    var centerToast = AlertToast(displayMode: .alert, type: .regular, title: "")
-
-    // MARK: - Convenience: Success (.hud + checkmark)
-
-    /// Show a success HUD toast (green checkmark, drops from top).
     func showSuccess(_ title: String, subtitle: String? = nil) {
-        hudToast = AlertToast(
-            displayMode: .hud,
-            type: .complete(AppColor.success),
-            title: title,
-            subTitle: subtitle
-        )
-        showHUD = true
+        presentHUD(ToastMessage(kind: .success, title: title, subtitle: subtitle, duration: 2.5))
     }
 
-    // MARK: - Convenience: Queued (.hud + tray icon)
-
-    /// Show a "queued" HUD toast (orange tray icon, drops from top).
     func showQueued(_ title: String, subtitle: String? = nil) {
-        hudToast = AlertToast(
-            displayMode: .hud,
-            type: .systemImage("tray.and.arrow.down.fill", AppColor.warning),
-            title: title,
-            subTitle: subtitle
-        )
-        showHUD = true
+        presentHUD(ToastMessage(kind: .queued, title: title, subtitle: subtitle, duration: 2.5))
     }
 
-    // MARK: - Convenience: Error (.hud + xmark)
-
-    /// Show an error HUD toast (red xmark, drops from top).
     func showError(_ title: String, subtitle: String? = nil) {
-        hudToast = AlertToast(
-            displayMode: .hud,
-            type: .error(AppColor.error),
+        // The complete diagnostic remains in conversion history / lastError.
+        let summary = subtitle?.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        presentHUD(ToastMessage(
+            kind: .error,
             title: title,
-            subTitle: subtitle
-        )
-        showHUD = true
+            subtitle: summary.flatMap { $0.isEmpty ? nil : $0.truncated(to: 120) },
+            duration: 4
+        ))
     }
 
-    // MARK: - Convenience: Copied (.alert + centered checkmark)
-
-    /// Show a centered "copied" toast (green checkmark, brief popup in center).
     func showCopied(_ title: String? = nil) {
-        centerToast = AlertToast(
-            displayMode: .alert,
-            type: .complete(AppColor.success),
-            title: title ?? loc(.toastCopied)
-        )
-        showCenter = true
+        centerTask?.cancel()
+        let message = ToastMessage(kind: .success, title: title ?? loc(.toastCopied), subtitle: nil, duration: 1.5)
+        center = message
+        centerTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(message.duration))
+            } catch {
+                // Sleep cancellation means a replacement or explicit dismissal.
+                return
+            }
+            guard !Task.isCancelled else { return }
+            self?.dismissCenter(id: message.id)
+        }
+    }
+
+    func dismissHUD(id: UUID) {
+        guard hud?.id == id else { return }
+        hudTask?.cancel()
+        hudTask = nil
+        hud = nil
+    }
+
+    func dismissCenter(id: UUID) {
+        guard center?.id == id else { return }
+        centerTask?.cancel()
+        centerTask = nil
+        center = nil
+    }
+
+    private func presentHUD(_ message: ToastMessage) {
+        hudTask?.cancel()
+        hud = message
+        hudTask = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .seconds(message.duration))
+            } catch {
+                // A newer request owns the channel and its full reading time.
+                return
+            }
+            guard !Task.isCancelled else { return }
+            self?.dismissHUD(id: message.id)
+        }
     }
 }

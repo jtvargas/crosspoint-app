@@ -44,7 +44,7 @@ The app supports both **Stock** and **CrossPoint** firmware variants with automa
 ### EPUB Conversion
 
 - **URL-to-EPUB pipeline** — paste any web page URL and get a properly formatted EPUB 2.0 e-book
-- **Dual content extraction** — fast SwiftSoup heuristic extraction with automatic Readability.js fallback for complex pages
+- **Tiered content extraction** — fast SwiftSoup extraction, pre-fetched Readability.js fallback, and live rendering for JavaScript-only pages when static extraction fails
 - **Twitter/X support** — dedicated extractor using the fxtwitter API for tweet threads
 - **Auto chapter splitting** — long articles are split at `<h2>` headings or by paragraph count (50 max per chapter)
 - **HTML sanitization** — strips scripts, forms, media, styles, and images for clean text-only EPUBs
@@ -68,6 +68,14 @@ In **Convert**, choose **Import File → Choose File** to select an EPUB or PDF 
 - **Retry logic** — 2 automatic retries with 1-second delay on transient failures
 - **Upload progress** — real-time progress tracking via `URLSessionUploadTask` delegate
 - **Connection status** — persistent status bar showing firmware version, IP, WiFi mode, signal strength, free heap, and uptime
+
+### EPUB Upload Optimization
+
+- Enabled by the existing Settings toggle; downscales raster images to the X4 panel and encodes grayscale JPEGs without changing the image-quality settings.
+- Only successfully converted images receive `.jpg` filenames. XHTML, CSS, OPF, and NCX references follow those names; skipped images keep their original paths and bytes.
+- Removes stale image dimensions, unwraps SVG-wrapped raster images, and injects a defensive reader stylesheet once. Repairs OPF cover metadata and synchronizes the NCX identifier with the package identifier.
+- Retains the size/decode guards and upload fallback: malformed text is left unchanged, archive errors return the original EPUB, and rebuilt EPUBs are used only when smaller.
+- Skips text rewriting when no images were converted and no XHTML contains SVG markup.
 
 ### File Manager
 
@@ -98,8 +106,15 @@ In **Convert**, choose **Import File → Choose File** to select an EPUB or PDF 
 - **Offline queuing** — EPUBs converted while the device is disconnected are saved to disk and queued for later sending
 - **Auto-prompt on connect** — when the device connects, an alert offers to send all queued items at once
 - **Queue management** — view queued items in the Convert tab, remove individual items, or clear the entire queue from Settings
+- **Read from home** — tap a queued EPUB to open the reader. When its library copy is available, reading progress is saved; otherwise the queued file opens without saving progress
+- **Recent conversions** — tap a recent row to read its local library EPUB. Rows without a local copy do nothing; the existing row menus and queue send/remove controls remain independent
 - **Persistent storage** — queued EPUBs survive app restarts; stored in Application Support with SwiftData tracking
 - **Batch sending** — sends queued items sequentially with progress indicator, logs results to activity history
+
+### RSS Feeds
+
+- **Pull to refresh** — pull down on the feed grid, a selected feed's article list, or All Feeds to fetch the latest articles from enabled feeds, bypassing the local response cache.
+- **Live updates** — new articles and unread counts appear without reopening the sheet; existing article URLs are deduplicated and retain their processing status.
 
 ### Siri Shortcuts
 
@@ -248,6 +263,8 @@ Open **Settings** (gear icon) to:
 - Configure destination folders for conversions and wallpapers
 - Toggle optional features (File Manager, WallpaperX)
 
+CrossPoint firmware may omit hidden destination folders such as `.sleep` from its file listings. CrossX reuses these folders when the device reports that they already exist, including after reconnecting, so additional wallpapers can be sent without recreating the folder. Other folder-creation errors, including protected-folder restrictions, are still reported.
+
 > **Network note**: The app requires the `NSAllowsLocalNetworking` ATS exception and `com.apple.security.network.client` entitlement for plain HTTP communication with the device. These are already configured in the project.
 
 ---
@@ -279,7 +296,7 @@ Views → ViewModels → Services
 ### Key design decisions
 
 - **Protocol-oriented device communication** — `DeviceService` protocol with concrete implementations per firmware, enabling easy mocking and future firmware support
-- **Dual content extraction** — SwiftSoup for speed (primary), WKWebView + Readability.js for accuracy (fallback), Twitter API for tweets
+- **Tiered content extraction** — SwiftSoup for speed (primary), pre-fetched Readability.js for complex HTML, live WKWebView navigation for JavaScript-rendered pages after static extraction fails, and Twitter API for tweets
 - **In-memory EPUB generation** — no temporary files; all ZIP operations produce `Data` objects directly
 - **Offline queue** — EPUBs are written to disk and tracked via SwiftData when the device is disconnected; batch-sent when it reconnects
 - **Headless Siri Shortcuts** — `ConvertURLIntent` runs the full conversion pipeline without opening the app, using its own `ModelContext` against the shared SwiftData store
@@ -374,10 +391,12 @@ crosspoint-app/
 The conversion pipeline runs entirely in memory with no temporary files:
 
 1. **Fetch** — `WebPageFetcher` downloads the HTML via `URLSession` with a Safari user-agent, encoding detection, and redirect following
-2. **Extract** — `ContentExtractor` (SwiftSoup) parses the DOM for article content using semantic selectors (`<article>`, `[role=main]`, `.post-content`, etc.). If extraction fails (< 400 chars), falls back to `ReadabilityExtractor` (WKWebView + Readability.js). Twitter/X URLs use `TwitterExtractor` via the fxtwitter API
+2. **Extract** — `ContentExtractor` (SwiftSoup) parses the DOM for article content using semantic selectors (`<article>`, `[role=main]`, `.post-content`, etc.). If extraction fails (< 400 chars), `ReadabilityExtractor` tries the fetched HTML, then loads the real URL in WKWebView and runs Readability.js on the rendered DOM. Empty application shells skip the pre-fetched fallback. Twitter/X URLs first use `TwitterExtractor` via the fxtwitter API
 3. **Sanitize** — `HTMLSanitizer` strips all scripts, styles, forms, media, images, SVGs, iframes, event handlers, and data attributes. Links are converted to plain text for a clean reading experience
 4. **Build** — `EPUBBuilder` assembles the EPUB 2.0 package in memory: `mimetype` (uncompressed), `META-INF/container.xml`, `content.opf`, `toc.ncx`, and one or more `chapter-N.xhtml` files. Long content is auto-split by `ChapterSplitter` at `<h2>` boundaries or every 50 paragraphs
 5. **Send** — The `Data` blob is uploaded via multipart/form-data POST to the device's upload endpoint, with real-time progress tracking
+
+Reader-view URLs containing a case-insensitive `/reader/` segment are resolved during fetch (JT-21). `ReaderURLResolver` preserves encoded path components, query parameters, and fragments while trying the path without the reader segment first. An absolute HTTP(S) `<link rel="canonical">` discovered in fetched HTML takes priority; failed or empty-content candidates fall back to the original URL. Non-reader URLs are unchanged. Fully client-rendered sites such as gatesnotes.com still require the JavaScript-render fallback from JT-19 for end-to-end conversion; URL resolution alone does not render article content.
 
 ---
 
@@ -389,7 +408,8 @@ CrossX uses a tiered extraction approach to handle the widest range of web pages
 |------|-----------|--------|------|
 | **1** | `TwitterExtractor` | fxtwitter JSON API | Twitter/X status URLs |
 | **2** | `ContentExtractor` | SwiftSoup DOM parsing | All other URLs (primary) |
-| **3** | `ReadabilityExtractor` | WKWebView + Readability.js | Fallback when SwiftSoup extracts < 400 chars |
+| **3** | `ReadabilityExtractor` | Readability.js on pre-fetched HTML | Static extraction fails and the HTML is not an empty application shell |
+| **4** | `ReadabilityExtractor` | Live WKWebView navigation + Readability.js on the rendered DOM | Static extraction fails; waits for stable rendered text within a 30-second deadline |
 
 The SwiftSoup extractor uses a priority list of CSS selectors to find article content:
 `article`, `[role=main]`, `.post-content`, `.entry-content`, `.article-body`, `#content`, `main`, and more.

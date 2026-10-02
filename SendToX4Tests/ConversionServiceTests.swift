@@ -26,6 +26,14 @@ struct ConversionServiceTests {
             #expect(requested == url)
             return Self.fixturePage(url: requested)
         }
+        service.readabilityExtract = { _, _, _, _ in
+            Issue.record("Static article must not start WebKit")
+            return nil
+        }
+        service.renderedExtract = { _, _, _ in
+            Issue.record("Static article must not navigate live")
+            return nil
+        }
 
         let result = try await service.convert(url: url)
 
@@ -84,6 +92,8 @@ struct ConversionServiceTests {
                 language: "en"
             )
         }
+        service.readabilityExtract = { _, _, _, _ in nil }
+        service.renderedExtract = { _, _, _ in nil }
 
         var thrownError: Error?
         do {
@@ -94,5 +104,62 @@ struct ConversionServiceTests {
         // Readability fallback also fails (no meaningful content), so the
         // pipeline surfaces contentTooShort.
         #expect(thrownError is EPUBError)
+    }
+
+    @Test func appShellSkipsPrefetchedReadability() async throws {
+        var service = ConversionService()
+        let url = URL(string: "https://example.com/spa")!
+        service.fetch = {
+            FetchedPage(html: "<script type='module' src='/app.js'></script><div id='root'></div>",
+                        finalURL: $0, language: "en")
+        }
+        service.readabilityExtract = { _, _, _, _ in
+            Issue.record("An empty app shell should go directly to live rendering")
+            return nil
+        }
+        service.renderedExtract = { _, _, _ in Self.renderedArticle }
+        let result = try await service.convert(url: url)
+        #expect(result.content.title == "Rendered article")
+        #expect(result.epubData.prefix(2) == Data([0x50, 0x4B]))
+    }
+
+    @Test(arguments: [true, false])
+    func ordinaryPageTriesPrefetchedBeforeLive(prefetchedSucceeds: Bool) async throws {
+        var service = ConversionService()
+        service.fetch = {
+            FetchedPage(html: "<p>short static content</p>", finalURL: $0, language: "en")
+        }
+        var stages: [String] = []
+        service.readabilityExtract = { _, _, _, _ in
+            stages.append("prefetched")
+            return prefetchedSucceeds ? Self.renderedArticle : nil
+        }
+        service.renderedExtract = { _, _, _ in
+            stages.append("live")
+            return Self.renderedArticle
+        }
+        let result = try await service.convert(url: URL(string: "https://example.com/article")!)
+        #expect(stages == (prefetchedSucceeds ? ["prefetched"] : ["prefetched", "live"]))
+        #expect(result.content.title == "Rendered article")
+    }
+
+    @Test func cancellationDoesNotStartLiveNavigation() async {
+        var service = ConversionService()
+        service.fetch = {
+            FetchedPage(html: "<p>short</p>", finalURL: $0, language: "en")
+        }
+        service.readabilityExtract = { _, _, _, _ in throw CancellationError() }
+        service.renderedExtract = { _, _, _ in
+            Issue.record("Cancellation must not start another fallback")
+            return nil
+        }
+        await #expect(throws: CancellationError.self) {
+            try await service.convert(url: URL(string: "https://example.com/article")!)
+        }
+    }
+
+    private static var renderedArticle: ExtractedContent {
+        ExtractedContent(title: "Rendered article", author: nil, description: "", language: "en",
+                         bodyHTML: "<p>\(String(repeating: "Article text. ", count: 50))</p>")
     }
 }
